@@ -1,0 +1,38 @@
+{
+    "name": "LiDAR-Processing-V2",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "args": {
+            "USER_UID": "1000",
+            "USER_GID": "1000"
+        }
+    },
+    "runArgs": [
+        "--net",
+        "host",
+        "--env",
+        "DISPLAY",
+        "--privileged"
+    ],
+    "mounts": [
+        "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached"
+    ],
+    "postCreateCommand": "bash -c 'source /opt/ros/humble/setup.bash'",
+    "remoteUser": "devuser",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-vscode.cpptools",
+                "ms-iot.vscode-ros",
+                "xaver.clang-format",
+                "eamodio.gitlens",
+                "ms-python.black-formatter"
+            ],
+            "settings": {
+                "terminal.integrated.defaultProfile.linux": "bash",
+                "terminal.integrated.shell.linux": "/bin/bash",
+                "C_Cpp.clang_format_style": "file"
+            }
+        }
+    }
+}
