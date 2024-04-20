@@ -14,8 +14,8 @@
         "--net",
         "host",
         "--privileged",
-        "--env",
-        "DISPLAY"
+        "--env=DISPLAY=:1",
+        "--volume=/tmp/.X11-unix:/tmp/.X11-unix:rw"
     ],
     "mounts": [
         "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached"
@@ -39,7 +39,8 @@
                 "DavidAnson.vscode-markdownlint",
                 "redhat.vscode-xml",
                 "redhat.vscode-yaml",
-                "mechatroner.rainbow-csv"
+                "mechatroner.rainbow-csv",
+                "cheshirekow.cmake-format"
             ],
             "settings": {
                 "terminal.integrated.defaultProfile.linux": "bash",
@@ -75,7 +76,14 @@
                 "[xml]": {
                     "editor.formatOnSave": true,
                     "editor.defaultFormatter": "redhat.vscode-xml"
-                }
+                },
+                "[cmake]": {
+                    "editor.formatOnSave": true,
+                    "editor.defaultFormatter": "cheshirekow.cmake-format"
+                },
+                "files.trimTrailingWhitespace": true,
+                "files.insertFinalNewline": true,
+                "terminal.integrated.scrollback": 10000
             }
         }
     }
