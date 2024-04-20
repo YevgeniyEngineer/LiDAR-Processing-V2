@@ -104,3 +104,57 @@ Login to Docker using your own credentials:
 ```bash
 docker login
 ```
+
+#### Enable X Server
+Allow Docker containers to display GUI applications on your host’s X server.
+```bash
+xhost +local:docker
+```
+
+#### Install NVIDIA Container Toolkit
+Add the Package RepositoriesOpen a terminal and add the NVIDIA package repositories:
+
+```bash
+distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
+curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
+curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list
+```
+
+Install NVIDIA DockerUpdate your package list and install the NVIDIA docker package:
+```bash
+sudo apt-get update
+sudo apt-get install -y nvidia-docker2
+```
+
+Restart the Docker DaemonRestart the Docker daemon to apply the changes:
+```bash
+sudo systemctl restart docker
+```
+
+#### Configure Docker to Use the NVIDIA Runtime
+You can configure Docker to use the NVIDIA runtime by default so that every container you launch utilizes the GPU.
+
+Edit or Create the Docker Daemon Configuration FileOpen or create the Docker daemon configuration file in your editor:
+```bash
+sudo nano /etc/docker/daemon.json
+```
+
+Add the Default RuntimeAdd or modify the file to include the default NVIDIA runtime:
+```json
+{
+    "runtimes": {
+        "nvidia": {
+            "path": "nvidia-container-runtime",
+            "runtimeArgs": []
+        }
+    },
+    "default-runtime": "nvidia"
+}
+```
+
+Restart DockerRestart the Docker service to apply these configuration changes:
+```bash
+sudo systemctl restart docker
+```
+
+**NOTE: IF YOU DON'T HAVE NVIDIA GPU, REMOVE "--runtime=nvidia" FROM .devcontainer.json** 

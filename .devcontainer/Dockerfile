@@ -21,6 +21,14 @@ RUN apt-get update && apt-get install -y \
     gnupg2 \
     net-tools \
     x11-apps \
+    qtbase5-dev \
+    qtchooser \
+    qt5-qmake \
+    qtbase5-dev-tools \
+    libxcb-xinerama0 \
+    libx11-xcb1 \
+    libgl1-mesa-glx \
+    libgl1-mesa-dri \
     python3-pip \
     clang-format \
     gdb \

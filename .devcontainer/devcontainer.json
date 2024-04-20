@@ -8,11 +8,14 @@
         }
     },
     "runArgs": [
+        "--gpus",
+        "all",
+        "--runtime=nvidia",
         "--net",
         "host",
+        "--privileged",
         "--env",
-        "DISPLAY",
-        "--privileged"
+        "DISPLAY"
     ],
     "mounts": [
         "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached"
