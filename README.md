@@ -62,7 +62,7 @@ For the group change to take effect, you need to log out and then log back in. T
 newgrp docker
 ```
 
-Set up a Docker account here: https://hub.docker.com/signup?state=hKFo2SBMMjh5cU9YMGFVNDRBZXVLRzNrTlhZVWEtLXNUTVM1WqFur3VuaXZlcnNhbC1sb2dpbqN0aWTZIEhlOGhMYUV6WnQ3YUNKdHkzeEFqTERScmdFd3JKM1JUo2NpZNkgbHZlOUdHbDhKdFNVcm5lUTFFVnVDMGxiakhkaTluYjk to be able to pull Docker images.
+Set up a Docker account here: https://hub.docker.com/signup to be able to pull Docker images.
 
 #### Set Up Docker Credentials Helper
 
