@@ -9,4 +9,14 @@ find_package(ament_cmake REQUIRED)
 
 add_subdirectory(ros2_nodes/dataloader)
 
+# Install the launch
+install(DIRECTORY launch
+    DESTINATION share/${PROJECT_NAME}
+)
+
+# Install the visualization
+install(DIRECTORY visualization
+    DESTINATION share/${PROJECT_NAME}
+)
+
 ament_package()

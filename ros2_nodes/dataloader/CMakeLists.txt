@@ -39,7 +39,19 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
     ${PCL_DEFINITIONS}
 )
 
-# Install executable
-install(TARGETS ${PROJECT_NAME} DESTINATION lib/${PROJECT_NAME})
+# Install the executable (ROS2 convention)
+install(TARGETS ${PROJECT_NAME}
+    DESTINATION lib/${PROJECT_NAME}
+)
+
+# Install the config
+install(DIRECTORY config
+    DESTINATION share/${PROJECT_NAME}
+)
+
+# Install the launch
+install(DIRECTORY launch
+    DESTINATION share/${PROJECT_NAME}
+)
 
 ament_package()
