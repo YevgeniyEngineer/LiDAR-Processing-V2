@@ -39,8 +39,7 @@
                 "DavidAnson.vscode-markdownlint",
                 "redhat.vscode-xml",
                 "redhat.vscode-yaml",
-                "mechatroner.rainbow-csv",
-                "cheshirekow.cmake-format"
+                "mechatroner.rainbow-csv"
             ],
             "settings": {
                 "terminal.integrated.defaultProfile.linux": "bash",
