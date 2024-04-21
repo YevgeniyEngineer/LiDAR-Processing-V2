@@ -44,7 +44,6 @@
             ],
             "settings": {
                 "terminal.integrated.defaultProfile.linux": "bash",
-                "terminal.integrated.shell.linux": "/bin/bash",
                 "C_Cpp.clang_format_style": "file",
                 "C_Cpp.default.cppStandard": "c++17",
                 "C_Cpp.default.cStandard": "c11",
@@ -76,10 +75,6 @@
                 "[xml]": {
                     "editor.formatOnSave": true,
                     "editor.defaultFormatter": "redhat.vscode-xml"
-                },
-                "[cmake]": {
-                    "editor.formatOnSave": true,
-                    "editor.defaultFormatter": "cheshirekow.cmake-format"
                 },
                 "files.trimTrailingWhitespace": true,
                 "files.insertFinalNewline": true,
