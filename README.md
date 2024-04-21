@@ -190,7 +190,7 @@ Add the Default RuntimeAdd or modify the file to include the default NVIDIA runt
 }
 ```
 
-Restart DockerRestart the Docker service to apply these configuration changes:
+Restart the Docker service to apply these configuration changes:
 
 ```bash
 sudo systemctl restart docker
