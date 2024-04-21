@@ -2,11 +2,11 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "C++ Debug",
+            "name": "Test Utilities Lib",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/my_program", // executable path
-            "args": [], // command line arguments
+            "program": "${workspaceFolder}/build/libraries/utilities_lib/test_utilities_lib",
+            "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
@@ -19,7 +19,7 @@
                     "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "build", // refers to a task defined in tasks.json to build the project
+            "preLaunchTask": "build",
             "miDebuggerPath": "/usr/bin/gdb"
         }
     ]

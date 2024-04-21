@@ -71,6 +71,7 @@
         "future": "cpp",
         "shared_mutex": "cpp",
         "cfenv": "cpp",
-        "variant": "cpp"
+        "variant": "cpp",
+        "any": "cpp"
     }
 }
