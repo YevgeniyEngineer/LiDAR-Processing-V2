@@ -64,19 +64,26 @@ TEST(StaticVectorTest, CapacityIncreasesCorrectly)
 // Test the handling of complex data types
 TEST(StaticVectorTest, HandlesComplexDataTypes)
 {
-    StaticVector<std::vector<std::string>> vec;
+    // std::shared_ptr<StaticVector<std::vector<std::string>>> vec =
+    //     StaticVectorFactory<std::vector<std::string>>::create(0);
+
+    // auto& ref = *vec;
+
+    StaticVector<std::vector<std::string>> ref;
 
     std::vector<std::string> innerVec1 = {"Hello", "World"};
     std::vector<std::string> innerVec2 = {"Goodbye", "World"};
 
-    vec.push_back(innerVec1);
-    vec.push_back(innerVec2);
+    ref.push_back(innerVec1);
+    ref.push_back(innerVec2);
 
-    EXPECT_EQ(2, vec.size());
-    EXPECT_EQ("Hello", vec[0][0]);
-    EXPECT_EQ("World", vec[0][1]);
-    EXPECT_EQ("Goodbye", vec[1][0]);
-    EXPECT_EQ("World", vec[1][1]);
+    EXPECT_EQ(2, ref.size());
+    EXPECT_EQ("Hello", ref[0][0]);
+    EXPECT_EQ("World", ref[0][1]);
+    EXPECT_EQ("Goodbye", ref[1][0]);
+    EXPECT_EQ("World", ref[1][1]);
+
+    // StaticVectorFactory<std::vector<std::string>>::cleanup();
 }
 
 // Test the clear functionality with complex types

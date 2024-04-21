@@ -7,6 +7,7 @@
 #include <cstdlib>     // std::atexit
 #include <iostream>    // std::cerr
 #include <iterator>    // std::random_access_iterator
+#include <map>         // std::map
 #include <memory>      // std::allocator
 #include <new>         // ::new
 #include <stdexcept>   // std::runtime_error, std::out_of_range
@@ -170,6 +171,8 @@ class StaticVector final
     static void cleanup() noexcept
     {
         delete[] elements_;
+        elements_ = nullptr;
+
         capacity_ = 0U;
         cleanup_registered_ = false;
 
@@ -185,6 +188,38 @@ typename StaticVector<T>::size_type StaticVector<T>::capacity_ = 0U;
 
 template <typename T>
 bool StaticVector<T>::cleanup_registered_ = false;
+
+template <typename T>
+class StaticVectorFactory final
+{
+  public:
+    static std::shared_ptr<StaticVector<T>> create(std::size_t id)
+    {
+        if (pool_.find(id) == pool_.end())
+        {
+            pool_[id] = std::make_shared<StaticVector<T>>();
+            std::cerr << "Created new StaticVector instance with ID " << id << std::endl;
+        }
+        else
+        {
+            std::cerr << "Returning existing StaticVector instance with ID " << id << std::endl;
+        }
+
+        return pool_[id];
+    }
+
+    static void cleanup()
+    {
+        std::cout << "Cleaning up all StaticVector instances..." << std::endl;
+        pool_.clear();
+    }
+
+  private:
+    static std::map<std::size_t, std::shared_ptr<StaticVector<T>>> pool_;
+};
+
+template <typename T>
+std::map<std::size_t, std::shared_ptr<StaticVector<T>>> StaticVectorFactory<T>::pool_;
 
 } // namespace utilities_lib
 
