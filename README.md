@@ -11,47 +11,49 @@ code --install-extension --force ms-azuretools.vscode-docker
 
 ## Docker Setup
 
-#### Update the apt package index and install packages to allow apt to use a repository over HTTPS
+### Installation of Docker on Linux
+
+Update the apt package index and install packages to allow apt to use a repository over HTTPS:
 
 ```bash
 sudo apt-get update
 sudo apt-get install --fix-missing apt-transport-https ca-certificates curl software-properties-common
 ```
 
-#### Add Docker’s official GPG key
+Add Docker’s official GPG key
 
 ```bash
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
 ```
 
-#### Set up the stable repository
+Set up the stable repository
 
 ```bash
 echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 ```
 
-#### Install Docker Engine
+Install Docker engine
 
 ```bash
 sudo apt-get update
 sudo apt-get install docker-ce docker-ce-cli containerd.io
 ```
 
-#### Start Docker Engine and Confirm Installation
+Start Docker engine and confirm installation
 
 ```bash
 sudo systemctl start docker
 sudo systemctl status docker
 ```
 
-#### Enable Docker to Start at Boot
+Enable Docker to Start at Boot
 
 ```bash
 sudo systemctl enable docker.service
 sudo systemctl enable containerd.service
 ```
 
-#### Steps to add to Docker Group
+### Steps to add to Docker Group
 
 Create docker group:
 
@@ -75,7 +77,7 @@ newgrp docker
 
 Set up a Docker account here: <https://hub.docker.com/signup> to be able to pull Docker images.
 
-#### Set Up Docker Credentials Helper
+### Set Up Docker Credentials Helper
 
 Install pass:
 
@@ -117,13 +119,13 @@ Change the config to:
 }
 ```
 
-Login to Docker using your own credentials:
+Login to Docker using your own credentials (when prompted, enter your login and password):
 
 ```bash
 docker login
 ```
 
-#### Enable X Server
+### Enable X Server for Graphics Support
 
 Allow Docker containers to display GUI applications on your host’s X server.
 
@@ -137,7 +139,11 @@ or you might need to allow the root user on local connections:
 xhost +local:root
 ```
 
-#### Install NVIDIA Container Toolkit
+### Install NVIDIA Container Toolkit
+
+This step is optional, only applicable if you have NVIDIA GPU.
+
+#### NOTE: IF YOU DON'T HAVE NVIDIA GPU, REMOVE "--runtime=nvidia" FROM .devcontainer.json
 
 Add the Package RepositoriesOpen a terminal and add the NVIDIA package repositories:
 
@@ -160,7 +166,7 @@ Restart the Docker DaemonRestart the Docker daemon to apply the changes:
 sudo systemctl restart docker
 ```
 
-#### Configure Docker to Use the NVIDIA Runtime
+### Configure Docker to Use the NVIDIA Runtime
 
 You can configure Docker to use the NVIDIA runtime by default so that every container you launch utilizes the GPU.
 
@@ -189,5 +195,3 @@ Restart DockerRestart the Docker service to apply these configuration changes:
 ```bash
 sudo systemctl restart docker
 ```
-
-**NOTE: IF YOU DON'T HAVE NVIDIA GPU, REMOVE "--runtime=nvidia" FROM .devcontainer.json**
