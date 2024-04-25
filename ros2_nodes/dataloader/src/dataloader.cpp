@@ -82,48 +82,6 @@ class Node final : public rclcpp::Node
 
     PointCloud2 message_;
 
-    void loadData()
-    {
-        std::vector<std::filesystem::path> files;
-
-        for (const auto& file : std::filesystem::directory_iterator(data_path_))
-        {
-            if (std::filesystem::is_regular_file(file) && (file.path().extension() == ".pcd"))
-            {
-                files.push_back(file.path());
-            }
-        }
-
-        std::sort(files.begin(), files.end());
-
-        for (const auto& file : files)
-        {
-            pcl::PointCloud<pcl::PointXYZI> cloud_in;
-
-            if (pcl::io::loadPCDFile<pcl::PointXYZI>(file, cloud_in) == -1)
-            {
-                throw std::runtime_error("Cloud not read " + file.string() + " file");
-            }
-
-            pcl::PointCloud<pcl::PointXYZIR> cloud_out;
-
-            addRingInfo(cloud_in, cloud_out);
-
-            pointclouds_.push_back(std::move(cloud_out));
-        }
-
-        pointcloud_iterator_ = pointclouds_.cbegin();
-
-        std::size_t reservation_size = 0U;
-        for (const auto& cloud : pointclouds_)
-        {
-            reservation_size = std::max(reservation_size, (cloud.points.size() * sizeof(pcl::PointXYZIR)));
-        }
-
-        message_.data.reserve(reservation_size);
-        message_.fields.reserve(5);
-    }
-
     void addRingInfo(const pcl::PointCloud<pcl::PointXYZI>& cloud_in, pcl::PointCloud<pcl::PointXYZIR>& cloud_out,
                      const float elevation_tolerance = 0.008F)
     {
@@ -177,30 +135,45 @@ class Node final : public rclcpp::Node
         }
     }
 
-    void timerCallback()
+    void loadData()
     {
-        static constexpr std::int64_t SECONDS_TO_NANOSECONDS = 1'000'000'000LL;
+        std::vector<std::filesystem::path> files;
 
-        if (pointcloud_iterator_ == pointclouds_.cend())
+        for (const auto& file : std::filesystem::directory_iterator(data_path_))
         {
-            pointcloud_iterator_ = pointclouds_.cbegin();
+            if (std::filesystem::is_regular_file(file) && (file.path().extension() == ".pcd"))
+            {
+                files.push_back(file.path());
+            }
         }
 
-        message_.header.frame_id = "lidar"; // sensor frame
+        std::sort(files.begin(), files.end());
 
-        const auto nanosec_timestamp = std::chrono::steady_clock::now().time_since_epoch().count();
-        message_.header.stamp.sec =
-            static_cast<std::int32_t>(static_cast<double>(nanosec_timestamp / SECONDS_TO_NANOSECONDS));
-        message_.header.stamp.nanosec = static_cast<std::uint32_t>(
-            nanosec_timestamp -
-            static_cast<std::int64_t>(static_cast<double>(message_.header.stamp.sec) * SECONDS_TO_NANOSECONDS));
+        for (const auto& file : files)
+        {
+            pcl::PointCloud<pcl::PointXYZI> cloud_in;
 
-        message_.height = pointcloud_iterator_->height;
-        message_.width = pointcloud_iterator_->width;
-        message_.is_bigendian = false;
-        message_.point_step = sizeof(pcl::PointXYZIR);
-        message_.row_step = sizeof(pcl::PointXYZIR) * message_.width;
-        message_.is_dense = pointcloud_iterator_->is_dense;
+            if (pcl::io::loadPCDFile<pcl::PointXYZI>(file, cloud_in) == -1)
+            {
+                throw std::runtime_error("Cloud not read " + file.string() + " file");
+            }
+
+            pcl::PointCloud<pcl::PointXYZIR> cloud_out;
+
+            addRingInfo(cloud_in, cloud_out);
+
+            pointclouds_.push_back(std::move(cloud_out));
+        }
+
+        pointcloud_iterator_ = pointclouds_.cbegin();
+
+        std::size_t reservation_size = 0U;
+        for (const auto& cloud : pointclouds_)
+        {
+            reservation_size = std::max(reservation_size, (cloud.points.size() * sizeof(pcl::PointXYZIR)));
+        }
+
+        message_.data.reserve(reservation_size);
 
         message_.fields.resize(5);
 
@@ -228,6 +201,32 @@ class Node final : public rclcpp::Node
         message_.fields[4].offset = offsetof(pcl::PointXYZIR, ring);
         message_.fields[4].datatype = PointFieldTypes::UINT16;
         message_.fields[4].count = 1;
+    }
+
+    void timerCallback()
+    {
+        static constexpr std::int64_t SECONDS_TO_NANOSECONDS = 1'000'000'000LL;
+
+        if (pointcloud_iterator_ == pointclouds_.cend())
+        {
+            pointcloud_iterator_ = pointclouds_.cbegin();
+        }
+
+        message_.header.frame_id = "lidar"; // sensor frame
+
+        const auto nanosec_timestamp = std::chrono::steady_clock::now().time_since_epoch().count();
+        message_.header.stamp.sec =
+            static_cast<std::int32_t>(static_cast<double>(nanosec_timestamp / SECONDS_TO_NANOSECONDS));
+        message_.header.stamp.nanosec = static_cast<std::uint32_t>(
+            nanosec_timestamp -
+            static_cast<std::int64_t>(static_cast<double>(message_.header.stamp.sec) * SECONDS_TO_NANOSECONDS));
+
+        message_.height = pointcloud_iterator_->height;
+        message_.width = pointcloud_iterator_->width;
+        message_.is_bigendian = false;
+        message_.point_step = sizeof(pcl::PointXYZIR);
+        message_.row_step = sizeof(pcl::PointXYZIR) * message_.width;
+        message_.is_dense = pointcloud_iterator_->is_dense;
 
         message_.data.resize(sizeof(pcl::PointXYZIR) * pointcloud_iterator_->size());
         std::memcpy(static_cast<void*>(message_.data.data()), static_cast<const void*>(pointcloud_iterator_->data()),
