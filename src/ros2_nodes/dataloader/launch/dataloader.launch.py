@@ -6,7 +6,7 @@ import os
 
 def generate_launch_description():
     config = os.path.join(
-        get_package_share_directory("dataloader"), "config", "dataloader.config.yaml"
+        get_package_share_directory("dataloader"), "config", "dataloader.param.yaml"
     )
 
     return LaunchDescription(

@@ -1,17 +1,21 @@
 <?xml version="1.0"?>
 <package format="3">
-    <name>lidar_processing_v2</name>
+    <name>processor</name>
     <version>0.0.0</version>
-    <description>Package for processing LiDAR data</description>
+    <description>ROS2 LiDAR data processing node</description>
 
     <maintainer email="yevgeniy.engineer@gmail.com">Yevgeniy Simonov</maintainer>
     <license>GPL-3.0</license>
 
     <buildtool_depend>ament_cmake</buildtool_depend>
 
-    <depend>dataloader</depend>
-
     <export>
         <build_type>ament_cmake</build_type>
     </export>
+
+    <depend>rclcpp</depend>
+    <depend>sensor_msgs</depend>
+    <depend>geometry_msgs</depend>
+    <depend>visualization_msgs</depend>
+
 </package>

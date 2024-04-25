@@ -24,9 +24,9 @@ add_executable(${PROJECT_NAME}
 # Include directories for the target
 target_include_directories(${PROJECT_NAME}
     PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${PCL_INCLUDE_DIRS}
-        ${rclcpp_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${PCL_INCLUDE_DIRS}
+    ${rclcpp_INCLUDE_DIRS}
 )
 
 # Define dependencies for the target
@@ -41,7 +41,6 @@ ament_target_dependencies(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME}
     ${PCL_LIBRARIES}
     ${rclcpp_LIBRARIES}
-    lidar_processing_lib
 )
 
 # Install the executable (ROS2 convention)

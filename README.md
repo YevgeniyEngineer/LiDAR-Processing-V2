@@ -201,7 +201,7 @@ sudo systemctl restart docker
 Once you are inside of Devcontainer, you can build and launch the nodes. In the main directory:
 
 ```bash
-./clean.sh
-./build.sh
-./launch.sh
+./scripts/clean.sh
+./scripts/build.sh
+./scripts/launch.sh
 ```

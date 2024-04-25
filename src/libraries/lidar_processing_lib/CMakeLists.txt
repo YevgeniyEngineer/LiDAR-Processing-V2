@@ -14,6 +14,7 @@ find_package(PCL 1.7.2 REQUIRED)
 
 # Source files
 set(SOURCE_FILES
+    src/dummy.cpp
 )
 
 # Create shared library
@@ -22,30 +23,30 @@ add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES})
 # Specify include directories for the library
 target_include_directories(${PROJECT_NAME}
     PUBLIC
-        ${PCL_INCLUDE_DIRS}
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:include>
+    ${PCL_INCLUDE_DIRS}
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
     PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
 # Link directories
 target_link_directories(${PROJECT_NAME}
     PUBLIC
-        ${PCL_LIBRARY_DIRS}
+    ${PCL_LIBRARY_DIRS}
 )
 
 # Compile definitions
 target_compile_definitions(${PROJECT_NAME}
     PUBLIC
-        ${PCL_DEFINITIONS}
+    ${PCL_DEFINITIONS}
 )
 
 # Link libraries
 target_link_libraries(${PROJECT_NAME}
     PUBLIC
-        Eigen3::Eigen
-        ${PCL_LIBRARIES}
+    Eigen3::Eigen
+    ${PCL_LIBRARIES}
 )
 
 # Installation rules for the library
