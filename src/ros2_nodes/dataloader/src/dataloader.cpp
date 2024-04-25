@@ -1,8 +1,10 @@
 // STL
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <memory>
@@ -64,6 +66,7 @@ class Node final : public rclcpp::Node
         loadData();
 
         publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(topic_, 10);
+        vis_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/pointcloud_rings", 10);
         timer_ = this->create_wall_timer(sleep_duration_ms_, std::bind(&Node::timerCallback, this));
 
         RCLCPP_INFO(this->get_logger(), "Datalogger node constructed.");
@@ -81,6 +84,9 @@ class Node final : public rclcpp::Node
     std::vector<pcl::PointCloud<pcl::PointXYZIR>>::const_iterator pointcloud_iterator_;
 
     PointCloud2 message_;
+
+    rclcpp::Publisher<PointCloud2>::SharedPtr vis_publisher_;
+    PointCloud2 vis_message_;
 
     void addRingInfo(const pcl::PointCloud<pcl::PointXYZI>& cloud_in, pcl::PointCloud<pcl::PointXYZIR>& cloud_out,
                      const float elevation_tolerance = 0.008F)
@@ -173,6 +179,7 @@ class Node final : public rclcpp::Node
             reservation_size = std::max(reservation_size, (cloud.points.size() * sizeof(pcl::PointXYZIR)));
         }
 
+        // For processing
         message_.data.reserve(reservation_size);
 
         message_.fields.resize(5);
@@ -201,6 +208,31 @@ class Node final : public rclcpp::Node
         message_.fields[4].offset = offsetof(pcl::PointXYZIR, ring);
         message_.fields[4].datatype = PointFieldTypes::UINT16;
         message_.fields[4].count = 1;
+
+        // For visualization of rings
+        vis_message_.data.reserve(reservation_size);
+
+        vis_message_.fields.resize(4);
+
+        vis_message_.fields[0].name = "x";
+        vis_message_.fields[0].offset = offsetof(pcl::PointXYZIR, x);
+        vis_message_.fields[0].datatype = PointFieldTypes::FLOAT32;
+        vis_message_.fields[0].count = 1;
+
+        vis_message_.fields[1].name = "y";
+        vis_message_.fields[1].offset = offsetof(pcl::PointXYZIR, y);
+        vis_message_.fields[1].datatype = PointFieldTypes::FLOAT32;
+        vis_message_.fields[1].count = 1;
+
+        vis_message_.fields[2].name = "z";
+        vis_message_.fields[2].offset = offsetof(pcl::PointXYZIR, z);
+        vis_message_.fields[2].datatype = PointFieldTypes::FLOAT32;
+        vis_message_.fields[2].count = 1;
+
+        vis_message_.fields[3].name = "rgb";
+        vis_message_.fields[3].offset = offsetof(pcl::PointXYZIR, intensity);
+        vis_message_.fields[3].datatype = PointFieldTypes::FLOAT32;
+        vis_message_.fields[3].count = 1;
     }
 
     void timerCallback()
@@ -233,6 +265,70 @@ class Node final : public rclcpp::Node
                     sizeof(pcl::PointXYZIR) * pointcloud_iterator_->size());
 
         publisher_->publish(message_);
+
+        // For visualization
+        {
+            vis_message_.header = message_.header;
+            vis_message_.height = message_.height;
+            vis_message_.width = message_.width;
+            vis_message_.is_bigendian = false;
+            vis_message_.point_step = sizeof(pcl::PointXYZRGB);
+            vis_message_.row_step = sizeof(pcl::PointXYZRGB) * vis_message_.width;
+            vis_message_.is_dense = message_.is_dense;
+
+            vis_message_.data.resize(sizeof(pcl::PointXYZRGB) * pointcloud_iterator_->size());
+
+            const auto max_point_ring_index_iterator =
+                std::max_element(pointcloud_iterator_->points.cbegin(), pointcloud_iterator_->points.cend(),
+                                 [](const auto& a, const auto& b) -> bool { return (a.ring < b.ring); });
+
+            if (max_point_ring_index_iterator != pointcloud_iterator_->points.cend())
+            {
+                const auto max_ring_index = max_point_ring_index_iterator->ring;
+
+                pcl::PointXYZRGB point_cache;
+                std::ptrdiff_t pointer_offset = 0;
+
+                static constexpr std::array<std::array<std::uint8_t, 3>, 8> color_palette = {
+                    {{255, 0, 0},   // Red
+                     {0, 255, 0},   // Green
+                     {0, 0, 255},   // Blue
+                     {255, 255, 0}, // Yellow
+                     {255, 0, 255}, // Magenta
+                     {0, 255, 255}, // Cyan
+                     {255, 165, 0}, // Orange
+                     {128, 0, 128}} // Purple
+                };
+
+                static constexpr std::size_t num_colors = color_palette.size();
+
+                for (std::uint16_t ring = 0U; ring < max_ring_index + 1U; ++ring)
+                {
+                    const auto& ring_colour = color_palette[ring % num_colors];
+
+                    point_cache.r = ring_colour[0];
+                    point_cache.g = ring_colour[1];
+                    point_cache.b = ring_colour[2];
+
+                    for (const auto& point : pointcloud_iterator_->points)
+                    {
+                        if (point.ring == ring)
+                        {
+                            point_cache.x = point.x;
+                            point_cache.y = point.y;
+                            point_cache.z = point.z;
+
+                            std::memcpy(static_cast<void*>(&vis_message_.data.data()[pointer_offset]),
+                                        static_cast<const void*>(&point_cache), sizeof(point_cache));
+
+                            pointer_offset += sizeof(pcl::PointXYZRGB);
+                        }
+                    }
+                }
+            }
+
+            vis_publisher_->publish(vis_message_);
+        }
 
         ++pointcloud_iterator_;
     }
