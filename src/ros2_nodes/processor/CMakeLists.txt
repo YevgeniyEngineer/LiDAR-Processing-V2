@@ -15,18 +15,17 @@ find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 
+find_package(lidar_processing_lib REQUIRED)
+
 # Add executable
 add_executable(${PROJECT_NAME}
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/processor.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/jcp_segmenter.cpp
+    src/processor.cpp
 )
 
 # Include directories for the target
 target_include_directories(${PROJECT_NAME}
     PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${PCL_INCLUDE_DIRS}
-    ${rclcpp_INCLUDE_DIRS}
+        include
 )
 
 # Define dependencies for the target
@@ -35,12 +34,7 @@ ament_target_dependencies(${PROJECT_NAME}
     sensor_msgs
     geometry_msgs
     visualization_msgs
-)
-
-# Add linked libraries
-target_link_libraries(${PROJECT_NAME}
-    ${PCL_LIBRARIES}
-    ${rclcpp_LIBRARIES}
+    lidar_processing_lib
 )
 
 # Install the executable (ROS2 convention)
