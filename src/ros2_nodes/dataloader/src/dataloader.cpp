@@ -122,13 +122,15 @@ class Node final : public rclcpp::Node
 
             const auto& first_point = cloud_out.points[0U];
             auto last_elevation =
-                std::atan2(first_point.z, std::sqrt(first_point.x * first_point.x + first_point.y * first_point.y));
+                std::atan2(first_point.z, std::sqrt(first_point.x * first_point.x + first_point.y * first_point.y +
+                                                    first_point.z * first_point.z));
 
             for (std::size_t i = 1U; i < cloud_out.points.size(); ++i)
             {
                 auto& current_point = cloud_out.points[i];
                 const auto current_elevation = std::atan2(
-                    current_point.z, std::sqrt(current_point.x * current_point.x + current_point.y * current_point.y));
+                    current_point.z, std::sqrt(current_point.x * current_point.x + current_point.y * current_point.y +
+                                               current_point.z * current_point.z));
 
                 if (std::fabs(current_elevation - last_elevation) > elevation_tolerance)
                 {
@@ -155,9 +157,11 @@ class Node final : public rclcpp::Node
 
         std::sort(files.begin(), files.end());
 
+        pcl::PointCloud<pcl::PointXYZI> cloud_in;
+
         for (const auto& file : files)
         {
-            pcl::PointCloud<pcl::PointXYZI> cloud_in;
+            cloud_in.points.clear();
 
             if (pcl::io::loadPCDFile<pcl::PointXYZI>(file, cloud_in) == -1)
             {
