@@ -78,6 +78,17 @@
         "CMAKE_PREFIX_PATH": "/opt/ros/humble:$CMAKE_PREFIX_PATH",
         "LD_LIBRARY_PATH": "/opt/ros/humble/lib:$LD_LIBRARY_PATH"
     },
+    "search.exclude": {
+        "**/build": true,
+        "**/install": true,
+        "**/log": true
+    },
     "ros.rosSetupScript": "/opt/ros/humble/setup.bash",
-    "cmake.buildDirectory": "${workspaceFolder}/build"
+    "cmake.buildDirectory": "${workspaceFolder}/build",
+    "python.autoComplete.extraPaths": [
+        "/opt/ros/humble/lib/python3.10/site-packages/"
+    ],
+    "python.analysis.extraPaths": [
+        "/opt/ros/humble/lib/python3.10/site-packages/"
+    ]
 }

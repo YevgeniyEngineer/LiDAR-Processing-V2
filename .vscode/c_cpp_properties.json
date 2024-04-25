@@ -2,14 +2,15 @@
     "configurations": [
         {
             "name": "Linux",
+            "browse": {
+                "databaseFilename": "${default}",
+                "limitSymbolsToIncludedHeaders": false
+            },
             "includePath": [
-                "${default}",
                 "${workspaceFolder}/**",
-                "/usr/local/include/**",
                 "/opt/ros/humble/include/**",
-                "/opt/ros/humble/include/rclcpp/**",
-                "/opt/ros/humble/include/sensor_msgs/**",
-                "/opt/ros/humble/include/visualization_msgs/**"
+                "/usr/local/include/**",
+                "/usr/include/**"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/g++",
