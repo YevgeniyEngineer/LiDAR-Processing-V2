@@ -16,12 +16,17 @@ find_package(geometry_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 
 # Add executable
-add_executable(${PROJECT_NAME} src/processor.cpp)
+add_executable(${PROJECT_NAME}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/processor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/jcp_segmenter.cpp
+)
 
 # Include directories for the target
-target_include_directories(${PROJECT_NAME} PRIVATE
-    ${PCL_INCLUDE_DIRS}
-    ${rclcpp_INCLUDE_DIRS}
+target_include_directories(${PROJECT_NAME}
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${PCL_INCLUDE_DIRS}
+        ${rclcpp_INCLUDE_DIRS}
 )
 
 # Define dependencies for the target
