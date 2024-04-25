@@ -10,7 +10,8 @@ def generate_launch_description():
     package_directory = os.path.join(
         get_package_share_directory("lidar_processing_v2"), "visualization"
     )
-    config_file = os.path.join(package_directory, "rviz2_config.rviz")
+    # config_file = os.path.join(package_directory, "rviz2_config.rviz")
+    config_file = "/workspaces/LiDAR-Processing-V2/visualization/rviz2_config.rviz"
     rviz = ExecuteProcess(cmd=["rviz2", "-d", config_file], output="screen")
 
     # Sensor Data Publisher Node

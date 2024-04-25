@@ -1,6 +1,7 @@
 // STL
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
@@ -26,6 +27,22 @@
 #include <rclcpp/utilities.hpp>             // rclcpp::shutdown
 #include <sensor_msgs/msg/point_cloud2.hpp> // sensor_msgs::msg::PointCloud2
 #include <sensor_msgs/msg/point_field.hpp>  // sensor_msgs::msg::PointField
+
+namespace pcl
+{
+struct PointXYZIR
+{
+    PCL_ADD_POINT4D;                // This adds the XYZ coordinates and padding
+    float intensity;                // Intensity of reflection
+    std::uint16_t ring;             // Laser ring index
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW // Ensure proper alignment
+} EIGEN_ALIGN16;                    // Force SSE alignment
+} // namespace pcl
+
+// Register the point type
+POINT_CLOUD_REGISTER_POINT_STRUCT(pcl::PointXYZIR,
+                                  (float, x, x)(float, y, y)(float, z, z)(float, intensity, intensity)(std::uint16_t,
+                                                                                                       ring, ring))
 
 class Node final : public rclcpp::Node
 {
@@ -60,8 +77,8 @@ class Node final : public rclcpp::Node
     rclcpp::TimerBase::SharedPtr timer_;
     rclcpp::Publisher<PointCloud2>::SharedPtr publisher_;
 
-    std::vector<pcl::PointCloud<pcl::PointXYZI>> pointclouds_;
-    std::vector<pcl::PointCloud<pcl::PointXYZI>>::const_iterator pointcloud_iterator_;
+    std::vector<pcl::PointCloud<pcl::PointXYZIR>> pointclouds_;
+    std::vector<pcl::PointCloud<pcl::PointXYZIR>>::const_iterator pointcloud_iterator_;
 
     PointCloud2 message_;
 
@@ -81,14 +98,18 @@ class Node final : public rclcpp::Node
 
         for (const auto& file : files)
         {
-            pcl::PointCloud<pcl::PointXYZI> pointcloud;
+            pcl::PointCloud<pcl::PointXYZI> cloud_in;
 
-            if (pcl::io::loadPCDFile<pcl::PointXYZI>(file, pointcloud) == -1)
+            if (pcl::io::loadPCDFile<pcl::PointXYZI>(file, cloud_in) == -1)
             {
                 throw std::runtime_error("Cloud not read " + file.string() + " file");
             }
 
-            pointclouds_.push_back(std::move(pointcloud));
+            pcl::PointCloud<pcl::PointXYZIR> cloud_out;
+
+            addRingInfo(cloud_in, cloud_out);
+
+            pointclouds_.push_back(std::move(cloud_out));
         }
 
         pointcloud_iterator_ = pointclouds_.cbegin();
@@ -96,11 +117,64 @@ class Node final : public rclcpp::Node
         std::size_t reservation_size = 0U;
         for (const auto& cloud : pointclouds_)
         {
-            reservation_size = std::max(reservation_size, (cloud.points.size() * sizeof(pcl::PointXYZI)));
+            reservation_size = std::max(reservation_size, (cloud.points.size() * sizeof(pcl::PointXYZIR)));
         }
 
         message_.data.reserve(reservation_size);
-        message_.fields.reserve(4);
+        message_.fields.reserve(5);
+    }
+
+    void addRingInfo(const pcl::PointCloud<pcl::PointXYZI>& cloud_in, pcl::PointCloud<pcl::PointXYZIR>& cloud_out,
+                     const float elevation_tolerance = 0.008F)
+    {
+        const auto elevationComparator = [](const auto& a, const auto& b) -> bool {
+            const auto elev_a = std::atan2(a.z, std::sqrt(a.x * a.x + a.y * a.y + a.z * a.z));
+            const auto elev_b = std::atan2(b.z, std::sqrt(b.x * b.x + b.y * b.y + b.z * b.z));
+            return (elev_a < elev_b);
+        };
+
+        cloud_out.points.resize(cloud_in.points.size());
+        cloud_out.width = cloud_in.width;
+        cloud_out.height = cloud_in.height;
+        cloud_out.is_dense = cloud_in.is_dense;
+
+        for (std::size_t i = 0U; i < cloud_in.points.size(); ++i)
+        {
+            const auto& cloud_in_point = cloud_in.points[i];
+            auto& cloud_out_point = cloud_out.points[i];
+
+            cloud_out_point.x = cloud_in_point.x;
+            cloud_out_point.y = cloud_in_point.y;
+            cloud_out_point.z = cloud_in_point.z;
+            cloud_out_point.intensity = cloud_in_point.intensity;
+            cloud_out_point.ring = 0U;
+        }
+
+        if (!cloud_out.points.empty())
+        {
+            std::sort(cloud_out.begin(), cloud_out.end(), elevationComparator);
+
+            std::uint16_t current_ring = 0U;
+
+            const auto& first_point = cloud_out.points[0U];
+            auto last_elevation =
+                std::atan2(first_point.z, std::sqrt(first_point.x * first_point.x + first_point.y * first_point.y));
+
+            for (std::size_t i = 1U; i < cloud_out.points.size(); ++i)
+            {
+                auto& current_point = cloud_out.points[i];
+                const auto current_elevation = std::atan2(
+                    current_point.z, std::sqrt(current_point.x * current_point.x + current_point.y * current_point.y));
+
+                if (std::fabs(current_elevation - last_elevation) > elevation_tolerance)
+                {
+                    ++current_ring;
+                    last_elevation = current_elevation;
+                }
+
+                current_point.ring = current_ring;
+            }
+        }
     }
 
     void timerCallback()
@@ -124,35 +198,40 @@ class Node final : public rclcpp::Node
         message_.height = pointcloud_iterator_->height;
         message_.width = pointcloud_iterator_->width;
         message_.is_bigendian = false;
-        message_.point_step = sizeof(pcl::PointXYZI);
-        message_.row_step = sizeof(pcl::PointXYZI) * message_.width;
+        message_.point_step = sizeof(pcl::PointXYZIR);
+        message_.row_step = sizeof(pcl::PointXYZIR) * message_.width;
         message_.is_dense = pointcloud_iterator_->is_dense;
 
-        message_.fields.resize(4);
+        message_.fields.resize(5);
 
         message_.fields[0].name = "x";
-        message_.fields[0].offset = offsetof(pcl::PointXYZI, x);
+        message_.fields[0].offset = offsetof(pcl::PointXYZIR, x);
         message_.fields[0].datatype = PointFieldTypes::FLOAT32;
         message_.fields[0].count = 1;
 
         message_.fields[1].name = "y";
-        message_.fields[1].offset = offsetof(pcl::PointXYZI, y);
+        message_.fields[1].offset = offsetof(pcl::PointXYZIR, y);
         message_.fields[1].datatype = PointFieldTypes::FLOAT32;
         message_.fields[1].count = 1;
 
         message_.fields[2].name = "z";
-        message_.fields[2].offset = offsetof(pcl::PointXYZI, z);
+        message_.fields[2].offset = offsetof(pcl::PointXYZIR, z);
         message_.fields[2].datatype = PointFieldTypes::FLOAT32;
         message_.fields[2].count = 1;
 
         message_.fields[3].name = "intensity";
-        message_.fields[3].offset = offsetof(pcl::PointXYZI, intensity);
+        message_.fields[3].offset = offsetof(pcl::PointXYZIR, intensity);
         message_.fields[3].datatype = PointFieldTypes::FLOAT32;
         message_.fields[3].count = 1;
 
-        message_.data.resize(sizeof(pcl::PointXYZI) * pointcloud_iterator_->size());
+        message_.fields[4].name = "ring";
+        message_.fields[4].offset = offsetof(pcl::PointXYZIR, ring);
+        message_.fields[4].datatype = PointFieldTypes::UINT16;
+        message_.fields[4].count = 1;
+
+        message_.data.resize(sizeof(pcl::PointXYZIR) * pointcloud_iterator_->size());
         std::memcpy(static_cast<void*>(message_.data.data()), static_cast<const void*>(pointcloud_iterator_->data()),
-                    sizeof(pcl::PointXYZI) * pointcloud_iterator_->size());
+                    sizeof(pcl::PointXYZIR) * pointcloud_iterator_->size());
 
         publisher_->publish(message_);
 
