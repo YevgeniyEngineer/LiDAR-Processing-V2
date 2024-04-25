@@ -1,11 +1,17 @@
 {
     "name": "LiDAR-Processing-V2",
+    "privileged": true,
     "build": {
         "dockerfile": "Dockerfile",
         "args": {
             "USER_UID": "1000",
             "USER_GID": "1000"
         }
+    },
+    "containerEnv": {
+        "DISPLAY": "unix:1",
+        "ROS_AUTOMATIC_DISCOVERY_RANGE": "LOCALHOST",
+        "ROS_DOMAIN_ID": "0"
     },
     "runArgs": [
         "--gpus",

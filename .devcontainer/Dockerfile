@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y \
     cmake \
     git \
     vim \
+    nano \
     wget \
     curl \
     lsb-release \

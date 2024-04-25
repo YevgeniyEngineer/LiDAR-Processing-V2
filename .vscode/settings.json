@@ -73,5 +73,11 @@
         "cfenv": "cpp",
         "variant": "cpp",
         "any": "cpp"
-    }
+    },
+    "terminal.integrated.env.linux": {
+        "CMAKE_PREFIX_PATH": "/opt/ros/humble:$CMAKE_PREFIX_PATH",
+        "LD_LIBRARY_PATH": "/opt/ros/humble/lib:$LD_LIBRARY_PATH"
+    },
+    "ros.rosSetupScript": "/opt/ros/humble/setup.bash",
+    "cmake.buildDirectory": "${workspaceFolder}/build"
 }
