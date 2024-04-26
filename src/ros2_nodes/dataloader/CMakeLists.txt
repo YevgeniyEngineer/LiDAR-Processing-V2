@@ -13,7 +13,11 @@ find_package(sensor_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 
 # Add executable
-add_executable(${PROJECT_NAME} src/dataloader.cpp)
+add_executable(${PROJECT_NAME}
+    src/circular_queue.cpp
+    src/clusterer_1d.cpp
+    src/dataloader.cpp
+)
 
 # Include directories for the target
 target_include_directories(${PROJECT_NAME} PRIVATE

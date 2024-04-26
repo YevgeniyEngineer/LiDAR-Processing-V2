@@ -1,3 +1,6 @@
+// Clustering
+#include "clusterer_1d.hpp"
+
 // STL
 #include <algorithm>
 #include <array>
@@ -69,6 +72,10 @@ class Node final : public rclcpp::Node
         vis_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/pointcloud_rings", 10);
         timer_ = this->create_wall_timer(sleep_duration_ms_, std::bind(&Node::timerCallback, this));
 
+        clusterer_.reserve(200'000);
+        elevation_angles_.reserve(200'000);
+        cluster_labels_.reserve(200'000);
+
         RCLCPP_INFO(this->get_logger(), "Datalogger node constructed.");
     }
 
@@ -87,6 +94,10 @@ class Node final : public rclcpp::Node
 
     rclcpp::Publisher<PointCloud2>::SharedPtr vis_publisher_;
     PointCloud2 vis_message_;
+
+    clustering::Clusterer1D clusterer_;
+    std::vector<float> elevation_angles_;
+    std::vector<std::size_t> cluster_labels_;
 
     void addRingInfo(const pcl::PointCloud<pcl::PointXYZI>& cloud_in, pcl::PointCloud<pcl::PointXYZIR>& cloud_out,
                      const float elevation_tolerance = 0.008F)
@@ -118,6 +129,27 @@ class Node final : public rclcpp::Node
         {
             std::sort(cloud_out.begin(), cloud_out.end(), elevationComparator);
 
+            // elevation_angles_.clear();
+            // for (const auto& point : cloud_out)
+            // {
+            //     elevation_angles_.push_back(
+            //         std::atan2(point.z, std::sqrt(point.x * point.x + point.y * point.y + point.z * point.z)));
+            // }
+
+            // clusterer_.cluster(elevation_angles_, 0.0005F, cluster_labels_);
+
+            // const auto max_cluster_index_it = std::max_element(cluster_labels_.cbegin(), cluster_labels_.cend());
+
+            // if (max_cluster_index_it != cluster_labels_.cend())
+            // {
+            //     for (std::size_t i = 0; i < cloud_out.points.size(); ++i)
+            //     {
+            //         cloud_out.points[i].ring = static_cast<std::uint16_t>(cluster_labels_[i]);
+            //     }
+
+            //     std::cerr << "Number of rings: " << *max_cluster_index_it + 1U << std::endl;
+            // }
+
             std::uint16_t current_ring = 0U;
 
             const auto& first_point = cloud_out.points[0U];
@@ -140,6 +172,8 @@ class Node final : public rclcpp::Node
 
                 current_point.ring = current_ring;
             }
+
+            std::cerr << "Number of rings: " << current_ring + 1U << std::endl;
         }
     }
 
