@@ -14,8 +14,6 @@ find_package(visualization_msgs REQUIRED)
 
 # Add executable
 add_executable(${PROJECT_NAME}
-    src/circular_queue.cpp
-    src/clusterer_1d.cpp
     src/dataloader.cpp
 )
 
