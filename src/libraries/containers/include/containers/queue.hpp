@@ -14,6 +14,8 @@ template<typename T>
 class Queue final
 {
   public:
+    using value_type = T;
+
     Queue();
     explicit Queue(std::size_t initial_capacity);
     ~Queue() noexcept;
@@ -44,7 +46,14 @@ class Queue final
 
     void resize(std::size_t new_capacity);
     void clear() noexcept;
+    static inline std::size_t incrementWraparound(std::size_t index, std::size_t capacity) noexcept;
 };
+
+template<typename T>
+inline std::size_t Queue<T>::incrementWraparound(std::size_t index, std::size_t capacity) noexcept
+{
+    return ((index + 1) < capacity) ? (index + 1) : 0;
+}
 
 template<typename T>
 Queue<T>::Queue()
@@ -114,7 +123,7 @@ void Queue<T>::emplace(Args&&... args)
     }
 
     ::new (&buffer_[tail_]) T(std::forward<Args>(args)...);
-    tail_ = (tail_ + 1) % capacity_;
+    tail_ = incrementWraparound(tail_, capacity_);
     ++size_;
 }
 
@@ -128,7 +137,7 @@ void Queue<T>::pop()
 
     buffer_[head_].~T(); // Call destructor for the element
 
-    head_ = (head_ + 1) % capacity_;
+    head_ = incrementWraparound(head_, capacity_);
     --size_;
 }
 
@@ -173,7 +182,7 @@ void Queue<T>::resize(std::size_t new_capacity)
 
         buffer_[current].~T(); // Call destructor for the element
 
-        current = (current + 1) % capacity_;
+        current = incrementWraparound(current, capacity_);
     }
 
     // Replace the old buffer with the new one and reset head and tail
