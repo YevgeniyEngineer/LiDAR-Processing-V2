@@ -72,7 +72,8 @@
         "shared_mutex": "cpp",
         "cfenv": "cpp",
         "variant": "cpp",
-        "any": "cpp"
+        "any": "cpp",
+        "*.txx": "cpp"
     },
     "terminal.integrated.env.linux": {
         "CMAKE_PREFIX_PATH": "/opt/ros/humble:$CMAKE_PREFIX_PATH",

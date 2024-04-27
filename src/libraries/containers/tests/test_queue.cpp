@@ -97,9 +97,3 @@ TEST_F(QueueStringTest, ClearQueue)
     EXPECT_EQ(queue_.size(), 0);
     EXPECT_EQ(queue_.capacity(), 1);
 }
-
-int main(int argc, char** argv)
-{
-    testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
-}
