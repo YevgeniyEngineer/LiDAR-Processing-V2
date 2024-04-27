@@ -132,7 +132,7 @@ void Queue<T>::pop()
 {
     if (empty())
     {
-        throw std::out_of_range("Pop from empty queue");
+        throw std::out_of_range("Queue::pop(): queue is empty");
     }
 
     buffer_[head_].~T(); // Call destructor for the element
