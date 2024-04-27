@@ -12,22 +12,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Find packages
 find_package(ament_cmake REQUIRED)
 
-# Source files
-set(SOURCES
-    include/containers/circular_queue.cpp
-)
-
 # Create shared library
-add_library(${PROJECT_NAME} SHARED ${SOURCES})
+add_library(${PROJECT_NAME} INTERFACE)
 
 # Specify include directories for the library
 target_include_directories(${PROJECT_NAME}
-    PUBLIC
+    INTERFACE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
-    PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
 # Installation rules for the library
@@ -35,7 +27,6 @@ install(TARGETS ${PROJECT_NAME}
     EXPORT ${PROJECT_NAME}Targets
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib
-    RUNTIME DESTINATION bin
     INCLUDES DESTINATION include
 )
 

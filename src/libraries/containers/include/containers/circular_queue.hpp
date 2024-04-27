@@ -10,7 +10,7 @@
 
 namespace containers
 {
-template <typename T>
+template<typename T>
 class CircularQueue final
 {
   public:
@@ -29,7 +29,7 @@ class CircularQueue final
     std::size_t capacity() const noexcept;
     void push(const T& value);
     void push(T&& value);
-    template <typename... Args>
+    template<typename... Args>
     void emplace(Args&&... args);
     void pop();
     T& front();
@@ -46,12 +46,13 @@ class CircularQueue final
     void clear() noexcept;
 };
 
-template <typename T>
-CircularQueue<T>::CircularQueue() : CircularQueue(1)
+template<typename T>
+CircularQueue<T>::CircularQueue()
+    : CircularQueue(1)
 {
 }
 
-template <typename T>
+template<typename T>
 CircularQueue<T>::CircularQueue(std::size_t initial_capacity)
     : buffer_(std::make_unique<T[]>(initial_capacity)),
       head_(0),
@@ -61,50 +62,50 @@ CircularQueue<T>::CircularQueue(std::size_t initial_capacity)
 {
 }
 
-template <typename T>
+template<typename T>
 CircularQueue<T>::~CircularQueue() noexcept
 {
     clear();
 }
 
-template <typename T>
+template<typename T>
 void CircularQueue<T>::reserve(std::size_t new_capacity)
 {
     resize(new_capacity);
 }
 
-template <typename T>
+template<typename T>
 bool CircularQueue<T>::empty() const noexcept
 {
     return size_ == 0;
 }
 
-template <typename T>
+template<typename T>
 std::size_t CircularQueue<T>::size() const noexcept
 {
     return size_;
 }
 
-template <typename T>
+template<typename T>
 std::size_t CircularQueue<T>::capacity() const noexcept
 {
     return capacity_;
 }
 
-template <typename T>
+template<typename T>
 void CircularQueue<T>::push(const T& value)
 {
     emplace(value);
 }
 
-template <typename T>
+template<typename T>
 void CircularQueue<T>::push(T&& value)
 {
     emplace(std::move(value));
 }
 
-template <typename T>
-template <typename... Args>
+template<typename T>
+template<typename... Args>
 void CircularQueue<T>::emplace(Args&&... args)
 {
     if (size_ >= capacity_)
@@ -117,7 +118,7 @@ void CircularQueue<T>::emplace(Args&&... args)
     ++size_;
 }
 
-template <typename T>
+template<typename T>
 void CircularQueue<T>::pop()
 {
     if (empty())
@@ -131,7 +132,7 @@ void CircularQueue<T>::pop()
     --size_;
 }
 
-template <typename T>
+template<typename T>
 T& CircularQueue<T>::front()
 {
     if (empty())
@@ -142,7 +143,7 @@ T& CircularQueue<T>::front()
     return buffer_[head_];
 }
 
-template <typename T>
+template<typename T>
 const T& CircularQueue<T>::front() const
 {
     if (empty())
@@ -153,7 +154,7 @@ const T& CircularQueue<T>::front() const
     return buffer_[head_];
 }
 
-template <typename T>
+template<typename T>
 void CircularQueue<T>::resize(std::size_t new_capacity)
 {
     if (new_capacity <= capacity_)
@@ -182,7 +183,7 @@ void CircularQueue<T>::resize(std::size_t new_capacity)
     capacity_ = new_capacity;
 }
 
-template <typename T>
+template<typename T>
 void CircularQueue<T>::clear() noexcept
 {
     while (size() > 0)
