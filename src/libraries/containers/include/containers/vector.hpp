@@ -235,13 +235,23 @@ Vector<T, Allocator>& Vector<T, Allocator>::operator=(std::initializer_list<T> i
 template<typename T, typename Allocator>
 T& Vector<T, Allocator>::at(std::size_t index)
 {
-    return buffer_.at(index);
+    if (index >= size_)
+    {
+        throw std::out_of_range("Vector::at(): Index out of range");
+    }
+
+    return buffer_[index];
 }
 
 template<typename T, typename Allocator>
 const T& Vector<T, Allocator>::at(std::size_t index) const
 {
-    return buffer_.at(index);
+    if (index >= size_)
+    {
+        throw std::out_of_range("Vector::at(): Index out of range");
+    }
+
+    return buffer_[index];
 }
 
 template<typename T, typename Allocator>
@@ -429,7 +439,7 @@ Vector<T, Allocator>::iterator Vector<T, Allocator>::insert(const_iterator pos, 
         buffer_.resize(buffer_.size() + 1);
     }
 
-    std::move_backward(pos, end(), end() + 1);
+    static_cast<void>(std::move_backward(pos, end(), end() + 1));
     *pos = value;
     ++size_;
 
@@ -449,8 +459,29 @@ Vector<T, Allocator>::iterator Vector<T, Allocator>::insert(const_iterator pos, 
         buffer_.resize(buffer_.size() + 1);
     }
 
-    std::move_backward(pos, end(), end() + 1);
+    static_cast<void>(std::move_backward(pos, end(), end() + 1));
     *pos = std::move(value);
+    ++size_;
+
+    return pos;
+}
+
+template<typename T, typename Allocator>
+template<class... Args>
+Vector<T, Allocator>::iterator Vector<T, Allocator>::emplace(const_iterator pos, Args&&... args)
+{
+    if ((pos < cbegin()) || (pos > end()))
+    {
+        throw std::out_of_range("Vector::emplace(): iterator out of range")
+    }
+
+    if (buffer_reached_capacity())
+    {
+        buffer_.resize(buffer_.size() + 1);
+    }
+
+    static_cast<void>(std::move_backward(pos, end(), end() + 1));
+    *pos = T(std::forward<Args>(args)...);
     ++size_;
 
     return pos;
@@ -459,58 +490,160 @@ Vector<T, Allocator>::iterator Vector<T, Allocator>::insert(const_iterator pos, 
 template<typename T, typename Allocator>
 Vector<T, Allocator>::iterator Vector<T, Allocator>::insert(const_iterator pos, size_type count, const T& value)
 {
-    return buffer_.insert(pos, count, value);
+    if ((pos < cbegin()) || (pos > cend()))
+    {
+        throw std::out_of_range("Vector::insert(): pos out of bounds");
+    }
+
+    if (count == 0)
+    {
+        return iterator(*pos);
+    }
+
+    const std::size_t size_after_insertion = size_ + count;
+    if (size_after_insertion > buffer_.size())
+    {
+        buffer_.resize(size_after_insertion);
+    }
+
+    static_cast<void>(std::move_backward(pos, end(), end() + static_cast<std::ptrdiff_t>(count)));
+    std::fill(pos, pos + static_cast<std::ptrdiff_t>(count), value);
+    size_ = size_after_insertion;
+
+    return iterator(*pos);
 }
 
 template<typename T, typename Allocator>
 template<class InputIt>
 Vector<T, Allocator>::iterator Vector<T, Allocator>::insert(const_iterator pos, InputIt first, InputIt last)
 {
-    return buffer_.insert(pos, first, last);
+    if ((pos < cbegin()) || (pos > cend()))
+    {
+        throw std::out_of_range("Vector::insert(): pos out of bounds");
+    }
+
+    const auto count = std::distance(first, last);
+    if (count <= 0)
+    {
+        return iterator(*pos);
+    }
+
+    const auto index = pos - cbegin();
+    const std::size_t size_after_insertion = size_ + static_cast<std::size_t>(count);
+    if (size_after_insertion > buffer_.size())
+    {
+        buffer_.resize(size_after_insertion);
+    }
+
+    static_cast<void>(std::move_backward(pos, end(), end() + count));
+    static_cast<void>(std::copy(first, last, begin() + index));
+
+    size_ = size_after_insertion;
+
+    return iterator(begin() + index);
 }
 
 template<typename T, typename Allocator>
 Vector<T, Allocator>::iterator Vector<T, Allocator>::insert(const_iterator pos, std::initializer_list<T> ilist)
 {
-    return buffer_.insert(pos, ilist);
-}
+    if ((pos < cbegin()) || (pos > cend()))
+    {
+        throw std::out_of_range("Vector::insert(): pos out of bounds");
+    }
 
-template<typename T, typename Allocator>
-template<class... Args>
-Vector<T, Allocator>::iterator Vector<T, Allocator>::emplace(const_iterator pos, Args&&... args)
-{
-    return buffer_.emplace(pos, std::forward<Args>(args)...);
+    const auto count = ilist.size();
+    if (count <= 0)
+    {
+        return iterator(*pos);
+    }
+
+    const auto index = pos - cbegin();
+    const std::size_t size_after_insertion = size_ + static_cast<std::size_t>(count);
+    if (size_after_insertion > buffer_.size())
+    {
+        buffer_.resize(size_after_insertion);
+    }
+
+    static_cast<void>(std::move_backward(pos, end(), end() + count));
+    static_cast<void>(std::copy(ilist.begin(), ilist.end(), begin() + index));
+    size_ = size_after_insertion;
+
+    return begin() + index;
 }
 
 template<typename T, typename Allocator>
 Vector<T, Allocator>::iterator Vector<T, Allocator>::erase(const_iterator pos)
 {
-    return buffer_.erase(pos);
+    if ((pos < cbegin()) || (pos >= end()))
+    {
+        throw std::out_of_range("Vector::erase(): iterators out of range");
+    }
+
+    const auto next = pos + 1;
+    static_cast<void>(std::move(next, end(), pos));
+    --size_;
+
+    return pos;
 }
 
 template<typename T, typename Allocator>
 Vector<T, Allocator>::iterator Vector<T, Allocator>::erase(const_iterator first, const_iterator last)
 {
-    return buffer_.erase(first, last);
+    if ((first < cbegin()) || (first > last) || (last > cend()))
+    {
+        throw std::out_of_range("Vector::erase(): iterators out of range");
+    }
+
+    static_cast<void>(std::move(last, end(), first));
+    size_ -= static_cast<std::size_t>(std::distance(first, last));
+
+    return first;
 }
 
 template<typename T, typename Allocator>
 void Vector<T, Allocator>::push_back(const T& value)
 {
-    buffer_.push_back(value);
+    if (buffer_full())
+    {
+        buffer_.push_back(value);
+    }
+    else
+    {
+        buffer[size_] = value;
+    }
+
+    ++size_;
 }
 
 template<typename T, typename Allocator>
 void Vector<T, Allocator>::push_back(T&& value)
 {
-    buffer_.push_back(std::move(value));
+    if (buffer_full())
+    {
+        buffer_.push_back(std::move(value));
+    }
+    else
+    {
+        buffer[size_] = std::move(value);
+    }
+
+    ++size_;
 }
 
 template<typename T, typename Allocator>
 template<typename... Args>
 void Vector<T, Allocator>::emplace_back(Args&&... args)
 {
-    buffer_.emplace_back(std::forward<Args>(args)...);
+    if (buffer_full())
+    {
+        buffer_.emplace_back(std::forward<Args>(args)...);
+    }
+    else
+    {
+        buffer[size_] = T(std::forward<Args>(args)...);
+    }
+
+    ++size_;
 }
 
 template<typename T, typename Allocator>
