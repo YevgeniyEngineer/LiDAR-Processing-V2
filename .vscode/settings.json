@@ -73,7 +73,8 @@
         "cfenv": "cpp",
         "variant": "cpp",
         "any": "cpp",
-        "*.txx": "cpp"
+        "*.txx": "cpp",
+        "valarray": "cpp"
     },
     "terminal.integrated.env.linux": {
         "CMAKE_PREFIX_PATH": "/opt/ros/humble:$CMAKE_PREFIX_PATH",
