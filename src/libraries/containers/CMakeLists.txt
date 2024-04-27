@@ -70,7 +70,7 @@ if (BUILD_TESTING)
     find_package(ament_cmake_gtest REQUIRED)
 
     # Define the test executable and the source files for the test
-    ament_add_gtest(test_containers tests/test_circular_queue.cpp)
+    ament_add_gtest(test_containers tests/test_queue.cpp)
 
     # Link the test executable
     target_link_libraries(test_containers

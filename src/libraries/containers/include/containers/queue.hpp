@@ -1,5 +1,5 @@
-#ifndef CONTAINERS_CIRCULAR_QUEUE_HPP
-#define CONTAINERS_CIRCULAR_QUEUE_HPP
+#ifndef CONTAINERS_QUEUE_HPP
+#define CONTAINERS_QUEUE_HPP
 
 #include <cstdint>
 #include <memory>
@@ -11,17 +11,17 @@
 namespace containers
 {
 template<typename T>
-class CircularQueue final
+class Queue final
 {
   public:
-    CircularQueue();
-    explicit CircularQueue(std::size_t initial_capacity);
-    ~CircularQueue() noexcept;
+    Queue();
+    explicit Queue(std::size_t initial_capacity);
+    ~Queue() noexcept;
 
-    CircularQueue(const CircularQueue&) = delete;
-    CircularQueue& operator=(const CircularQueue&) = delete;
-    CircularQueue(CircularQueue&&) = delete;
-    CircularQueue& operator=(CircularQueue&&) = delete;
+    Queue(const Queue&) = delete;
+    Queue& operator=(const Queue&) = delete;
+    Queue(Queue&&) = delete;
+    Queue& operator=(Queue&&) = delete;
 
     void reserve(std::size_t new_capacity);
     bool empty() const noexcept;
@@ -47,13 +47,13 @@ class CircularQueue final
 };
 
 template<typename T>
-CircularQueue<T>::CircularQueue()
-    : CircularQueue(1)
+Queue<T>::Queue()
+    : Queue(1)
 {
 }
 
 template<typename T>
-CircularQueue<T>::CircularQueue(std::size_t initial_capacity)
+Queue<T>::Queue(std::size_t initial_capacity)
     : buffer_(std::make_unique<T[]>(initial_capacity)),
       head_(0),
       tail_(0),
@@ -63,50 +63,50 @@ CircularQueue<T>::CircularQueue(std::size_t initial_capacity)
 }
 
 template<typename T>
-CircularQueue<T>::~CircularQueue() noexcept
+Queue<T>::~Queue() noexcept
 {
     clear();
 }
 
 template<typename T>
-void CircularQueue<T>::reserve(std::size_t new_capacity)
+void Queue<T>::reserve(std::size_t new_capacity)
 {
     resize(new_capacity);
 }
 
 template<typename T>
-bool CircularQueue<T>::empty() const noexcept
+bool Queue<T>::empty() const noexcept
 {
     return size_ == 0;
 }
 
 template<typename T>
-std::size_t CircularQueue<T>::size() const noexcept
+std::size_t Queue<T>::size() const noexcept
 {
     return size_;
 }
 
 template<typename T>
-std::size_t CircularQueue<T>::capacity() const noexcept
+std::size_t Queue<T>::capacity() const noexcept
 {
     return capacity_;
 }
 
 template<typename T>
-void CircularQueue<T>::push(const T& value)
+void Queue<T>::push(const T& value)
 {
     emplace(value);
 }
 
 template<typename T>
-void CircularQueue<T>::push(T&& value)
+void Queue<T>::push(T&& value)
 {
     emplace(std::move(value));
 }
 
 template<typename T>
 template<typename... Args>
-void CircularQueue<T>::emplace(Args&&... args)
+void Queue<T>::emplace(Args&&... args)
 {
     if (size_ >= capacity_)
     {
@@ -119,7 +119,7 @@ void CircularQueue<T>::emplace(Args&&... args)
 }
 
 template<typename T>
-void CircularQueue<T>::pop()
+void Queue<T>::pop()
 {
     if (empty())
     {
@@ -133,29 +133,29 @@ void CircularQueue<T>::pop()
 }
 
 template<typename T>
-T& CircularQueue<T>::front()
+T& Queue<T>::front()
 {
     if (empty())
     {
-        throw std::out_of_range("CircularQueue::front(): queue is empty");
+        throw std::out_of_range("Queue::front(): queue is empty");
     }
 
     return buffer_[head_];
 }
 
 template<typename T>
-const T& CircularQueue<T>::front() const
+const T& Queue<T>::front() const
 {
     if (empty())
     {
-        throw std::out_of_range("CircularQueue::front(): queue is empty");
+        throw std::out_of_range("Queue::front(): queue is empty");
     }
 
     return buffer_[head_];
 }
 
 template<typename T>
-void CircularQueue<T>::resize(std::size_t new_capacity)
+void Queue<T>::resize(std::size_t new_capacity)
 {
     if (new_capacity <= capacity_)
     {
@@ -184,7 +184,7 @@ void CircularQueue<T>::resize(std::size_t new_capacity)
 }
 
 template<typename T>
-void CircularQueue<T>::clear() noexcept
+void Queue<T>::clear() noexcept
 {
     while (size() > 0)
     {
@@ -193,4 +193,4 @@ void CircularQueue<T>::clear() noexcept
 }
 } // namespace containers
 
-#endif // CONTAINERS_CIRCULAR_QUEUE_HPP
+#endif // CONTAINERS_QUEUE_HPP
