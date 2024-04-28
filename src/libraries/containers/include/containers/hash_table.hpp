@@ -92,6 +92,9 @@ template<typename Key, typename Value, typename Hash>
 template<typename KeyT, typename ValueT>
 void HashTable<Key, Value, Hash>::insert(KeyT&& key, ValueT&& value)
 {
+    static_assert(std::is_same<KeyT, Key>::value, "KeyT must be exactly the same as Key");
+    static_assert(std::is_same<ValueT, Value>::value, "ValueT must be exactly the same as Value");
+
     const std::size_t index = hash_(key) % table_.size();
     Bucket& bucket = table_[index];
 
@@ -111,6 +114,8 @@ template<typename Key, typename Value, typename Hash>
 template<typename KeyT>
 Value* HashTable<Key, Value, Hash>::find(KeyT&& key) const
 {
+    static_assert(std::is_same<KeyT, Key>::value, "KeyT must be exactly the same as Key");
+
     const std::size_t index = hash_(key) % table_.size();
     Bucket& bucket = table_[index];
 
@@ -129,6 +134,8 @@ template<typename Key, typename Value, typename Hash>
 template<typename KeyT>
 bool HashTable<Key, Value, Hash>::remove(KeyT&& key)
 {
+    static_assert(std::is_same<KeyT, Key>::value, "KeyT must be exactly the same as Key");
+
     const std::size_t index = hash_(key) % table_.size();
     Bucket& bucket = table_[index];
 
