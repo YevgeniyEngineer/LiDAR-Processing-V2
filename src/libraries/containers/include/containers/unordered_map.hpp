@@ -1,6 +1,7 @@
 #ifndef CONTAINERS_UNORDERED_MAP_HPP
 #define CONTAINERS_UNORDERED_MAP_HPP
 
+#include "hash_table.hpp"
 #include "vector.hpp"
 
 #include <algorithm>
