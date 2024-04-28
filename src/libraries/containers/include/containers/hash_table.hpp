@@ -34,14 +34,17 @@ class HashTable final
 
 template<typename Key, typename Value, typename Hash>
 HashTable<Key, Value, Hash>::HashTable()
-    : table_(1)
+    : table_(100)
 {
 }
 
 template<typename Key, typename Value, typename Hash>
 HashTable<Key, Value, Hash>::HashTable(std::size_t num_buckets)
 {
-    resize(num_buckets);
+    if (table_.size() < num_buckets)
+    {
+        resize(num_buckets);
+    }
 }
 
 template<typename Key, typename Value, typename Hash>
@@ -58,7 +61,10 @@ void HashTable<Key, Value, Hash>::resize(std::size_t num_buckets)
         throw std::runtime_error("Invalid number of buckets");
     }
 
-    table_.resize(num_buckets);
+    if (table_.size() < num_buckets)
+    {
+        table_.resize(num_buckets);
+    }
 }
 
 template<typename Key, typename Value, typename Hash>

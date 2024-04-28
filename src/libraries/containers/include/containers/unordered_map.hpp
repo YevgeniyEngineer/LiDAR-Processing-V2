@@ -24,6 +24,9 @@ namespace containers
 // See:
 // https://blog.andreiavram.ro/cpp-map-static-memory/?fbclid=IwZXh0bgNhZW0CMTAAAR3sNstt0fjqJEY1Y35-rbRkhiQUa3tIsmoHd1U2UjgvKEMDfuDidGZKl5s_aem_ARjVNBbQ8i9kEEOpDx3Yw3Ly38nyg57iSWytBa8SYZDLLiiihk9DEffoRkgO8TD8h0USWKpw_Fv6BnmLC6EfIwrY
 // https://en.cppreference.com/w/cpp/container/unordered_map
+//
+// TODO: Calculate Load Factor and resize hash table if needed
+// Load Factor = Number of Elements /  Number of Buckets in Hash Table
 template<typename Key, typename Value, typename Hash = std::hash<Value>>
 class UnorderedMap final
 {
