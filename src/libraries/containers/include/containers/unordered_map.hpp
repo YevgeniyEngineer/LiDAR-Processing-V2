@@ -42,16 +42,12 @@ class UnorderedMap final
 
     Value& at(const Key& key);
     const Value& at(const Key& key) const;
-    Value& at(Key&& key);
-    const Value& at(Key&& key) const;
     Value& operator[](const Key& key);
     const Value& operator[](const Key& key) const;
-    Value& operator[](Key&& key);
-    const Value& operator[](Key&& key) const;
     bool empty() const noexcept;
     bool contains(const Key& key) const noexcept;
     std::size_t size() const noexcept;
-    std::size_t max_size() const noexcept;
+    std::size_t capacity() const noexcept;
     void clear() noexcept;
     iterator find(const Key& key);
     iterator begin() noexcept;
@@ -76,8 +72,99 @@ class UnorderedMap final
 };
 
 template<typename Key, typename Value, typename Hash>
+Value& UnorderedMap<Key, Value, Hash>::at(const Key& key)
+{
+    const auto index = hash_(key);
+
+    if (index >= set_.size())
+    {
+        throw std::out_of_range("UnorderedMap::at(): index out of range");
+    }
+
+    if (!set_[index])
+    {
+        throw std::out_of_range("UnorderedMap::at(): key not found");
+    }
+
+    return values_[index];
+}
+
+template<typename Key, typename Value, typename Hash>
+const Value& UnorderedMap<Key, Value, Hash>::at(const Key& key) const
+{
+    const auto index = hash_(key);
+
+    if (index >= set_.size())
+    {
+        throw std::out_of_range("UnorderedMap::at(): index out of range");
+    }
+
+    if (!set_[index])
+    {
+        throw std::out_of_range("UnorderedMap::at(): key not found");
+    }
+
+    return values_[index];
+}
+
+template<typename Key, typename Value, typename Hash>
+Value& UnorderedMap<Key, Value, Hash>::operator[](const Key& key)
+{
+    const auto index = hash_(key);
+
+    keys_[index] = key;
+    set_[index] = true;
+
+    return values_[index];
+}
+
+template<typename Key, typename Value, typename Hash>
+const Value& UnorderedMap<Key, Value, Hash>::operator[](const Key& key) const
+{
+    const auto index = hash_(key);
+
+    keys_[index] = key;
+    set_[index] = true;
+
+    return values_[index];
+}
+
+template<typename Key, typename Value, typename Hash>
+std::size_t UnorderedMap<Key, Value, Hash>::size() const noexcept
+{
+    return static_cast<std::size_t>(std::count(set_.cbegin(), set_.cend(), true));
+}
+
+template<typename Key, typename Value, typename Hash>
+std::size_t UnorderedMap<Key, Value, Hash>::capacity() const noexcept
+{
+    return set_.capacity();
+}
+
+template<typename Key, typename Value, typename Hash>
+void UnorderedMap<Key, Value, Hash>::clear() noexcept
+{
+    std::fill(set_.begin(), set_.end(), false);
+}
+
+template<typename Key, typename Value, typename Hash>
+bool UnorderedMap<Key, Value, Hash>::empty() const noexcept
+{
+    return std::any_of(set_.cbegin(), set_.cend(), [](const auto& value) -> bool { return value; });
+}
+
+template<typename Key, typename Value, typename Hash>
+bool UnorderedMap<Key, Value, Hash>::contains(const Key& key) const noexcept
+{
+    const auto index = hash_(key);
+
+    return set_[index];
+}
+
+template<typename Key, typename Value, typename Hash>
 void swap(UnorderedMap<Key, Value, Hash>& first, UnorderedMap<Key, Value, Hash>& second)
 {
+    first.swap(second);
 }
 } // namespace containers
 
