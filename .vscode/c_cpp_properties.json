@@ -4,14 +4,9 @@
             "name": "Linux",
             "browse": {
                 "databaseFilename": "${default}",
-                "limitSymbolsToIncludedHeaders": false
+                "limitSymbolsToIncludedHeaders": true
             },
-            "includePath": [
-                "${workspaceFolder}/**",
-                "/opt/ros/humble/include/**",
-                "/usr/local/include/**",
-                "/usr/include/**"
-            ],
+            "includePath": [],
             "defines": [],
             "compilerPath": "/usr/bin/g++",
             "intelliSenseMode": "linux-gcc-x64",

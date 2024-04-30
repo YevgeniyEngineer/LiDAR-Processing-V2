@@ -93,5 +93,16 @@
         "/opt/ros/humble/lib/python3.10/site-packages/"
     ],
     "clangd.path": "/usr/bin/clangd",
-    "clangd.checkUpdates": false
+    "clangd.checkUpdates": false,
+    "C_Cpp.autocomplete": "disabled",
+    "C_Cpp.intelliSenseEngine": "disabled",
+    "C_Cpp.errorSquiggles": "disabled",
+    "C_Cpp.formatting": "disabled",
+    "C_Cpp.intelliSenseEngineFallback": "disabled",
+    "C_Cpp.configurationWarnings": "disabled",
+    "C_Cpp.vcpkg.enabled": false,
+    "C_Cpp.inlayHints.parameterNames.enabled": false,
+    "C_Cpp.autoAddFileAssociations": false,
+    "C_Cpp.codeAnalysis.runAutomatically": false,
+    "C_Cpp.default.enableConfigurationSquiggles": false
 }
