@@ -50,6 +50,7 @@ RUN apt-get update && apt-get install -y \
     libxi6 \
     python3-pip \
     clang-format \
+    clangd \
     gdb \
     libpcl-dev \
     libopencv-dev \

@@ -91,5 +91,7 @@
     ],
     "python.analysis.extraPaths": [
         "/opt/ros/humble/lib/python3.10/site-packages/"
-    ]
+    ],
+    "clangd.path": "/usr/bin/clangd",
+    "clangd.checkUpdates": false
 }

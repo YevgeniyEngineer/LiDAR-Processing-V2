@@ -32,13 +32,13 @@
 
 namespace pcl
 {
-struct PointXYZIR
+struct EIGEN_ALIGN16 PointXYZIR
 {
     PCL_ADD_POINT4D;                // This adds the XYZ coordinates and padding
     float intensity;                // Intensity of reflection
     std::uint16_t ring;             // Laser ring index
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW // Ensure proper alignment
-} EIGEN_ALIGN16;                    // Force SSE alignment
+};                                  // Force SSE alignment
 } // namespace pcl
 
 // Register the point type
@@ -256,7 +256,7 @@ class Node final : public rclcpp::Node
 
         const auto nanosec_timestamp = std::chrono::steady_clock::now().time_since_epoch().count();
         message_.header.stamp.sec =
-            static_cast<std::int32_t>(static_cast<double>(nanosec_timestamp / SECONDS_TO_NANOSECONDS));
+            static_cast<std::int32_t>(static_cast<double>(nanosec_timestamp) / SECONDS_TO_NANOSECONDS);
         message_.header.stamp.nanosec = static_cast<std::uint32_t>(
             nanosec_timestamp -
             static_cast<std::int64_t>(static_cast<double>(message_.header.stamp.sec) * SECONDS_TO_NANOSECONDS));
