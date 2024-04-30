@@ -184,7 +184,7 @@ TEST(VectorTest, Clear)
 TEST(VectorTest, InsertMoveElement)
 {
     Vector<int> v;
-    v.insert(v.begin(), std::move(42));
+    v.insert(v.begin(), 42);
     EXPECT_EQ(v.front(), 42);
 }
 

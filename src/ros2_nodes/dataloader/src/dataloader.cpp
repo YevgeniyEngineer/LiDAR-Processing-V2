@@ -328,7 +328,7 @@ class Node final : public rclcpp::Node
                             point_cache.y = point.y;
                             point_cache.z = point.z;
 
-                            std::memcpy(static_cast<void*>(&vis_message_.data.data()[pointer_offset]),
+                            std::memcpy(static_cast<void*>(&vis_message_.data[pointer_offset]),
                                         static_cast<const void*>(&point_cache),
                                         sizeof(point_cache));
 

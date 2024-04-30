@@ -1,5 +1,5 @@
 dataloader:
   ros__parameters:
-    data_path: "/workspaces/LiDAR-Processing-V2/data"
+    data_path: /workspaces/LiDAR-Processing-V2/data
     topic: /pointcloud
     frequency_hz: 10
