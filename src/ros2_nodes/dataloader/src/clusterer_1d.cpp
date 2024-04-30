@@ -8,7 +8,7 @@ void Clusterer1D::reserve(std::size_t max_pts)
     queue_.reserve(max_pts);
 }
 
-template <typename T>
+template<typename T>
 void Clusterer1D::cluster(const std::vector<T>& values, T max_distance, std::vector<std::size_t>& labels)
 {
     labels.assign(values.size(), UNDEFINED);
@@ -88,7 +88,7 @@ void Clusterer1D::cluster(const std::vector<T>& values, T max_distance, std::vec
 }
 
 // Explicit specialization
-template void Clusterer1D::cluster(const std::vector<float>& values, float max_distance,
-                                   std::vector<std::size_t>& labels);
+template void
+Clusterer1D::cluster(const std::vector<float>& values, float max_distance, std::vector<std::size_t>& labels);
 
 } // namespace clustering

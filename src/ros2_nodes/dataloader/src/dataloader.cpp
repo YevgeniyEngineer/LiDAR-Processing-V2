@@ -44,7 +44,8 @@ struct PointXYZIR
 // Register the point type
 POINT_CLOUD_REGISTER_POINT_STRUCT(pcl::PointXYZIR,
                                   (float, x, x)(float, y, y)(float, z, z)(float, intensity, intensity)(std::uint16_t,
-                                                                                                       ring, ring))
+                                                                                                       ring,
+                                                                                                       ring))
 
 class Node final : public rclcpp::Node
 {
@@ -52,7 +53,8 @@ class Node final : public rclcpp::Node
     using PointFieldTypes = pcl::PCLPointField::PointFieldTypes;
     using PointCloud2 = sensor_msgs::msg::PointCloud2;
 
-    Node() : rclcpp::Node("dataloader")
+    Node()
+        : rclcpp::Node("dataloader")
     {
         this->declare_parameter<std::string>("data_path");
         this->declare_parameter<std::string>("topic");
@@ -88,7 +90,8 @@ class Node final : public rclcpp::Node
     rclcpp::Publisher<PointCloud2>::SharedPtr vis_publisher_;
     PointCloud2 vis_message_;
 
-    void addRingInfo(const pcl::PointCloud<pcl::PointXYZI>& cloud_in, pcl::PointCloud<pcl::PointXYZIR>& cloud_out,
+    void addRingInfo(const pcl::PointCloud<pcl::PointXYZI>& cloud_in,
+                     pcl::PointCloud<pcl::PointXYZIR>& cloud_out,
                      const float elevation_tolerance = 0.008F)
     {
         const auto elevationComparator = [](const auto& a, const auto& b) -> bool {
@@ -121,16 +124,17 @@ class Node final : public rclcpp::Node
             std::uint16_t current_ring = 0U;
 
             const auto& first_point = cloud_out.points[0U];
-            auto last_elevation =
-                std::atan2(first_point.z, std::sqrt(first_point.x * first_point.x + first_point.y * first_point.y +
-                                                    first_point.z * first_point.z));
+            auto last_elevation = std::atan2(first_point.z,
+                                             std::sqrt(first_point.x * first_point.x + first_point.y * first_point.y +
+                                                       first_point.z * first_point.z));
 
             for (std::size_t i = 1U; i < cloud_out.points.size(); ++i)
             {
                 auto& current_point = cloud_out.points[i];
-                const auto current_elevation = std::atan2(
-                    current_point.z, std::sqrt(current_point.x * current_point.x + current_point.y * current_point.y +
-                                               current_point.z * current_point.z));
+                const auto current_elevation =
+                    std::atan2(current_point.z,
+                               std::sqrt(current_point.x * current_point.x + current_point.y * current_point.y +
+                                         current_point.z * current_point.z));
 
                 if (std::fabs(current_elevation - last_elevation) > elevation_tolerance)
                 {
@@ -265,7 +269,8 @@ class Node final : public rclcpp::Node
         message_.is_dense = pointcloud_iterator_->is_dense;
 
         message_.data.resize(sizeof(pcl::PointXYZIR) * pointcloud_iterator_->size());
-        std::memcpy(static_cast<void*>(message_.data.data()), static_cast<const void*>(pointcloud_iterator_->data()),
+        std::memcpy(static_cast<void*>(message_.data.data()),
+                    static_cast<const void*>(pointcloud_iterator_->data()),
                     sizeof(pcl::PointXYZIR) * pointcloud_iterator_->size());
 
         publisher_->publish(message_);
@@ -283,7 +288,8 @@ class Node final : public rclcpp::Node
             vis_message_.data.resize(sizeof(pcl::PointXYZRGB) * pointcloud_iterator_->size());
 
             const auto max_point_ring_index_iterator =
-                std::max_element(pointcloud_iterator_->points.cbegin(), pointcloud_iterator_->points.cend(),
+                std::max_element(pointcloud_iterator_->points.cbegin(),
+                                 pointcloud_iterator_->points.cend(),
                                  [](const auto& a, const auto& b) -> bool { return (a.ring < b.ring); });
 
             if (max_point_ring_index_iterator != pointcloud_iterator_->points.cend())
@@ -323,7 +329,8 @@ class Node final : public rclcpp::Node
                             point_cache.z = point.z;
 
                             std::memcpy(static_cast<void*>(&vis_message_.data.data()[pointer_offset]),
-                                        static_cast<const void*>(&point_cache), sizeof(point_cache));
+                                        static_cast<const void*>(&point_cache),
+                                        sizeof(point_cache));
 
                             pointer_offset += sizeof(pcl::PointXYZRGB);
                         }

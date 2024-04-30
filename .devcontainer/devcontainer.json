@@ -32,7 +32,6 @@
         "vscode": {
             "extensions": [
                 "ms-vscode.cpptools",
-                "ms-vscode.cmake-tools",
                 "ms-iot.vscode-ros",
                 "ms-python.black-formatter",
                 "ms-python.vscode-pylance",

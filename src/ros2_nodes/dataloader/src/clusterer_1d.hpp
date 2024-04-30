@@ -28,7 +28,7 @@ class Clusterer1D final
 
     void reserve(std::size_t max_pts);
 
-    template <typename T>
+    template<typename T>
     void cluster(const std::vector<T>& values, T max_distance, std::vector<std::size_t>& labels);
 
   private:
