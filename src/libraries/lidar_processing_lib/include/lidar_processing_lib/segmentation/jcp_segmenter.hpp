@@ -1,3 +1,6 @@
+#ifndef LIDAR_PROCESSING_LIB_JCP_SEGMENTER_HPP
+#define LIDAR_PROCESSING_LIB_JCP_SEGMENTER_HPP
+
 // PCL
 #include <pcl/point_cloud.h> // pcl::PointCloud
 #include <pcl/point_types.h> // pcl::PointXYZI
@@ -17,3 +20,5 @@ class JCPSegmenter
   private:
 };
 } // namespace lidar_perception_lib::segmentation
+
+#endif // LIDAR_PROCESSING_LIB_JCP_SEGMENTER_HPP

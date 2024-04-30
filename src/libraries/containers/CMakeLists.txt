@@ -10,7 +10,13 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Find packages
-find_package(ament_cmake REQUIRED)
+find_package(ament_cmake QUIET)
+
+if (ament_cmake_FOUND)
+    message(STATUS "${PROJECT_NAME}: ament_cmake found")
+else()
+    message(STATUS "${PROJECT_NAME}: ament_cmake not found")
+endif()
 
 # Create shared library
 add_library(${PROJECT_NAME} INTERFACE)
@@ -66,22 +72,44 @@ install(FILES
 
 # Unit testing
 if (BUILD_TESTING)
-    find_package(ament_lint_auto REQUIRED)
-    find_package(ament_cmake_gtest REQUIRED)
+    if(ament_cmake_FOUND)
+        find_package(ament_lint_auto REQUIRED)
+        find_package(ament_cmake_gtest REQUIRED)
 
-    # Define the test executable and the source files for the test
-    ament_add_gtest(test_containers
-        tests/test_queue.cpp
-        tests/test_vector.cpp
-    )
+        # Define the test executable and the source files for the test
+        ament_add_gtest(test_containers
+            tests/test_queue.cpp
+            tests/test_vector.cpp
+        )
 
-    # Link the test executable
-    target_link_libraries(test_containers
-        ${PROJECT_NAME}
-    )
+        # Link the test executable
+        target_link_libraries(test_containers
+            ${PROJECT_NAME}
+        )
 
-    # Automatically find and add linters to the test dependencies
-    ament_lint_auto_find_test_dependencies()
+        # Automatically find and add linters to the test dependencies
+        ament_lint_auto_find_test_dependencies()
+    else()
+        # Non-ROS2 environment, use GoogleTest directly
+        find_package(GTest REQUIRED)
+
+        # Define the test executable and the source files for the test
+        add_executable(test_containers
+            tests/test_queue.cpp
+            tests/test_vector.cpp
+        )
+
+        target_link_libraries(test_containers
+            ${PROJECT_NAME}
+            GTest::GTest
+            GTest::Main
+        )
+
+        enable_testing()
+        add_test(NAME test_containers COMMAND test_containers)
+    endif()
 endif()
 
-ament_package()
+if (ament_cmake_FOUND)
+    ament_package()
+endif()

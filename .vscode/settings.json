@@ -86,11 +86,12 @@
         "**/log": true
     },
     "ros.rosSetupScript": "/opt/ros/humble/setup.bash",
-    "cmake.buildDirectory": "${workspaceFolder}/build",
     "python.autoComplete.extraPaths": [
         "/opt/ros/humble/lib/python3.10/site-packages/"
     ],
     "python.analysis.extraPaths": [
         "/opt/ros/humble/lib/python3.10/site-packages/"
-    ]
+    ],
+    "cmake.sourceDirectory": "${workspaceFolder}/cmake",
+    "cmake.buildDirectory": "${workspaceFolder}/build",
 }

@@ -4,14 +4,30 @@ cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
 # Set project name
 project(lidar_processing_lib VERSION 1.0.0 LANGUAGES CXX)
 # include(CTest) # This enables the BUILD_TESTING option
+set(BUILD_TESTING False)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Find packages
-find_package(ament_cmake REQUIRED)
-find_package(eigen3_cmake_module REQUIRED) # See https://github.com/ros2/eigen3_cmake_module/tree/humble
+find_package(ament_cmake QUIET)
+
+if (ament_cmake_FOUND)
+    message(STATUS "${PROJECT_NAME}: ament_cmake found")
+else()
+    message(STATUS "${PROJECT_NAME}: ament_cmake not found")
+endif()
+
+# See https://github.com/ros2/eigen3_cmake_module/tree/humble
+find_package(eigen3_cmake_module QUIET)
+
+if (eigen3_cmake_module_FOUND)
+    message(STATUS "${PROJECT_NAME}: eigen3_cmake_module found")
+else()
+    message(STATUS "${PROJECT_NAME}: eigen3_cmake_module not found")
+endif()
+
 find_package(Eigen3 3.4 REQUIRED NO_MODULE)
 find_package(OpenCV REQUIRED)
 find_package(PCL 1.7.2 REQUIRED)
@@ -55,21 +71,23 @@ target_link_libraries(${PROJECT_NAME}
         ${PCL_LIBRARIES}
 )
 
-# Ament and ROS2 specific configuration
-ament_target_dependencies(${PROJECT_NAME}
-    PUBLIC
+if (ament_cmake_FOUND)
+    # Ament and ROS2 specific configuration
+    ament_target_dependencies(${PROJECT_NAME}
+        PUBLIC
+            Eigen3
+            OpenCV
+            PCL
+    )
+
+    # Export dependencies
+    ament_export_dependencies(
+        eigen3_cmake_module
         Eigen3
         OpenCV
         PCL
-)
-
-# Export dependencies
-ament_export_dependencies(
-    eigen3_cmake_module
-    Eigen3
-    OpenCV
-    PCL
-)
+    )
+endif()
 
 # Installation rules for the library
 install(TARGETS ${PROJECT_NAME}
@@ -116,19 +134,42 @@ install(FILES
 
 # Unit testing
 if (BUILD_TESTING)
-    find_package(ament_lint_auto REQUIRED)
-    find_package(ament_cmake_gtest REQUIRED)
+    if(ament_cmake_FOUND)
+        find_package(ament_lint_auto REQUIRED)
+        find_package(ament_cmake_gtest REQUIRED)
 
-    # Define the test executable and the source file for the test
-    # ament_add_gtest(test_segmenter tests/test_segmenter.cpp)
+        # Define the test executable and the source file for the test
+        ament_add_gtest(test_lidar_processing_lib
+            tests/segmentation/test_jcp_segmenter.cpp
+        )
 
-    # Link the test executable
-    # target_link_libraries(test_segmenter
-    #     ${PROJECT_NAME}
-    # )
+        # Link the test executable
+        target_link_libraries(test_lidar_processing_lib
+            ${PROJECT_NAME}
+        )
 
-    # Automatically find and add linters to the test dependencies
-    ament_lint_auto_find_test_dependencies()
+        # Automatically find and add linters to the test dependencies
+        ament_lint_auto_find_test_dependencies()
+    else()
+        # Non-ROS2 environment, use GoogleTest directly
+        find_package(GTest REQUIRED)
+
+        # Define the test executable and the source files for the test
+        add_executable(test_lidar_processing_lib
+            tests/segmentation/test_jcp_segmenter.cpp
+        )
+
+        target_link_libraries(test_containers
+            ${PROJECT_NAME}
+            GTest::GTest
+            GTest::Main
+        )
+
+        enable_testing()
+        add_test(NAME test_lidar_processing_lib COMMAND test_lidar_processing_lib)
+    endif()
 endif()
 
-ament_package()
+if (ament_cmake_FOUND)
+    ament_package()
+endif()
