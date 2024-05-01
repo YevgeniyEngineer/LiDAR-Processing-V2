@@ -46,11 +46,11 @@ class Buffer final
         {
         }
 
-        void operator()(T* ptr)
+        void operator()(T* ptr) noexcept
         {
             if (ptr)
             {
-                buffer_.return_loan(ptr);
+                buffer_.try_return_loan(ptr);
             }
         }
 
@@ -83,10 +83,10 @@ class Buffer final
             {
                 in_use_[i] = true;
                 std::swap(loans_[i], buffer_[i]); // Swap into active use
-                return std::shared_ptr<T>(&loans_[i], [this](T* ptr) {
+                return std::shared_ptr<T>(&loans_[i], [this](T* ptr) -> void {
                     if (ptr)
                     {
-                        return_loan(ptr);
+                        try_return_loan(ptr);
                     }
                 });
             }
@@ -122,6 +122,21 @@ class Buffer final
             }
         }
         throw std::runtime_error("Returned item does not belong to the buffer");
+    }
+
+    bool try_return_loan(T* item) noexcept
+    {
+        const std::lock_guard<std::mutex> lock(mutex_);
+        for (std::size_t i = 0; i < N; ++i)
+        {
+            if (item == &loans_[i])
+            {
+                in_use_[i] = false;
+                std::swap(loans_[i], buffer_[i]); // Swap back to buffer
+                return true;
+            }
+        }
+        return false;
     }
 
     template<typename U = T>
