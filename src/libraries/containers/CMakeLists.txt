@@ -72,20 +72,22 @@ install(FILES
 
 # Unit testing
 if (BUILD_TESTING)
+
+    set(TEST_SOURCES
+        tests/test_queue.cpp
+        tests/test_vector.cpp
+        tests/test_buffer.cpp
+    )
+
     if(ament_cmake_FOUND)
         find_package(ament_lint_auto REQUIRED)
         find_package(ament_cmake_gtest REQUIRED)
 
         # Define the test executable and the source files for the test
-        ament_add_gtest(test_containers
-            tests/test_queue.cpp
-            tests/test_vector.cpp
-        )
+        ament_add_gtest(test_containers ${TEST_SOURCES})
 
         # Link the test executable
-        target_link_libraries(test_containers
-            ${PROJECT_NAME}
-        )
+        target_link_libraries(test_containers ${PROJECT_NAME})
 
         # Automatically find and add linters to the test dependencies
         ament_lint_auto_find_test_dependencies()
@@ -94,10 +96,7 @@ if (BUILD_TESTING)
         find_package(GTest REQUIRED)
 
         # Define the test executable and the source files for the test
-        add_executable(test_containers
-            tests/test_queue.cpp
-            tests/test_vector.cpp
-        )
+        add_executable(test_containers ${TEST_SOURCES})
 
         target_link_libraries(test_containers
             ${PROJECT_NAME}

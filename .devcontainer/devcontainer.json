@@ -44,8 +44,7 @@
                 "redhat.vscode-xml",
                 "redhat.vscode-yaml",
                 "mechatroner.rainbow-csv",
-                "llvm-vs-code-extensions.vscode-clangd",
-                "CS128.cs128-clang-tidy"
+                "llvm-vs-code-extensions.vscode-clangd"
             ],
             "settings": {
                 "terminal.integrated.defaultProfile.linux": "bash",

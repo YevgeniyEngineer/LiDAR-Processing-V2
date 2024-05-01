@@ -12,6 +12,8 @@ template<typename Key, typename Value, typename Hash = std::hash<Key>>
 class HashTable final
 {
   public:
+    static constexpr double MAX_LOAD_FACTOR = 2.5;
+
     HashTable();
     explicit HashTable(std::size_t num_buckets);
     explicit HashTable(std::size_t num_buckets, std::size_t num_collisions);
@@ -30,6 +32,10 @@ class HashTable final
 
     Vector<Bucket> table_;
     Hash hash_;
+    std::size_t num_elements_;
+
+    void resize(std::size_t num_buckets);
+    void check_and_resize();
 };
 
 template<typename Key, typename Value, typename Hash>
@@ -144,6 +150,7 @@ bool HashTable<Key, Value, Hash>::remove(KeyT&& key)
         if (bucket_it->first == key)
         {
             bucket.erase(bucket_it);
+            --num_elements_;
 
             return true; // Successfully erased the key
         }
