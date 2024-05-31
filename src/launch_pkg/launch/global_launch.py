@@ -44,7 +44,7 @@ def generate_launch_description():
     ld = LaunchDescription()
 
     ld.add_action(dataloader_launch)
-    # ld.add_action(processor_launch)
+    ld.add_action(processor_launch)
     ld.add_action(rviz2)
 
     return ld

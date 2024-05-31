@@ -9,11 +9,31 @@
 
     <buildtool_depend>ament_cmake</buildtool_depend>
 
+    <!-- Dependencies for building -->
+    <build_depend>opencv</build_depend>
+    <build_depend>pcl</build_depend>
+    <build_depend>eigen3_cmake_module</build_depend>
+
+    <!-- Dependencies needed for linking and runtime -->
+    <build_export_depend>opencv</build_export_depend>
+    <build_export_depend>pcl</build_export_depend>
+    <build_export_depend>eigen3_cmake_module</build_export_depend>
+
+    <!-- Runtime dependencies -->
+    <exec_depend>opencv</exec_depend>
+    <exec_depend>pcl</exec_depend>
+
+    <!-- ROS2 dependencies -->
     <depend>rclcpp</depend>
     <depend>sensor_msgs</depend>
     <depend>geometry_msgs</depend>
     <depend>visualization_msgs</depend>
     <depend>lidar_processing_lib</depend>
+
+    <!-- Testing dependencies -->
+    <test_depend>ament_lint_auto</test_depend>
+    <test_depend>ament_lint_common</test_depend>
+    <test_depend>ament_cmake_gtest</test_depend>
 
     <export>
         <build_type>ament_cmake</build_type>

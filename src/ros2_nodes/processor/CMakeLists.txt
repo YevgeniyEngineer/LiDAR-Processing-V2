@@ -9,6 +9,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Find required packages
+find_package(PCL 1.7.2 REQUIRED)
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
@@ -23,9 +24,9 @@ add_executable(${PROJECT_NAME}
 )
 
 # Include directories for the target
-target_include_directories(${PROJECT_NAME}
-    PRIVATE
-        include
+target_include_directories(${PROJECT_NAME} PRIVATE
+    ${PCL_INCLUDE_DIRS}
+    ${rclcpp_INCLUDE_DIRS}
 )
 
 # Define dependencies for the target
@@ -35,6 +36,12 @@ ament_target_dependencies(${PROJECT_NAME}
     geometry_msgs
     visualization_msgs
     lidar_processing_lib
+)
+
+# Add PCL and rclcpp libraries to the linker for the target
+target_link_libraries(${PROJECT_NAME}
+    ${PCL_LIBRARIES}
+    ${rclcpp_LIBRARIES}
 )
 
 # Install the executable (ROS2 convention)

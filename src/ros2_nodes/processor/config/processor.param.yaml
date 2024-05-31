@@ -1,0 +1,7 @@
+processor:
+  ros__parameters:
+    input_cloud_topic: /pointcloud
+    ground_cloud_topic: /ground_pointcloud
+    obstacle_cloud_topic: /obstacle_pointcloud
+    clustered_cloud_topic: /clustered_pointcloud
+    obstacle_outlines_topic: /obstacle_outlines

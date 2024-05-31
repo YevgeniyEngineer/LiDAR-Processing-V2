@@ -71,7 +71,7 @@ class Node final : public rclcpp::Node
         vis_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/pointcloud_rings", 10);
         timer_ = this->create_wall_timer(sleep_duration_ms_, std::bind(&Node::timerCallback, this));
 
-        RCLCPP_INFO(this->get_logger(), "Datalogger node constructed.");
+        RCLCPP_INFO(this->get_logger(), "%s node constructed", this->get_name());
     }
 
   private:
