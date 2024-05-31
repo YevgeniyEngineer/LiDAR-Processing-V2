@@ -69,6 +69,38 @@ TEST(VectorTest, InitializerListConstructor)
     EXPECT_EQ(v[4], 5);
 }
 
+// Test assign
+TEST(VectorTest, Assign)
+{
+    Vector<int> v1 = {10, 20, 30, 40};
+    Vector<int> v2;
+
+    EXPECT_TRUE(v2.empty());
+    EXPECT_EQ(v1.size(), 4);
+
+    v2.assign(3, 5);
+    EXPECT_EQ(v2.size(), 3);
+    for (const auto& val : v2)
+    {
+        EXPECT_EQ(val, 5);
+    }
+
+    v2.assign(v1.begin(), v1.end());
+    EXPECT_EQ(v2.size(), v1.size());
+    for (std::size_t i = 0; i < v1.size(); ++i)
+    {
+        EXPECT_EQ(v1[i], v2[i]);
+    }
+
+    std::initializer_list<int> ilist = {1, 2, 3, 4, 5, 6};
+    v2.assign(ilist);
+    EXPECT_EQ(v2.size(), ilist.size());
+    for (std::size_t i = 0; i < ilist.size(); ++i)
+    {
+        EXPECT_EQ(*(ilist.begin() + i), v2[i]);
+    }
+}
+
 // Test access using at() with valid index
 TEST(VectorTest, AccessWithAt)
 {

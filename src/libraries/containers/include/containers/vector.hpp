@@ -1,15 +1,33 @@
-#ifndef CONTAINERS_VECTOR_HPP
-#define CONTAINERS_VECTOR_HPP
+/*
+ * Copyright (c) 2024 Yevgeniy Simonov
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+#ifndef CONTAINERS__VECTOR_HPP
+#define CONTAINERS__VECTOR_HPP
 
 #include <algorithm>
-#include <array>
 #include <cstddef>
-#include <cstdint>
 #include <cstdlib>
 #include <initializer_list>
-#include <iterator>
 #include <memory>
-#include <new>
 #include <stdexcept>
 #include <type_traits>
 #include <utility>
@@ -58,6 +76,11 @@ class Vector final
         std::allocator_traits<Allocator>::propagate_on_container_move_assignment::value ||
         std::allocator_traits<Allocator>::is_always_equal::value);
     Vector& operator=(std::initializer_list<T> ilist) &;
+    void assign(std::size_t count, const T& value);
+    template<typename InputIterator,
+             typename std::enable_if<!std::is_integral<InputIterator>::value, InputIterator>::type* = nullptr>
+    void assign(InputIterator first, InputIterator last);
+    void assign(std::initializer_list<T> ilist);
 
     // Element access
     T& at(std::size_t index);
@@ -270,6 +293,28 @@ Vector<T, Allocator>& Vector<T, Allocator>::operator=(std::initializer_list<T> i
     size_ = buffer_.size();
 
     return *this;
+}
+
+template<typename T, typename Allocator>
+void Vector<T, Allocator>::assign(std::size_t count, const T& value)
+{
+    buffer_.assign(count, value);
+    size_ = buffer_.size();
+}
+
+template<typename T, typename Allocator>
+template<typename InputIterator, typename std::enable_if<!std::is_integral<InputIterator>::value, InputIterator>::type*>
+void Vector<T, Allocator>::assign(InputIterator first, InputIterator last)
+{
+    buffer_.assign(first, last);
+    size_ = buffer_.size();
+}
+
+template<typename T, typename Allocator>
+void Vector<T, Allocator>::assign(std::initializer_list<T> ilist)
+{
+    buffer_.assign(ilist);
+    size_ = buffer_.size();
 }
 
 template<typename T, typename Allocator>
@@ -780,4 +825,4 @@ void swap(Vector<T, Allocator>& first,
 
 } // namespace containers
 
-#endif // CONTAINERS_VECTOR_HPP
+#endif // CONTAINERS__VECTOR_HPP
