@@ -345,7 +345,7 @@ class Node final : public rclcpp::Node
     }
 };
 
-std::int32_t main(std::int32_t argc, char** argv)
+std::int32_t main(std::int32_t argc, const char* const* argv)
 {
     std::int32_t ret = EXIT_SUCCESS;
 
