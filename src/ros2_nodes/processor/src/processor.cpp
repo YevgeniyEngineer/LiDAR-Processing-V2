@@ -23,22 +23,25 @@
 // OpenCV
 #include <opencv2/opencv.hpp>
 
-namespace pcl
-{
-struct EIGEN_ALIGN16 PointXYZIR
-{
-    PCL_ADD_POINT4D;                // This adds the XYZ coordinates and padding
-    float intensity;                // Intensity of reflection
-    std::uint16_t ring;             // Laser ring index
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW // Ensure proper alignment
-};                                  // Force SSE alignment
-} // namespace pcl
+// Segmenter
+#include "segmenter.hpp"
 
-// Register the point type
-POINT_CLOUD_REGISTER_POINT_STRUCT(pcl::PointXYZIR,
-                                  (float, x, x)(float, y, y)(float, z, z)(float, intensity, intensity)(std::uint16_t,
-                                                                                                       ring,
-                                                                                                       ring))
+// namespace pcl
+// {
+// struct EIGEN_ALIGN16 PointXYZIR
+// {
+//     PCL_ADD_POINT4D;                // This adds the XYZ coordinates and padding
+//     float intensity;                // Intensity of reflection
+//     std::uint16_t ring;             // Laser ring index
+//     EIGEN_MAKE_ALIGNED_OPERATOR_NEW // Ensure proper alignment
+// };                                  // Force SSE alignment
+// } // namespace pcl
+
+// // Register the point type
+// POINT_CLOUD_REGISTER_POINT_STRUCT(pcl::PointXYZIR,
+//                                   (float, x, x)(float, y, y)(float, z, z)(float, intensity, intensity)(std::uint16_t,
+//                                                                                                        ring,
+//                                                                                                        ring))
 
 void convertImageToRosMessage(const cv::Mat& cv_image,
                               std::int32_t seconds,
@@ -145,9 +148,9 @@ class Node final : public rclcpp::Node
         auto t_segmentation_start = std::chrono::steady_clock::now();
 
         const float sensor_height = -1.73;
-        const int width = 2083;
-        const int height = 64;
-        const float min_range = 2.0;
+        const int width = 2300;      // 2083;
+        const int height = 68;       // 64;
+        const float min_range = 2.0; // 2.0;
         const float max_range = 100.0;
 
         const float delta_slope_deg = 7.0;
@@ -196,25 +199,25 @@ class Node final : public rclcpp::Node
                     continue;
                 }
 
-                float elevation_angle = 0;
+                float azimuth_angle = 0;
 
                 // Handle the case where x and y are effectively 0
                 if (std::fabs(point.x) < std::numeric_limits<float>::epsilon() &&
                     std::fabs(point.y) < std::numeric_limits<float>::epsilon())
                 {
-                    elevation_angle = 0;
+                    azimuth_angle = 0;
                 }
                 else
                 {
-                    elevation_angle = std::atan2(point.y, point.x);
+                    azimuth_angle = std::atan2(point.y, point.x);
 
-                    if (elevation_angle < 0)
+                    if (azimuth_angle < 0)
                     {
-                        elevation_angle += static_cast<float>(2 * M_PI);
+                        azimuth_angle += static_cast<float>(2 * M_PI);
                     }
                 }
 
-                const int col = static_cast<int>(std::round((width - 1) * (elevation_angle * 180.0 / M_PI) / 360.0));
+                const int col = static_cast<int>(std::round((width - 1) * (azimuth_angle * 180.0 / M_PI) / 360.0));
 
                 if (col < 0 || col >= width)
                 {
@@ -469,6 +472,7 @@ class Node final : public rclcpp::Node
 
         ground_cloud.reserve(input_cloud_.size());
         obstacle_cloud.reserve(input_cloud_.size());
+
         for (int i = 0; i < width; ++i)
         {
             for (int j = 0; j < height; ++j)
@@ -494,6 +498,55 @@ class Node final : public rclcpp::Node
                 }
             }
         }
+
+        // std::vector<segmentation::Label> labels;
+        // segmenter_.segment(input_cloud_, labels);
+
+        // const auto& range_image = segmenter_.rangeImage();
+
+        // // Show the JCP image
+        // {
+        //     // Flip the image vertically
+        //     cv::Mat show_image;
+        //     cv::flip(range_image, show_image, 0); // '0' denotes flipping around x-axis
+
+        //     Image recm_depth_image;
+        //     convertImageToRosMessage(show_image,
+        //                              msg.header.stamp.sec,
+        //                              msg.header.stamp.nanosec,
+        //                              "bgr8",
+        //                              msg.header.frame_id,
+        //                              recm_depth_image);
+        //     recm_depth_image_publisher_->publish(recm_depth_image);
+        // }
+
+        // for (std::uint32_t i = 0; i < input_cloud_.points.size(); ++i)
+        // {
+        //     const auto& p = input_cloud_.points[i];
+        //     const auto label = labels[i];
+
+        //     switch (label)
+        //     {
+        //         case segmentation::Label::GROUND:
+        //             {
+        //                 ground_cloud.push_back({p.x, p.y, p.z, 220, 220, 220});
+        //                 break;
+        //             }
+        //         case segmentation::Label::OBSTACLE:
+        //             {
+        //                 obstacle_cloud.push_back({p.x, p.y, p.z, 0, 255, 0});
+        //                 break;
+        //             }
+        //         case segmentation::Label::UNKNOWN:
+        //             {
+        //                 break;
+        //             }
+        //         default:
+        //             {
+        //                 break;
+        //             }
+        //     }
+        // }
 
         auto t_segmentation_stop = std::chrono::steady_clock::now();
         auto t_segmentation_elapsed =
@@ -531,20 +584,30 @@ class Node final : public rclcpp::Node
             std::memcpy(cloud_ros.data.data(), &cloud_pcl.at(0), byte_size);
         };
 
-        PointCloud2 ground_msg;
-        ground_msg.data.reserve(sizeof(pcl::PointXYZRGB) * ground_cloud.size());
-        ground_msg.header = msg.header;
-        ground_msg.is_bigendian = msg.is_bigendian;
-        convertPCLToPointCloud2(ground_cloud, ground_msg);
+        RCLCPP_INFO(this->get_logger(),
+                    "Extracted %lu ground and %lu obstacle points",
+                    ground_cloud.size(),
+                    obstacle_cloud.size());
 
-        PointCloud2 obstacle_msg;
-        obstacle_msg.data.reserve(sizeof(pcl::PointXYZRGB) * obstacle_cloud.size());
-        obstacle_msg.header = msg.header;
-        obstacle_msg.is_bigendian = msg.is_bigendian;
-        convertPCLToPointCloud2(obstacle_cloud, obstacle_msg);
+        if (!ground_cloud.empty())
+        {
+            PointCloud2 ground_msg;
+            ground_msg.data.reserve(sizeof(pcl::PointXYZRGB) * ground_cloud.size());
+            ground_msg.header = msg.header;
+            ground_msg.is_bigendian = msg.is_bigendian;
+            convertPCLToPointCloud2(ground_cloud, ground_msg);
+            ground_cloud_publisher_->publish(ground_msg);
+        }
 
-        ground_cloud_publisher_->publish(ground_msg);
-        obstacle_cloud_publisher_->publish(obstacle_msg);
+        if (!obstacle_cloud.empty())
+        {
+            PointCloud2 obstacle_msg;
+            obstacle_msg.data.reserve(sizeof(pcl::PointXYZRGB) * obstacle_cloud.size());
+            obstacle_msg.header = msg.header;
+            obstacle_msg.is_bigendian = msg.is_bigendian;
+            convertPCLToPointCloud2(obstacle_cloud, obstacle_msg);
+            obstacle_cloud_publisher_->publish(obstacle_msg);
+        }
     }
 
   private:
@@ -566,6 +629,8 @@ class Node final : public rclcpp::Node
     rclcpp::Publisher<MarkerArray>::SharedPtr obstacle_outlines_publisher_;
 
     pcl::PointCloud<pcl::PointXYZIR> input_cloud_;
+
+    segmentation::Segmenter segmenter_;
 };
 
 std::int32_t main(std::int32_t argc, const char* const* argv)

@@ -70,6 +70,9 @@ install(FILES
     DESTINATION lib/cmake/${PROJECT_NAME}
 )
 
+# Export the library so it can be found by other packages
+# ament_export_targets(${PROJECT_NAME}Targets HAS_LIBRARY_TARGET)
+
 # Unit testing
 if (BUILD_TESTING)
 

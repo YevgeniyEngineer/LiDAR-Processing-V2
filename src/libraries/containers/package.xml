@@ -2,7 +2,7 @@
 <package format="3">
     <name>containers</name>
     <version>0.0.0</version>
-    <description>A shared library for specialized containers and data structures.</description>
+    <description>A library for specialized containers and data structures.</description>
 
     <maintainer email="yevgeniy.engineer@gmail.com">Yevgeniy Simonov</maintainer>
     <license>GPL-3.0</license>
