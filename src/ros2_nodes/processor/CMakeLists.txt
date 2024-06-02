@@ -23,6 +23,7 @@ find_package(lidar_processing_lib REQUIRED)
 
 # Add executable
 add_executable(${PROJECT_NAME}
+    src/segmenter.cpp
     src/processor.cpp
 )
 
