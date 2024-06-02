@@ -14,7 +14,7 @@ Segmenter::Segmenter()
     polar_grid_.resize(grid_number_of_radial_rings_ * grid_number_of_azimuth_slices_);
     for (auto& cell : polar_grid_)
     {
-        cell.reserve(150); // TODO: How to determine this number?
+        cell.reserve(250); // TODO: How to determine this number?
     }
     cell_z_values_.reserve(1000); // TODO: How to determine this number?
 
@@ -44,7 +44,7 @@ void Segmenter::config(const Configuration& config)
     polar_grid_.resize(grid_number_of_radial_rings_ * grid_number_of_azimuth_slices_);
     for (auto& cell : polar_grid_)
     {
-        cell.reserve(150); // TODO: How to determine this number?
+        cell.reserve(250); // TODO: How to determine this number?
     }
 
     elevation_map_.assign(grid_number_of_azimuth_slices_ * grid_number_of_radial_rings_, INVALID_Z);
@@ -287,7 +287,7 @@ void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
     // JCP Algorithm
 
     cv::split(image_, image_channels_);
-    cv::dilate(image_channels_[2], image_channels_[2], kernel_);
+    cv::dilate(image_channels_[2], image_channels_[2], kernel_); // dilate the red channel
     cv::merge(image_channels_, image_);
 
     for (std::int32_t height_index = 0; height_index < IMAGE_HEIGHT; ++height_index)
@@ -316,10 +316,12 @@ void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
         }
     }
 
-    static cv::Mat display_image;
-    cv::flip(image_, display_image, 0);
-    cv::imshow("RECM with Low Confidence Points", display_image);
-    cv::waitKey(1);
+    if (config_.display_recm_with_low_confidence_points)
+    {
+        cv::flip(image_, display_image_, 0);
+        cv::imshow("RECM with Low Confidence Points", display_image_);
+        cv::waitKey(1);
+    }
 
     mask_.fill(INVALID_INDEX);
     unnormalized_weight_matrix_.fill(0);

@@ -75,6 +75,8 @@ struct Configuration
     float amplification_factor = 5.0F;
     float z_min_m = -2.0F;
     float z_max_m = 3.0F;
+
+    bool display_recm_with_low_confidence_points = false;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const Configuration& config)
@@ -115,7 +117,7 @@ class Segmenter
     static constexpr float VERTICAL_RESOLUTION_DEG = 0.425F;
     static constexpr float VERTICAL_FIELD_OF_VIEW_DEG = 26.9F;
 
-    static constexpr float HORIZONTAL_RESOLUTION_DEG = 0.15F;
+    static constexpr float HORIZONTAL_RESOLUTION_DEG = 0.2F;
     static constexpr float HORIZONTAL_FIELD_OF_VIEW_DEG = 360.0F;
 
     static constexpr float VERTICAL_RESOLUTION_RAD = VERTICAL_RESOLUTION_DEG * DEG_TO_RAD;
@@ -179,6 +181,7 @@ class Segmenter
     std::vector<float> cell_z_values_;
 
     cv::Mat image_;
+    cv::Mat display_image_;
     std::vector<float> depth_image_;
 
     cv::Mat kernel_;
