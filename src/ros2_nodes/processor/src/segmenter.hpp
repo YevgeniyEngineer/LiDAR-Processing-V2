@@ -65,7 +65,8 @@ struct Configuration
     float grid_radial_spacing_m = 2.0F;
     float grid_slice_resolution_deg = 0.2F;
     float ground_height_threshold_m = 0.2F;
-    float road_maximum_slope_m_per_m = 0.15F;
+    float road_maximum_slope_m_per_m = 0.2F;
+    float road_maximum_negative_slope_m_per_m = 0.3F;
     float min_distance_m = 2.0F;
     float max_distance_m = 100.0F;
     float sensor_height_m = 1.73F;
@@ -111,7 +112,7 @@ class Segmenter
     static constexpr float VERTICAL_RESOLUTION_DEG = 0.425F;
     static constexpr float VERTICAL_FIELD_OF_VIEW_DEG = 26.9F;
 
-    static constexpr float HORIZONTAL_RESOLUTION_DEG = 0.17F;
+    static constexpr float HORIZONTAL_RESOLUTION_DEG = 0.15F;
     static constexpr float HORIZONTAL_FIELD_OF_VIEW_DEG = 360.0F;
 
     static constexpr float VERTICAL_RESOLUTION_RAD = VERTICAL_RESOLUTION_DEG * DEG_TO_RAD;
@@ -129,6 +130,9 @@ class Segmenter
     inline static const auto CV_INTERSECTION = cv::Vec3b(255, 0, 0);
     inline static const auto CV_UNKNOWN = cv::Vec3b(255, 255, 255);
 
+    // For memory allocation
+    static constexpr std::uint32_t MAX_CLOUD_SIZE = 350'000U;
+
     Segmenter();
     ~Segmenter() = default;
 
@@ -140,6 +144,11 @@ class Segmenter
     }
 
     inline const cv::Mat& image() const noexcept
+    {
+        return image_;
+    }
+
+    inline cv::Mat& image() noexcept
     {
         return image_;
     }
@@ -163,19 +172,18 @@ class Segmenter
     std::vector<std::vector<Point>> polar_grid_;
 
     std::vector<float> elevation_map_;
-    std::vector<std::int32_t> cloud_indices_;
+    std::vector<std::int32_t> cloud_mapping_indices_;
 
     cv::Mat image_;
-    cv::Mat depth_image_;
-    cv::Mat grid_mapping_indices_;
-    cv::Mat cloud_mapping_indices_;
+    std::vector<float> depth_image_;
+
     cv::Mat kernel_;
     std::vector<cv::Mat> image_channels_; // TODO: Replace with containers::Vector
 
     std::queue<Index> index_queue_; // TODO: Replaces with containers::Queue
 
-    Eigen::Vector<float, 24> D_;
-    Eigen::Vector<float, 24> W_;
+    Eigen::Vector<float, 24> unnormalized_weight_matrix_;
+    Eigen::Vector<float, 24> weight_matrix_;
     std::array<std::int32_t, 24> mask_;
 
     void resetValues();
@@ -252,30 +260,9 @@ class Segmenter
         return index == INVALID_INDEX;
     }
 
-    inline bool isValidDepth(float depth) noexcept
-    {
-        if (depth < 0)
-        {
-            return false;
-        }
-        else if (std::fabs(INVALID_DEPTH_M - depth) < std::numeric_limits<float>::epsilon())
-        {
-            return false;
-        }
-        return true;
-    }
-
     void RECM(const pcl::PointCloud<pcl::PointXYZIR>& cloud);
     void JCP(const pcl::PointCloud<pcl::PointXYZIR>& cloud);
     void populateLabels(const pcl::PointCloud<pcl::PointXYZIR>& cloud, std::vector<Label>& labels);
-
-    void constructElevationMap(const pcl::PointCloud<pcl::PointXYZIR>& cloud);
-
-    void performRECMSegmentation(const pcl::PointCloud<pcl::PointXYZIR>& cloud);
-
-    void performJCPSegmentation(const pcl::PointCloud<pcl::PointXYZIR>& cloud);
-
-    void extractSegmentationLabels(const pcl::PointCloud<pcl::PointXYZIR>& cloud, std::vector<Label>& labels);
 };
 } // namespace segmentation
 
