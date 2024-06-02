@@ -9,7 +9,6 @@ Segmenter::Segmenter()
 {
     grid_slice_resolution_rad_ = config_.grid_slice_resolution_deg * DEG_TO_RAD;
     grid_number_of_radial_rings_ = static_cast<std::int32_t>(config_.max_distance_m / config_.grid_radial_spacing_m);
-
     grid_number_of_azimuth_slices_ = static_cast<std::int32_t>(TWO_M_PIf / grid_slice_resolution_rad_);
 
     polar_grid_.resize(grid_number_of_radial_rings_ * grid_number_of_azimuth_slices_);
@@ -37,12 +36,9 @@ Segmenter::Segmenter()
 void Segmenter::config(const Configuration& config)
 {
     config_ = config;
+
     grid_slice_resolution_rad_ = config_.grid_slice_resolution_deg * DEG_TO_RAD;
-    // grid_number_of_radial_rings_ =
-    //     static_cast<std::int32_t>((config_.max_distance_m - config_.min_distance_m) / config_.grid_radial_spacing_m);
-
     grid_number_of_radial_rings_ = static_cast<std::int32_t>(config_.max_distance_m / config_.grid_radial_spacing_m);
-
     grid_number_of_azimuth_slices_ = static_cast<std::int32_t>(TWO_M_PIf / grid_slice_resolution_rad_);
 
     polar_grid_.resize(grid_number_of_radial_rings_ * grid_number_of_azimuth_slices_);
