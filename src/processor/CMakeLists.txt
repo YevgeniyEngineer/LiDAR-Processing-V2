@@ -19,8 +19,6 @@ find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 
-find_package(lidar_processing_lib REQUIRED)
-
 # Add executable
 add_executable(${PROJECT_NAME}
     src/segmenter.cpp
@@ -40,9 +38,6 @@ ament_target_dependencies(${PROJECT_NAME}
     sensor_msgs
     geometry_msgs
     visualization_msgs
-
-    lidar_processing_lib
-
     Eigen3
     OpenCV
     PCL

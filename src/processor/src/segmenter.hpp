@@ -2,8 +2,8 @@
 #define SEGMENTER_HPP
 
 // Internal
-// #include "containers/queue.hpp"
-// #include "containers/vector.hpp"
+#include "queue.hpp"
+#include "vector.hpp"
 
 // STL
 #include <algorithm>
@@ -178,9 +178,8 @@ class Segmenter
     std::vector<float> depth_image_;
 
     cv::Mat kernel_;
-    std::vector<cv::Mat> image_channels_; // TODO: Replace with containers::Vector
-
-    std::queue<Index> index_queue_; // TODO: Replaces with containers::Queue
+    std::vector<cv::Mat> image_channels_;
+    containers::Queue<Index> index_queue_;
 
     Eigen::Vector<float, 24> unnormalized_weight_matrix_;
     Eigen::Vector<float, 24> weight_matrix_;

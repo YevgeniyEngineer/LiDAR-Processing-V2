@@ -19,6 +19,14 @@ Segmenter::Segmenter()
 
     depth_image_.assign(IMAGE_HEIGHT * IMAGE_WIDTH, INVALID_DEPTH_M);
 
+    index_queue_.reserve(MAX_CLOUD_SIZE);
+
+    image_channels_.resize(3);
+    for (auto& channel : image_channels_)
+    {
+        channel.create(IMAGE_HEIGHT, IMAGE_WIDTH, image_.depth());
+    }
+
     std::cerr << config_ << std::endl;
 }
 
@@ -318,13 +326,9 @@ void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
 {
     // JCP Algorithm
 
-    image_channels_.clear(); // TODO
-
     cv::split(image_, image_channels_);
     cv::dilate(image_channels_[2], image_channels_[2], kernel_);
     cv::merge(image_channels_, image_);
-
-    index_queue_ = {}; // TODO
 
     for (std::int32_t height_index = 0; height_index < IMAGE_HEIGHT; ++height_index)
     {
