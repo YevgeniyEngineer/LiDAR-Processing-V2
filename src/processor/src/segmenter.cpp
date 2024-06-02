@@ -8,17 +8,21 @@ Segmenter::Segmenter()
       kernel_ {cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5))}
 {
     grid_slice_resolution_rad_ = config_.grid_slice_resolution_deg * DEG_TO_RAD;
-    grid_number_of_radial_rings_ =
-        static_cast<std::int32_t>((config_.max_distance_m - config_.min_distance_m) / config_.grid_radial_spacing_m);
+    grid_number_of_radial_rings_ = static_cast<std::int32_t>(config_.max_distance_m / config_.grid_radial_spacing_m);
+
     grid_number_of_azimuth_slices_ = static_cast<std::int32_t>(TWO_M_PIf / grid_slice_resolution_rad_);
 
     polar_grid_.resize(grid_number_of_radial_rings_ * grid_number_of_azimuth_slices_);
+    for (auto& cell : polar_grid_)
+    {
+        cell.reserve(150); // TODO: How to determine this number?
+    }
+    cell_z_values_.reserve(1000); // TODO: How to determine this number?
 
-    elevation_map_.assign(grid_number_of_azimuth_slices_ * grid_number_of_radial_rings_, INVALID_Z);
-    cloud_mapping_indices_.assign(IMAGE_HEIGHT * IMAGE_WIDTH, INVALID_INDEX);
+    elevation_map_.resize(grid_number_of_azimuth_slices_ * grid_number_of_radial_rings_, INVALID_Z);
 
-    depth_image_.assign(IMAGE_HEIGHT * IMAGE_WIDTH, INVALID_DEPTH_M);
-
+    cloud_mapping_indices_.resize(IMAGE_HEIGHT * IMAGE_WIDTH, INVALID_INDEX);
+    depth_image_.resize(IMAGE_HEIGHT * IMAGE_WIDTH, INVALID_DEPTH_M);
     index_queue_.reserve(MAX_CLOUD_SIZE);
 
     image_channels_.resize(3);
@@ -34,12 +38,14 @@ void Segmenter::config(const Configuration& config)
 {
     config_ = config;
     grid_slice_resolution_rad_ = config_.grid_slice_resolution_deg * DEG_TO_RAD;
-    grid_number_of_radial_rings_ =
-        static_cast<std::int32_t>((config_.max_distance_m - config_.min_distance_m) / config_.grid_radial_spacing_m);
+    // grid_number_of_radial_rings_ =
+    //     static_cast<std::int32_t>((config_.max_distance_m - config_.min_distance_m) / config_.grid_radial_spacing_m);
+
+    grid_number_of_radial_rings_ = static_cast<std::int32_t>(config_.max_distance_m / config_.grid_radial_spacing_m);
+
     grid_number_of_azimuth_slices_ = static_cast<std::int32_t>(TWO_M_PIf / grid_slice_resolution_rad_);
 
     polar_grid_.resize(grid_number_of_radial_rings_ * grid_number_of_azimuth_slices_);
-
     for (auto& cell : polar_grid_)
     {
         cell.reserve(150); // TODO: How to determine this number?
@@ -86,49 +92,55 @@ void Segmenter::RECM(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
         cell.clear();
     }
 
-    Point point_cache {};
+    const float z_min_adjusted = -config_.sensor_height_m + config_.z_min_m;
+    const float z_max_adjusted = -config_.sensor_height_m + config_.z_max_m;
 
-    for (std::uint32_t i = 0; i < cloud.points.size(); ++i)
+    for (std::int32_t cloud_index = 0; cloud_index < cloud.points.size(); ++cloud_index)
     {
-        const auto& point = cloud.points[i];
+        const auto& point = cloud.points[cloud_index];
+
+        if (point.z < z_min_adjusted || point.z > z_max_adjusted)
+        {
+            continue;
+        }
 
         const float radius_m = std::sqrt(point.x * point.x + point.y * point.y);
 
-        if (radius_m < config_.min_distance_m || radius_m > config_.max_distance_m)
+        if (radius_m > config_.max_distance_m)
         {
             continue;
         }
 
         float azimuth_rad = std::atan2(point.y, point.x);
+        azimuth_rad = (azimuth_rad < 0) ? (azimuth_rad + TWO_M_PIf) : azimuth_rad;
 
-        if (azimuth_rad < 0)
+        const auto radial_index = static_cast<std::int32_t>(radius_m / config_.grid_radial_spacing_m);
+        const auto azimuth_index = static_cast<std::int32_t>(azimuth_rad / grid_slice_resolution_rad_);
+        const std::int32_t cell_index = azimuth_index * grid_number_of_radial_rings_ + radial_index;
+
+        if (radius_m < config_.min_distance_m)
         {
-            azimuth_rad += TWO_M_PIf;
+            elevation_map_.at(cell_index) =
+                std::min(-config_.sensor_height_m, std::min(elevation_map_.at(cell_index), point.z));
         }
-
-        const auto height_index = static_cast<std::int32_t>(point.ring);
-        const auto width_index = static_cast<std::int32_t>(std::round((IMAGE_WIDTH - 1) * azimuth_rad / TWO_M_PIf));
-        const auto image_index = toFlatImageIndex(height_index, width_index);
-
-        if (isInvalidIndex(image_index))
+        else
         {
-            // Outside of image bounds
-            continue;
+            // elevation_map_.at(cell_index) = std::min(elevation_map_.at(cell_index), point.z);    // SEE BELOW
+
+            const auto height_index = point.ring;
+            const auto width_index =
+                static_cast<std::uint16_t>(std::round((IMAGE_WIDTH - 1) * azimuth_rad / TWO_M_PIf));
+            const auto image_index = toFlatImageIndex(height_index, width_index);
+
+            if (isInvalidIndex(image_index))
+            {
+                // Outside of image bounds
+                continue;
+            }
+
+            polar_grid_.at(cell_index)
+                .push_back({point.x, point.y, point.z, Label::GROUND, height_index, width_index, cloud_index});
         }
-
-        point_cache.height_index = height_index;
-        point_cache.width_index = width_index;
-        point_cache.x = point.x;
-        point_cache.y = point.y;
-        point_cache.z = point.z;
-        point_cache.cloud_index = i;
-        point_cache.label = Label::GROUND;
-
-        const std::int32_t radial_index = radiusToIndex(radius_m);
-        const std::int32_t azimuth_index = azimuthToIndex(azimuth_rad);
-        const std::int32_t cell_index = toFlatGridIndex(azimuth_index, radial_index);
-
-        polar_grid_[cell_index].push_back(point_cache);
     }
 
     for (auto& cell : polar_grid_)
@@ -140,129 +152,81 @@ void Segmenter::RECM(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
         });
     }
 
-    const auto max_positive_height_difference_between_adjacent_grid_cells =
-        config_.grid_radial_spacing_m * std::tan(config_.road_maximum_slope_m_per_m);
-
-    const auto max_negative_height_difference_between_adjacent_grid_cells =
-        config_.grid_radial_spacing_m * std::tan(config_.road_maximum_negative_slope_m_per_m);
-
-    for (std::int32_t cell_index = 0; cell_index < polar_grid_.size(); ++cell_index)
+    // Correct erroneous elevation map values due to outlier points
+    for (std::int32_t azimuth_index = 0; azimuth_index < grid_number_of_azimuth_slices_; ++azimuth_index)
     {
-        const auto& cell = polar_grid_[cell_index];
+        const auto azimuth_index_offset = azimuth_index * grid_number_of_radial_rings_;
+        elevation_map_[azimuth_index_offset] = -config_.sensor_height_m; // For zeroth cell set to sensor offset
 
-        if (cell_index % grid_number_of_radial_rings_ == 0)
+        for (std::int32_t radial_index = 1; radial_index < grid_number_of_radial_rings_; ++radial_index)
         {
-            elevation_map_[cell_index] =
-                -config_.sensor_height_m; // TODO: Update this value with something more appropriate
-        }
-        else
-        {
-            const std::int32_t prev_cell_index = cell_index - 1;
-            const float prev_z = elevation_map_[prev_cell_index];
-            auto& curr_z = elevation_map_[cell_index];
-            float min_z = std::numeric_limits<float>::max();
+            const auto cell_index = azimuth_index_offset + radial_index;
+            const auto& cell = polar_grid_[cell_index];
 
+            if (cell.empty())
+            {
+                continue;
+            }
+
+            cell_z_values_.clear();
             for (const auto& point : cell)
             {
-                if (point.z < min_z)
+                cell_z_values_.push_back(point.z);
+            }
+
+            // Sort in descending order
+            std::sort(cell_z_values_.begin(), cell_z_values_.end());
+
+            // Find z min accounting for outliers
+            const std::int32_t median_index = cell_z_values_.size() / 2;
+            float z_min = cell_z_values_[median_index];
+
+            elevation_map_[cell_index] = cell_z_values_[0]; // take the smallest value
+
+            for (std::int32_t i = median_index; i >= 1; --i)
+            {
+                z_min = cell_z_values_[i];
+                if (z_min - cell_z_values_[i - 1] > 0.5F) // Hard-coded threshold
                 {
-                    min_z = point.z;
+                    elevation_map_[cell_index] = z_min; // take min value
+                    break;
                 }
-
-                if (point.z < curr_z)
-                {
-                    if (point.z > prev_z) // uphill
-                    {
-                        if (point.z - prev_z < max_positive_height_difference_between_adjacent_grid_cells)
-                        {
-                            curr_z = point.z;
-                        }
-                    }
-                    else // downhill
-                    {
-                        if (prev_z - point.z < max_negative_height_difference_between_adjacent_grid_cells)
-                        {
-                            curr_z = point.z;
-                        }
-                    }
-                }
-            }
-
-            if (isInvalidZ(curr_z))
-            {
-                curr_z = min_z;
-            }
-        }
-    }
-
-    // Elevation map refinement
-
-    for (std::int32_t cell_index = 0; cell_index < elevation_map_.size() - 1; ++cell_index)
-    {
-        if (cell_index % grid_number_of_radial_rings_ == 0) // we are in the first cell
-        {
-            // Do nothing
-        }
-        else
-        {
-            if ((cell_index + 1) % grid_number_of_radial_rings_ == 0)
-            {
-                continue;
-            }
-
-            if (isInvalidZ(elevation_map_[cell_index - 1]) || isInvalidZ(elevation_map_[cell_index + 1]))
-            {
-                continue;
-            }
-
-            // Smooth elevation values by averaging with neighbors if there is a significant difference
-            if (std::fabs(elevation_map_[cell_index] - elevation_map_[cell_index - 1]) > 0.5F &&
-                std::fabs(elevation_map_[cell_index] - elevation_map_[cell_index + 1]) > 0.5F)
-            {
-                elevation_map_[cell_index] = 0.5F * (elevation_map_[cell_index - 1] + elevation_map_[cell_index + 1]);
             }
         }
     }
 
     // RECM algorithm
 
-    for (std::int32_t curr_cell_index = 0; curr_cell_index < elevation_map_.size(); ++curr_cell_index)
+    const auto max_positive_height_difference_between_adjacent_grid_cells =
+        config_.grid_radial_spacing_m * std::tan(config_.road_maximum_slope_m_per_m);
+
+    for (std::int32_t azimuth_index = 0; azimuth_index < grid_number_of_azimuth_slices_; ++azimuth_index)
     {
-        if (curr_cell_index % grid_number_of_radial_rings_ == 0) // we are in the first cell
-        {
-            // Do nothing - already assigned ground threshold
-        }
-        else
-        {
-            const std::int32_t prev_cell_index = curr_cell_index - 1;
+        const auto azimuth_index_offset = azimuth_index * grid_number_of_radial_rings_;
 
-            if (isInvalidZ(elevation_map_[prev_cell_index]))
-            {
-                continue;
-            }
+        for (std::int32_t radial_index = 1; radial_index < grid_number_of_radial_rings_; ++radial_index)
+        {
+            const auto cell_index = azimuth_index_offset + radial_index;
 
-            if (isInvalidZ(elevation_map_[curr_cell_index]))
+            const auto curr_z = elevation_map_[cell_index];
+            const auto prev_z = elevation_map_[cell_index - 1];
+
+            if (isValidZ(prev_z))
             {
-                // Override
-                elevation_map_[curr_cell_index] =
-                    elevation_map_[prev_cell_index] + max_positive_height_difference_between_adjacent_grid_cells;
-            }
-            else
-            {
-                elevation_map_[curr_cell_index] = std::min(
-                    elevation_map_[curr_cell_index],
-                    elevation_map_[prev_cell_index] + max_positive_height_difference_between_adjacent_grid_cells);
+                elevation_map_[cell_index] =
+                    std::min(curr_z, prev_z + max_positive_height_difference_between_adjacent_grid_cells);
             }
         }
     }
 
-    for (std::uint32_t cell_index = 0; cell_index <= maxGridIndex(); ++cell_index)
+    for (std::uint32_t cell_index = 0; cell_index < polar_grid_.size(); ++cell_index)
     {
         auto& cell = polar_grid_[cell_index];
+        const auto curr_z = elevation_map_[cell_index];
 
         for (auto& point : cell)
         {
-            if (point.z >= elevation_map_[cell_index] + config_.ground_height_threshold_m)
+            if (point.z >= curr_z + config_.ground_height_threshold_m)
             {
                 point.label = Label::OBSTACLE;
             }
@@ -356,10 +320,10 @@ void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
         }
     }
 
-    // cv::Mat display_image;
-    // cv::flip(image_, display_image, 0);
-    // cv::imshow("RECM with Low Confidence Points", display_image);
-    // cv::waitKey(1);
+    static cv::Mat display_image;
+    cv::flip(image_, display_image, 0);
+    cv::imshow("RECM with Low Confidence Points", display_image);
+    cv::waitKey(1);
 
     mask_.fill(INVALID_INDEX);
     unnormalized_weight_matrix_.fill(0);

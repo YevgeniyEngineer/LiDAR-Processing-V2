@@ -12,7 +12,9 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <functional>
 #include <memory>
+#include <numeric>
 #include <ostream>
 #include <queue>
 #include <vector>
@@ -42,7 +44,7 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(pcl::PointXYZIR,
 
 namespace segmentation
 {
-enum class Label : std::uint8_t
+enum class Label : std::uint32_t
 {
     UNKNOWN = 0,
     GROUND,
@@ -55,23 +57,24 @@ struct Point
     float y;
     float z;
     Label label;
-    std::int32_t height_index;
-    std::int32_t width_index;
+    std::uint16_t height_index;
+    std::uint16_t width_index;
     std::int32_t cloud_index;
 };
 
 struct Configuration
 {
-    float grid_radial_spacing_m = 2.0F;
-    float grid_slice_resolution_deg = 0.2F;
+    float grid_radial_spacing_m = 1.0F;
+    float grid_slice_resolution_deg = 1.0F;
     float ground_height_threshold_m = 0.2F;
-    float road_maximum_slope_m_per_m = 0.2F;
-    float road_maximum_negative_slope_m_per_m = 0.3F;
+    float road_maximum_slope_m_per_m = 0.15F;
     float min_distance_m = 2.0F;
     float max_distance_m = 100.0F;
     float sensor_height_m = 1.73F;
     float kernel_threshold_distance_m = 1.0F;
     float amplification_factor = 5.0F;
+    float z_min_m = -2.0F;
+    float z_max_m = 3.0F;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const Configuration& config)
@@ -173,6 +176,7 @@ class Segmenter
 
     std::vector<float> elevation_map_;
     std::vector<std::int32_t> cloud_mapping_indices_;
+    std::vector<float> cell_z_values_;
 
     cv::Mat image_;
     std::vector<float> depth_image_;
@@ -186,32 +190,6 @@ class Segmenter
     std::array<std::int32_t, 24> mask_;
 
     void resetValues();
-
-    inline std::int32_t azimuthToIndex(float azimuth_rad) const noexcept
-    {
-        return static_cast<std::int32_t>(azimuth_rad / grid_slice_resolution_rad_);
-    }
-
-    inline std::int32_t radiusToIndex(float radius_m) const noexcept
-    {
-        return static_cast<std::int32_t>((radius_m - config_.min_distance_m) / config_.grid_radial_spacing_m);
-    }
-
-    inline std::int32_t toFlatGridIndex(std::int32_t azimuth_index, std::int32_t radial_index) const noexcept
-    {
-        if (azimuth_index < 0 || azimuth_index >= grid_number_of_azimuth_slices_ || radial_index < 0 ||
-            radial_index >= grid_number_of_radial_rings_)
-        {
-            return -1;
-        }
-
-        return azimuth_index * grid_number_of_radial_rings_ + radial_index;
-    }
-
-    inline std::int32_t maxGridIndex() const noexcept
-    {
-        return (grid_number_of_azimuth_slices_ - 1) * grid_number_of_radial_rings_ + (grid_number_of_radial_rings_ - 1);
-    }
 
     inline std::int32_t toFlatImageIndex(std::int32_t height_index, std::int32_t width_index) const noexcept
     {
