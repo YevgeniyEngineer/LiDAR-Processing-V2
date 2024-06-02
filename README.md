@@ -220,3 +220,9 @@ The implementation is based on ["Fast Ground Segmentation for 3D LiDAR Point Clo
 Jump-Convolution-Process"](https://www.semanticscholar.org/paper/Fast-Ground-Segmentation-for-3D-LiDAR-Point-Cloud-Shen-Liang/01b8149e0ed6c5fe4932d961ff14ccca8f94ab47). The implementation is fairly rudimental, following most of the steps outlined in the original paper.
 
 ![segmentation](https://github.com/YevgeniyEngineer/LiDAR-Processing-V2/blob/main/images/segmentation.png)
+
+### Clustering
+
+The implementation is based on ["Curved-Voxel Clustering for Accurate Segmentation of 3D LiDAR Point Clouds with Real-Time Performance"](https://ieeexplore.ieee.org/document/8968026).
+
+TO BE IMPLEMENTED.
