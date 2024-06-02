@@ -83,8 +83,7 @@ class Node final : public rclcpp::Node
 
         ground_cloud_publisher_ = this->create_publisher<PointCloud2>(ground_cloud_topic_, 10);
         obstacle_cloud_publisher_ = this->create_publisher<PointCloud2>(obstacle_cloud_topic_, 10);
-        image_publisher_ = this->create_publisher<Image>("recm_depth_image", 10);
-        jcp_depth_image_publisher_ = this->create_publisher<Image>("jcp_depth_image", 10);
+        image_publisher_ = this->create_publisher<Image>("jcp_image", 10);
         clustered_cloud_publisher_ = this->create_publisher<PointCloud2>(clustered_cloud_topic_, 10);
         obstacle_outlines_publisher_ = this->create_publisher<MarkerArray>(obstacle_outlines_topic_, 10);
 
@@ -116,7 +115,6 @@ class Node final : public rclcpp::Node
     rclcpp::Publisher<PointCloud2>::SharedPtr ground_cloud_publisher_;
     rclcpp::Publisher<PointCloud2>::SharedPtr obstacle_cloud_publisher_;
     rclcpp::Publisher<Image>::SharedPtr image_publisher_;
-    rclcpp::Publisher<Image>::SharedPtr jcp_depth_image_publisher_;
     rclcpp::Publisher<PointCloud2>::SharedPtr clustered_cloud_publisher_;
     rclcpp::Publisher<MarkerArray>::SharedPtr obstacle_outlines_publisher_;
 

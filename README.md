@@ -205,3 +205,18 @@ Once you are inside of Devcontainer, you can build and launch the nodes. In the 
 ./scripts/build.sh
 ./scripts/launch.sh
 ```
+
+## Example Output
+
+### Point Cloud Data Format
+
+Prior to processing point cloud is converted from unorganized to organized. The approximate ring partitioning scheme is used to cluster rings, approximating the natural Velodyne HDL-64E as closely as possible.
+
+![ring-partitioning](https://github.com/YevgeniyEngineer/LiDAR-Processing-V2/blob/main/images/ring_partitioning.gif)
+
+### Segmentation
+
+The implementation is based on ["Fast Ground Segmentation for 3D LiDAR Point Cloud Based on
+Jump-Convolution-Process"](https://www.semanticscholar.org/paper/Fast-Ground-Segmentation-for-3D-LiDAR-Point-Cloud-Shen-Liang/01b8149e0ed6c5fe4932d961ff14ccca8f94ab47). The implementation is fairly rudimental, following most of the steps outlined in the original paper.
+
+![segmentation](https://github.com/YevgeniyEngineer/LiDAR-Processing-V2/blob/main/images/segmentation.gif)
