@@ -174,17 +174,13 @@ void Segmenter::RECM(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
             std::sort(cell_z_values_.begin(), cell_z_values_.end());
 
             // Find z min accounting for outliers
-            const std::int32_t median_index = cell_z_values_.size() / 2;
-            float z_min = cell_z_values_[median_index];
-
             elevation_map_[cell_index] = cell_z_values_[0]; // take the smallest value
 
-            for (std::int32_t i = median_index; i >= 1; --i)
+            for (std::int32_t i = cell_z_values_.size() / 2; i >= 1; --i)
             {
-                z_min = cell_z_values_[i];
-                if (z_min - cell_z_values_[i - 1] > 0.5F) // Hard-coded threshold
+                if (cell_z_values_[i] - cell_z_values_[i - 1] > 0.5F) // Hard-coded threshold
                 {
-                    elevation_map_[cell_index] = z_min; // take min value
+                    elevation_map_[cell_index] = cell_z_values_[i]; // take min value
                     break;
                 }
             }
