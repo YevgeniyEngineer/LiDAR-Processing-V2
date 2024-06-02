@@ -159,10 +159,16 @@ void Segmenter::RECM(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
     {
         if (cell_index % grid_number_of_radial_rings_ == 0) // we are in the first cell
         {
-            elevation_map_[cell_index] = -config_.sensor_height_m;
+            elevation_map_[cell_index] =
+                -config_.sensor_height_m; // TODO: Update this value with something more appropriate
         }
         else
         {
+            if ((cell_index + 1) % grid_number_of_radial_rings_ == 0)
+            {
+                continue;
+            }
+
             if (isInvalidZ(elevation_map_[cell_index - 1]) || isInvalidZ(elevation_map_[cell_index + 1]))
             {
                 continue;
@@ -210,37 +216,6 @@ void Segmenter::RECM(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
             }
         }
     }
-
-    // for (std::int32_t azimuth_index = 0; azimuth_index < grid_number_of_azimuth_slices_; ++azimuth_index)
-    // {
-    //     for (std::int32_t radial_index = 1; radial_index < grid_number_of_radial_rings_; ++radial_index)
-    //     {
-    //         const std::int32_t prev_radial_index = radial_index - 1;
-
-    //         const auto curr_cell_index = toFlatGridIndex(azimuth_index, radial_index);
-    //         if (isInvalidZ(elevation_map_[curr_cell_index]))
-    //         {
-    //             continue;
-    //         }
-
-    //         const auto prev_cell_index = toFlatGridIndex(azimuth_index, prev_radial_index);
-    //         if (isInvalidZ(elevation_map_[prev_cell_index]))
-    //         {
-    //             continue;
-    //         }
-
-    //         const auto gradient_between_cells = std::atan(
-    //             (elevation_map_[curr_cell_index] - elevation_map_[prev_cell_index]) / config_.grid_radial_spacing_m);
-
-    //         if (gradient_between_cells > config_.road_maximum_slope_m_per_m)
-    //         {
-    //             elevation_map_[curr_cell_index] =
-    //                 std::min(elevation_map_[curr_cell_index],
-    //                          elevation_map_[prev_cell_index] +
-    //                              config_.grid_radial_spacing_m * std::tan(config_.road_maximum_slope_m_per_m));
-    //         }
-    //     }
-    // }
 
     for (std::uint32_t cell_index = 0; cell_index <= maxGridIndex(); ++cell_index)
     {

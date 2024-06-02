@@ -51,12 +51,12 @@ enum class Label : std::uint8_t
 
 struct Point
 {
-    std::int32_t height_index;
-    std::int32_t width_index;
     float x;
     float y;
     float z;
     Label label;
+    std::int32_t height_index;
+    std::int32_t width_index;
     std::int32_t cloud_index;
 };
 
@@ -65,8 +65,8 @@ struct Configuration
     float grid_radial_spacing_m = 2.0F;
     float grid_slice_resolution_deg = 0.2F;
     float ground_height_threshold_m = 0.2F;
-    float road_maximum_slope_m_per_m = 0.1F;
-    float min_distance_m = 0.0F;
+    float road_maximum_slope_m_per_m = 0.15F;
+    float min_distance_m = 2.0F;
     float max_distance_m = 100.0F;
     float sensor_height_m = 1.73F;
     float kernel_threshold_distance_m = 1.0F;
@@ -187,7 +187,7 @@ class Segmenter
 
     inline std::int32_t radiusToIndex(float radius_m) const noexcept
     {
-        return static_cast<std::int32_t>(radius_m / config_.grid_radial_spacing_m);
+        return static_cast<std::int32_t>((radius_m - config_.min_distance_m) / config_.grid_radial_spacing_m);
     }
 
     inline std::int32_t toFlatGridIndex(std::int32_t azimuth_index, std::int32_t radial_index) const noexcept
