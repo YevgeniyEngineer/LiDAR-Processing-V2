@@ -68,7 +68,7 @@ struct Configuration
     float grid_radial_spacing_m = 2.0F;
     float grid_slice_resolution_deg = 1.0F;
     float ground_height_threshold_m = 0.2F;
-    float road_maximum_slope_m_per_m = 0.2F;
+    float road_maximum_slope_m_per_m = 0.15F;
     float min_distance_m = 2.0F;
     float max_distance_m = 100.0F;
     float sensor_height_m = 1.73F;
@@ -191,7 +191,7 @@ class Segmenter
 
     Eigen::Vector<float, 24> unnormalized_weight_matrix_;
     Eigen::Vector<float, 24> weight_matrix_;
-    std::array<bool, 24> mask_;
+    std::array<std::int32_t, 24> mask_;
 
     void resetValues();
 
