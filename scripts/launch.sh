@@ -10,6 +10,10 @@ colcon build --symlink-install --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -
 # Unset GTK_PATH needed for Rviz to avoid crashes
 unset GTK_PATH
 
+# For ROS line buffering
+export RCUTILS_LOGGING_USE_STDOUT=1  # Enable logging to stdout
+export RCUTILS_LOGGING_BUFFERED_STREAM=1  # Enable buffering
+
 # ROS setup script
 ROS_SETUP_SCRIPT="/opt/ros/humble/setup.bash"
 
