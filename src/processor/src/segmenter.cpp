@@ -78,6 +78,40 @@ void Segmenter::segment(const pcl::PointCloud<pcl::PointXYZIR>& cloud, std::vect
     populateLabels(cloud, labels);
 }
 
+// Taken from
+// https://stackoverflow.com/questions/46210708/atan2-approximation-with-11bits-in-mantissa-on-x86with-sse2-and-armwith-vfpv4
+// maximum relative error about 3.6e-5
+static inline float atan2Approx(const float y, const float x) noexcept
+{
+    const float ax = std::fabs(x);
+    const float ay = std::fabs(y);
+    const float mx = std::max(ay, ax);
+    const float mn = std::min(ay, ax);
+    const float a = mn / mx;
+    /* Minimax polynomial approximation to atan(a) on [0,1] */
+    const float s = a * a;
+    const float c = s * a;
+    const float q = s * s;
+    float r = 0.024840285F * q + 0.18681418F;
+    const float t = -0.094097948F * q - 0.33213072F;
+    r = r * s + t;
+    r = r * c + a;
+    /* Map to full circle */
+    if (ay > ax)
+    {
+        r = 1.57079637F - r;
+    }
+    if (x < 0)
+    {
+        r = 3.14159274F - r;
+    }
+    if (y < 0)
+    {
+        r = -r;
+    }
+    return r;
+}
+
 void Segmenter::RECM(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
 {
     // Embed cloud into grid cells
@@ -106,7 +140,9 @@ void Segmenter::RECM(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
             continue;
         }
 
-        float azimuth_rad = std::atan2(point.y, point.x);
+        // float azimuth_rad = std::atan2(point.y, point.x);
+        float azimuth_rad = atan2Approx(point.y, point.x);
+
         azimuth_rad = (azimuth_rad < 0) ? (azimuth_rad + TWO_M_PIf) : azimuth_rad;
 
         const auto radial_index = static_cast<std::int32_t>(radius_m / config_.grid_radial_spacing_m);
@@ -120,43 +156,29 @@ void Segmenter::RECM(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
         }
         else
         {
-            // elevation_map_.at(cell_index) = std::min(elevation_map_.at(cell_index), point.z);    // SEE BELOW
+            // Calculated below
+            // elevation_map_[cell_index] = std::min(elevation_map_.at(cell_index), point.z); // SEE BELOW
 
-            const auto height_index = point.ring;
-            // const auto width_index =
-            //     static_cast<std::uint16_t>(std::round((IMAGE_WIDTH - 1) * azimuth_rad / TWO_M_PIf));
-            const auto width_index = static_cast<std::uint16_t>((IMAGE_WIDTH - 1) * azimuth_rad / TWO_M_PIf);
-            const auto image_index = toFlatImageIndex(height_index, width_index);
+            const std::uint16_t height_index = point.ring;
 
-            if (isInvalidIndex(image_index))
+            if (height_index >= IMAGE_HEIGHT)
             {
-                // Outside of image bounds
                 continue;
             }
+
+            const auto width_index = static_cast<std::uint16_t>((IMAGE_WIDTH - 1) * azimuth_rad / TWO_M_PIf);
 
             polar_grid_[cell_index].push_back(
                 {point.x, point.y, point.z, Label::GROUND, height_index, width_index, cloud_index});
         }
     }
 
-    std::size_t max_cell_size = 0;
-    for (auto& cell : polar_grid_)
-    {
-        std::sort(cell.begin(), cell.end(), [](const auto& p1, const auto& p2) noexcept {
-            const float dr1 = (p1.x * p1.x) + (p1.y * p1.y);
-            const float dr2 = (p2.x * p2.x) + (p2.y * p2.y);
-            return dr1 < dr2;
-        });
-
-        max_cell_size = std::max(max_cell_size, cell.size());
-    }
-
     // Correct erroneous elevation map values due to outlier points
     for (std::int32_t azimuth_index = 0; azimuth_index < grid_number_of_azimuth_slices_; ++azimuth_index)
     {
         const auto azimuth_index_offset = azimuth_index * grid_number_of_radial_rings_;
-        elevation_map_[azimuth_index_offset] =
-            -config_.sensor_height_m; // For zeroth cell set to sensor offset + some uncertainty
+        // elevation_map_[azimuth_index_offset] =
+        //     -config_.sensor_height_m; // For zeroth cell set to sensor offset
 
         for (std::int32_t radial_index = 1; radial_index < grid_number_of_radial_rings_; ++radial_index)
         {
@@ -237,45 +259,28 @@ void Segmenter::RECM(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
         {
             const std::int32_t height_index = point.height_index;
             const std::int32_t width_index = point.width_index;
-            const std::int32_t image_index = toFlatImageIndex(height_index, width_index);
-
-            if (isInvalidIndex(image_index))
-            {
-                continue;
-            }
+            const std::int32_t image_index = height_index * IMAGE_WIDTH + width_index;
 
             const auto depth_squarred = (point.x * point.x) + (point.y * point.y);
 
             // Take the closest depth image point
             if (depth_squarred < depth_image_[image_index])
             {
-                switch (point.label)
+                if (point.label == Label::GROUND)
                 {
-                    case Label::GROUND:
-                        {
-                            image_.at<cv::Vec3b>(height_index, width_index) = CV_GROUND;
-                            depth_image_[image_index] = depth_squarred;
-                            cloud_mapping_indices_[image_index] = point.cloud_index;
-                            break;
-                        }
-                    case Label::OBSTACLE:
-                        {
-                            image_.at<cv::Vec3b>(height_index, width_index) = CV_OBSTACLE;
-                            depth_image_[image_index] = depth_squarred;
-                            cloud_mapping_indices_[image_index] = point.cloud_index;
-                            break;
-                        }
-                    case Label::UNKNOWN:
-                        {
-                            image_.at<cv::Vec3b>(height_index, width_index) = CV_UNKNOWN;
-                            depth_image_[image_index] = depth_squarred;
-                            cloud_mapping_indices_[image_index] = point.cloud_index;
-                            break;
-                        }
-                    default:
-                        {
-                            break;
-                        }
+                    image_.at<cv::Vec3b>(height_index, width_index) = CV_GROUND;
+                    depth_image_[image_index] = depth_squarred;
+                    cloud_mapping_indices_[image_index] = point.cloud_index;
+                }
+                else if (point.label == Label::OBSTACLE)
+                {
+                    image_.at<cv::Vec3b>(height_index, width_index) = CV_OBSTACLE;
+                    depth_image_[image_index] = depth_squarred;
+                    cloud_mapping_indices_[image_index] = point.cloud_index;
+                }
+                else
+                {
+                    // Never happens
                 }
             }
         }
@@ -292,19 +297,16 @@ void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
 
     for (std::int32_t height_index = 0; height_index < IMAGE_HEIGHT; ++height_index)
     {
+        const std::int32_t height_index_with_offset = height_index * IMAGE_WIDTH;
+
         for (std::int32_t width_index = 0; width_index < IMAGE_WIDTH; ++width_index)
         {
-            const auto image_index = toFlatImageIndex(height_index, width_index);
-
-            if (isInvalidIndex(image_index))
-            {
-                continue;
-            }
-
             auto& image_pixel = image_.at<cv::Vec3b>(height_index, width_index);
 
             if (image_pixel == CV_INTERSECTION_OR_UNKNOWN)
             {
+                const std::int32_t image_index = height_index_with_offset + width_index;
+
                 if (isValidIndex(cloud_mapping_indices_[image_index]))
                 {
                     index_queue_.push({height_index, width_index});
@@ -337,7 +339,8 @@ void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
     {
         const auto [height_index, width_index] = index_queue_.front();
         index_queue_.pop();
-        const auto point_index = cloud_mapping_indices_[toFlatImageIndex(height_index, width_index)];
+        const std::int32_t image_index = height_index * IMAGE_WIDTH + width_index;
+        const auto point_index = cloud_mapping_indices_[image_index];
         const auto& point_1 = cloud.points[point_index];
 
         float sum_of_coefficients = 0.0F;
@@ -346,13 +349,19 @@ void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
         {
             const auto [height_offset, width_offset] = neighbour_offsets[i];
 
-            const auto neighbour_height_index = height_index + height_offset;
-            const auto neighbour_width_index = width_index + width_offset;
-            const auto neighbour_point_index =
-                cloud_mapping_indices_[toFlatImageIndex(neighbour_height_index, neighbour_width_index)];
+            const std::int32_t neighbour_height_index = height_index + height_offset;
+            const std::int32_t neighbour_width_index = width_index + width_offset;
 
             if (neighbour_height_index < 0 || neighbour_height_index >= IMAGE_HEIGHT || neighbour_width_index < 0 ||
-                neighbour_width_index >= IMAGE_WIDTH || isInvalidIndex(neighbour_point_index))
+                neighbour_width_index >= IMAGE_WIDTH)
+            {
+                continue;
+            }
+
+            const std::int32_t neighbour_image_index = neighbour_height_index * IMAGE_WIDTH + neighbour_width_index;
+            const std::int32_t neighbour_point_index = cloud_mapping_indices_[neighbour_image_index];
+
+            if (isInvalidIndex(neighbour_point_index))
             {
                 unnormalized_weight_matrix_[i] = 0.0F;
                 mask_[i] = INVALID_INDEX;
@@ -427,14 +436,11 @@ void Segmenter::populateLabels(const pcl::PointCloud<pcl::PointXYZIR>& cloud, st
 {
     for (std::int32_t height_index = 0; height_index < IMAGE_HEIGHT; ++height_index)
     {
+        const std::int32_t height_index_with_offset = height_index * IMAGE_WIDTH;
+
         for (std::int32_t width_index = 0; width_index < IMAGE_WIDTH; ++width_index)
         {
-            const auto image_index = toFlatImageIndex(height_index, width_index);
-
-            if (isInvalidIndex(image_index))
-            {
-                continue;
-            }
+            const std::int32_t image_index = height_index_with_offset + width_index;
 
             const auto cloud_index = cloud_mapping_indices_[image_index];
 

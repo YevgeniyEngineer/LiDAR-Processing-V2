@@ -2,8 +2,6 @@
 #define SEGMENTER_HPP
 
 // Internal
-// #include "queue.hpp"
-// #include "vector.hpp"
 #include "circular_queue.hpp"
 
 // STL
@@ -90,7 +88,9 @@ inline std::ostream& operator<<(std::ostream& os, const Configuration& config)
        << "max_distance_m: " << config.max_distance_m << "\n"
        << "sensor_height_m: " << config.sensor_height_m << "\n"
        << "kernel_threshold_distance_m: " << config.kernel_threshold_distance_m << "\n"
-       << "amplification_factor: " << config.amplification_factor;
+       << "amplification_factor: " << config.amplification_factor << "\n"
+       << "z_min_m: " << config.z_min_m << "\n"
+       << "z_max_m: " << config.z_max_m;
 
     return os;
 }
@@ -154,11 +154,6 @@ class Segmenter
         return image_;
     }
 
-    inline cv::Mat& image() noexcept
-    {
-        return image_;
-    }
-
     void segment(const pcl::PointCloud<pcl::PointXYZIR>& cloud, std::vector<Label>& labels);
 
   private:
@@ -175,6 +170,11 @@ class Segmenter
     std::int32_t grid_number_of_azimuth_slices_;
 
     // array<vector<Point>, Number of Rings * Number of Slices>
+    // Iteration order:
+    // slice 1 -> each cell
+    // slice 2 -> each cell
+    // ...
+    // slice N -> each cell
     std::vector<std::vector<Point>> polar_grid_;
 
     std::vector<float> elevation_map_;
@@ -195,17 +195,7 @@ class Segmenter
 
     void resetValues();
 
-    inline std::int32_t toFlatImageIndex(std::int32_t height_index, std::int32_t width_index) const noexcept
-    {
-        if (height_index < 0 || height_index >= IMAGE_HEIGHT || width_index < 0 || width_index >= IMAGE_WIDTH)
-        {
-            return -1;
-        }
-
-        return height_index * IMAGE_WIDTH + width_index;
-    }
-
-    inline bool isValidZ(float z) noexcept
+    inline bool isValidZ(const float z) const noexcept
     {
         if (z < 0)
         {
@@ -218,7 +208,7 @@ class Segmenter
         return true;
     }
 
-    inline bool isInvalidZ(float z) noexcept
+    inline bool isInvalidZ(const float z) const noexcept
     {
         if (z < 0)
         {
@@ -231,12 +221,12 @@ class Segmenter
         return false;
     }
 
-    inline bool isValidIndex(std::int32_t index) noexcept
+    inline bool isValidIndex(const std::int32_t index) const noexcept
     {
         return index != INVALID_INDEX;
     }
 
-    inline bool isInvalidIndex(std::int32_t index) noexcept
+    inline bool isInvalidIndex(const std::int32_t index) const noexcept
     {
         return index == INVALID_INDEX;
     }
