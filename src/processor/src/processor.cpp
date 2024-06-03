@@ -158,8 +158,6 @@ inline static void convertPCLToPointCloud2(const pcl::PointCloud<pcl::PointXYZRG
 
 void Node::topicCallback(const PointCloud2& msg)
 {
-    RCLCPP_INFO(this->get_logger(), "Processing a new PointCloud2 message");
-
     // Convert point cloud from sensor_msgs::msg::PointCloud2 to pcl::PointCloud<pcl::PointXYZIR>
     input_cloud_.clear();
     input_cloud_.header.frame_id = msg.header.frame_id;
@@ -187,10 +185,8 @@ void Node::topicCallback(const PointCloud2& msg)
         }
     }
 
-    RCLCPP_INFO(this->get_logger(), "Extracted %lu points from PointCloud2", input_cloud_.size());
-
     // Ground segmentation
-    auto t_segmentation_start = std::chrono::steady_clock::now();
+    const auto t_segmentation_start = std::chrono::steady_clock::now();
 
     segmenter_.segment(input_cloud_, segmentation_labels_);
 
@@ -212,15 +208,16 @@ void Node::topicCallback(const PointCloud2& msg)
         }
     }
 
-    auto t_segmentation_stop = std::chrono::steady_clock::now();
-    auto t_segmentation_elapsed =
+    const auto t_segmentation_stop = std::chrono::steady_clock::now();
+    const auto t_segmentation_elapsed =
         std::chrono::duration_cast<std::chrono::milliseconds>(t_segmentation_stop - t_segmentation_start).count();
 
     RCLCPP_INFO(this->get_logger(), "Segmentation time [ms]: %ld", t_segmentation_elapsed);
     RCLCPP_INFO(this->get_logger(),
-                "Extracted %lu ground and %lu obstacle points",
+                "Extracted %lu ground and %lu obstacle points from %lu-point cloud",
                 ground_cloud_.size(),
-                obstacle_cloud_.size());
+                obstacle_cloud_.size(),
+                input_cloud_.size());
 
     // Show the JCP image
     {

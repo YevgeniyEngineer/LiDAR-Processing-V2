@@ -2,8 +2,9 @@
 #define SEGMENTER_HPP
 
 // Internal
-#include "queue.hpp"
-#include "vector.hpp"
+// #include "queue.hpp"
+// #include "vector.hpp"
+#include "circular_queue.hpp"
 
 // STL
 #include <algorithm>
@@ -186,7 +187,7 @@ class Segmenter
 
     cv::Mat kernel_;
     std::vector<cv::Mat> image_channels_;
-    containers::Queue<Index> index_queue_;
+    containers::CircularQueue<Index, IMAGE_HEIGHT * IMAGE_WIDTH> index_queue_;
 
     Eigen::Vector<float, 24> unnormalized_weight_matrix_;
     Eigen::Vector<float, 24> weight_matrix_;

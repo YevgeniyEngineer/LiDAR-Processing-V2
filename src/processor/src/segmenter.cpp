@@ -1,5 +1,7 @@
 #include "segmenter.hpp"
 
+#include <chrono>
+
 namespace segmentation
 {
 Segmenter::Segmenter()
@@ -14,7 +16,7 @@ Segmenter::Segmenter()
     polar_grid_.resize(grid_number_of_radial_rings_ * grid_number_of_azimuth_slices_);
     for (auto& cell : polar_grid_)
     {
-        cell.reserve(250); // TODO: How to determine this number?
+        cell.reserve(400); // TODO: How to determine this number?
     }
     cell_z_values_.reserve(1000); // TODO: How to determine this number?
 
@@ -22,7 +24,6 @@ Segmenter::Segmenter()
 
     cloud_mapping_indices_.resize(IMAGE_HEIGHT * IMAGE_WIDTH, INVALID_INDEX);
     depth_image_.resize(IMAGE_HEIGHT * IMAGE_WIDTH, INVALID_DEPTH_M);
-    index_queue_.reserve(MAX_CLOUD_SIZE);
 
     image_channels_.resize(3);
     for (auto& channel : image_channels_)
@@ -44,7 +45,7 @@ void Segmenter::config(const Configuration& config)
     polar_grid_.resize(grid_number_of_radial_rings_ * grid_number_of_azimuth_slices_);
     for (auto& cell : polar_grid_)
     {
-        cell.reserve(250); // TODO: How to determine this number?
+        cell.reserve(400); // TODO: How to determine this number?
     }
 
     elevation_map_.assign(grid_number_of_azimuth_slices_ * grid_number_of_radial_rings_, INVALID_Z);
@@ -112,11 +113,11 @@ void Segmenter::RECM(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
 
         const auto radial_index = static_cast<std::int32_t>(radius_m / config_.grid_radial_spacing_m);
         const auto azimuth_index = static_cast<std::int32_t>(azimuth_rad / grid_slice_resolution_rad_);
-        const std::int32_t cell_index = azimuth_index * grid_number_of_radial_rings_ + radial_index;
+        const auto cell_index = static_cast<std::uint32_t>(azimuth_index * grid_number_of_radial_rings_ + radial_index);
 
         if (radius_m < config_.min_distance_m)
         {
-            elevation_map_.at(cell_index) =
+            elevation_map_[cell_index] =
                 std::min(-config_.sensor_height_m, std::min(elevation_map_.at(cell_index), point.z));
         }
         else
@@ -124,8 +125,9 @@ void Segmenter::RECM(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
             // elevation_map_.at(cell_index) = std::min(elevation_map_.at(cell_index), point.z);    // SEE BELOW
 
             const auto height_index = point.ring;
-            const auto width_index =
-                static_cast<std::uint16_t>(std::round((IMAGE_WIDTH - 1) * azimuth_rad / TWO_M_PIf));
+            // const auto width_index =
+            //     static_cast<std::uint16_t>(std::round((IMAGE_WIDTH - 1) * azimuth_rad / TWO_M_PIf));
+            const auto width_index = static_cast<std::uint16_t>((IMAGE_WIDTH - 1) * azimuth_rad / TWO_M_PIf);
             const auto image_index = toFlatImageIndex(height_index, width_index);
 
             if (isInvalidIndex(image_index))
@@ -134,11 +136,12 @@ void Segmenter::RECM(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
                 continue;
             }
 
-            polar_grid_.at(cell_index)
-                .push_back({point.x, point.y, point.z, Label::GROUND, height_index, width_index, cloud_index});
+            polar_grid_[cell_index].push_back(
+                {point.x, point.y, point.z, Label::GROUND, height_index, width_index, cloud_index});
         }
     }
 
+    std::size_t max_cell_size = 0;
     for (auto& cell : polar_grid_)
     {
         std::sort(cell.begin(), cell.end(), [](const auto& p1, const auto& p2) noexcept {
@@ -146,6 +149,8 @@ void Segmenter::RECM(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
             const float dr2 = (p2.x * p2.x) + (p2.y * p2.y);
             return dr1 < dr2;
         });
+
+        max_cell_size = std::max(max_cell_size, cell.size());
     }
 
     // Correct erroneous elevation map values due to outlier points
