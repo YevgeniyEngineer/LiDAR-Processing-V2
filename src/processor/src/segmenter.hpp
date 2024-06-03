@@ -65,10 +65,10 @@ struct Point
 
 struct Configuration
 {
-    float grid_radial_spacing_m = 1.0F;
+    float grid_radial_spacing_m = 2.0F;
     float grid_slice_resolution_deg = 1.0F;
     float ground_height_threshold_m = 0.2F;
-    float road_maximum_slope_m_per_m = 0.15F;
+    float road_maximum_slope_m_per_m = 0.2F;
     float min_distance_m = 2.0F;
     float max_distance_m = 100.0F;
     float sensor_height_m = 1.73F;

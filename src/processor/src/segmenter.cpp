@@ -295,7 +295,9 @@ void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
     {
         for (std::int32_t width_index = 0; width_index < IMAGE_WIDTH; ++width_index)
         {
-            if (image_.at<cv::Vec3b>(height_index, width_index) == CV_INTERSECTION_OR_UNKNOWN)
+            auto& image_pixel = image_.at<cv::Vec3b>(height_index, width_index);
+
+            if (image_pixel == CV_INTERSECTION_OR_UNKNOWN)
             {
                 const auto image_index = toFlatImageIndex(height_index, width_index);
 
@@ -307,11 +309,11 @@ void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
                 if (isValidIndex(cloud_mapping_indices_[image_index]))
                 {
                     index_queue_.push({height_index, width_index});
-                    image_.at<cv::Vec3b>(height_index, width_index) = CV_INTERSECTION;
+                    image_pixel = CV_INTERSECTION;
                 }
                 else
                 {
-                    image_.at<cv::Vec3b>(height_index, width_index) = CV_UNKNOWN;
+                    image_pixel = CV_UNKNOWN;
                 }
             }
         }
@@ -374,11 +376,13 @@ void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
                 unnormalized_weight_matrix_[i] = std::exp(-config_.amplification_factor * dist_xyz);
                 sum_of_coefficients += unnormalized_weight_matrix_[i];
 
-                if (image_.at<cv::Vec3b>(neighbour_height_index, neighbour_width_index) == CV_GROUND)
+                const auto& image_pixel = image_.at<cv::Vec3b>(neighbour_height_index, neighbour_width_index);
+
+                if (image_pixel == CV_GROUND)
                 {
                     mask_[i] = 0;
                 }
-                else if (image_.at<cv::Vec3b>(neighbour_height_index, neighbour_width_index) == CV_OBSTACLE)
+                else if (image_pixel == CV_OBSTACLE)
                 {
                     mask_[i] = 1;
                 }
@@ -408,13 +412,13 @@ void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
                 }
             }
 
-            if (weight_ground > weight_obstacle)
+            if (weight_obstacle > weight_ground)
             {
-                image_.at<cv::Vec3b>(height_index, width_index) = CV_GROUND;
+                image_.at<cv::Vec3b>(height_index, width_index) = CV_OBSTACLE;
             }
             else
             {
-                image_.at<cv::Vec3b>(height_index, width_index) = CV_OBSTACLE;
+                image_.at<cv::Vec3b>(height_index, width_index) = CV_GROUND;
             }
         }
     }
@@ -440,11 +444,13 @@ void Segmenter::populateLabels(const pcl::PointCloud<pcl::PointXYZIR>& cloud, st
                 continue;
             }
 
-            if (image_.at<cv::Vec3b>(height_index, width_index) == CV_GROUND)
+            const auto& image_pixel = image_.at<cv::Vec3b>(height_index, width_index);
+
+            if (image_pixel == CV_GROUND)
             {
                 labels[cloud_index] = Label::GROUND;
             }
-            else if (image_.at<cv::Vec3b>(height_index, width_index) == CV_OBSTACLE)
+            else if (image_pixel == CV_OBSTACLE)
             {
                 labels[cloud_index] = Label::OBSTACLE;
             }
