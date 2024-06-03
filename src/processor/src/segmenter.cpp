@@ -1,7 +1,5 @@
 #include "segmenter.hpp"
 
-#include <chrono>
-
 namespace segmentation
 {
 Segmenter::Segmenter()
@@ -326,7 +324,7 @@ void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
         cv::waitKey(1);
     }
 
-    mask_.fill(INVALID_INDEX);
+    mask_.fill(false);
     unnormalized_weight_matrix_.fill(0);
     weight_matrix_.fill(0);
 
@@ -355,8 +353,8 @@ void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
             if (neighbour_height_index < 0 || neighbour_height_index >= IMAGE_HEIGHT || neighbour_width_index < 0 ||
                 neighbour_width_index >= IMAGE_WIDTH || isInvalidIndex(neighbour_point_index))
             {
-                unnormalized_weight_matrix_[i] = 0;
-                mask_[i] = INVALID_INDEX;
+                unnormalized_weight_matrix_[i] = 0.0F;
+                mask_[i] = false;
                 continue;
             }
 
@@ -367,8 +365,8 @@ void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
 
             if (dist_xyz > config_.kernel_threshold_distance_m)
             {
-                unnormalized_weight_matrix_[i] = 0;
-                mask_[i] = INVALID_INDEX;
+                unnormalized_weight_matrix_[i] = 0.0F;
+                mask_[i] = false;
                 continue;
             }
             else
@@ -378,17 +376,9 @@ void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
 
                 const auto& image_pixel = image_.at<cv::Vec3b>(neighbour_height_index, neighbour_width_index);
 
-                if (image_pixel == CV_GROUND)
+                if (image_.at<cv::Vec3b>(neighbour_height_index, neighbour_width_index) == CV_OBSTACLE)
                 {
-                    mask_[i] = 0;
-                }
-                else if (image_pixel == CV_OBSTACLE)
-                {
-                    mask_[i] = 1;
-                }
-                else
-                {
-                    mask_[i] = INVALID_INDEX;
+                    mask_[i] = true;
                 }
             }
         }
@@ -400,15 +390,15 @@ void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
             float weight_obstacle = 0.0F;
             float weight_ground = 0.0F;
 
-            for (std::uint32_t i = 0; i < weight_matrix_.size(); ++i)
+            for (std::size_t i = 0; i < weight_matrix_.size(); ++i)
             {
-                if (mask_[i] == 0)
-                {
-                    weight_ground += weight_matrix_[i];
-                }
-                else if (mask_[i] == 1)
+                if (mask_[i])
                 {
                     weight_obstacle += weight_matrix_[i];
+                }
+                else
+                {
+                    weight_ground += weight_matrix_[i];
                 }
             }
 

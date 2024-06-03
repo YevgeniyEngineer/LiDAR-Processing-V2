@@ -191,7 +191,7 @@ class Segmenter
 
     Eigen::Vector<float, 24> unnormalized_weight_matrix_;
     Eigen::Vector<float, 24> weight_matrix_;
-    std::array<std::int32_t, 24> mask_;
+    std::array<bool, 24> mask_;
 
     void resetValues();
 
