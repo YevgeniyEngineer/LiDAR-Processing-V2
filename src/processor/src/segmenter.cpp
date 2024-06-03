@@ -116,7 +116,7 @@ void Segmenter::RECM(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
         if (radius_m < config_.min_distance_m)
         {
             elevation_map_[cell_index] =
-                std::min(-config_.sensor_height_m, std::min(elevation_map_.at(cell_index), point.z));
+                std::min(-config_.sensor_height_m, std::min(elevation_map_[cell_index], point.z));
         }
         else
         {
@@ -325,7 +325,7 @@ void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
         cv::waitKey(1);
     }
 
-    mask_.fill(0);
+    mask_.fill(INVALID_INDEX);
     unnormalized_weight_matrix_.fill(0);
     weight_matrix_.fill(0);
 
@@ -338,7 +338,7 @@ void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
         const auto [height_index, width_index] = index_queue_.front();
         index_queue_.pop();
         const auto point_index = cloud_mapping_indices_[toFlatImageIndex(height_index, width_index)];
-        const auto& point_1 = cloud.points.at(point_index);
+        const auto& point_1 = cloud.points[point_index];
 
         float sum_of_coefficients = 0.0F;
 
@@ -359,7 +359,7 @@ void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
                 continue;
             }
 
-            const auto& point_2 = cloud.points.at(neighbour_point_index);
+            const auto& point_2 = cloud.points[neighbour_point_index];
             const auto dist_xyz = std::sqrt((point_1.x - point_2.x) * (point_1.x - point_2.x) +
                                             (point_1.y - point_2.y) * (point_1.y - point_2.y) +
                                             (point_1.z - point_2.z) * (point_1.z - point_2.z));

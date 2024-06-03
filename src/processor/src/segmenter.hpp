@@ -75,7 +75,7 @@ struct Configuration
     float kernel_threshold_distance_m = 1.0F;
     float amplification_factor = 5.0F;
     float z_min_m = -2.0F;
-    float z_max_m = 3.0F;
+    float z_max_m = 4.0F;
 
     bool display_recm_with_low_confidence_points = false;
 };
