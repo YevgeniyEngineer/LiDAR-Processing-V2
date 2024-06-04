@@ -183,12 +183,12 @@ void Segmenter::RECM(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
     for (std::int32_t azimuth_index = 0; azimuth_index < grid_number_of_azimuth_slices_; ++azimuth_index)
     {
         const auto azimuth_index_offset = azimuth_index * grid_number_of_radial_rings_;
-        // elevation_map_[azimuth_index_offset] = -config_.sensor_height_m; // For zeroth cell set to sensor offset
+        elevation_map_[azimuth_index_offset] = -config_.sensor_height_m; // For zeroth cell set to sensor offset
 
         for (std::int32_t radial_index = 1; radial_index < grid_number_of_radial_rings_; ++radial_index)
         {
             const auto cell_index = azimuth_index_offset + radial_index;
-            auto& cell = polar_grid_[cell_index];
+            const auto& cell = polar_grid_[cell_index];
 
             if (cell.empty())
             {
@@ -208,29 +208,32 @@ void Segmenter::RECM(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
             std::sort(cell_z_values_.begin(), cell_z_values_.end());
 
             // Find z min accounting for outliers
-            elevation_map_[cell_index] = cell_z_values_[0]; // take the smallest value
+            float z_min = cell_z_values_[0]; // take the smallest value
 
             for (std::int32_t i = cell_z_values_.size() / 2; i >= 1; --i)
             {
                 if (cell_z_values_[i] - cell_z_values_[i - 1] > 0.5F) // Hard-coded threshold
                 {
-                    elevation_map_[cell_index] = cell_z_values_[i]; // take min value
+                    z_min = cell_z_values_[i]; // take min value
                     break;
                 }
             }
 
-            elevation_map_[cell_index] =
-                std::min(elevation_map_[cell_index],
-                         elevation_map_[cell_index - 1] + max_positive_height_difference_between_adjacent_grid_cells);
+            elevation_map_[cell_index] = std::min(
+                z_min, elevation_map_[cell_index - 1] + max_positive_height_difference_between_adjacent_grid_cells);
+        }
+    }
 
-            const auto curr_z = elevation_map_[cell_index];
+    for (std::uint32_t cell_index = 0; cell_index < polar_grid_.size(); ++cell_index)
+    {
+        auto& cell = polar_grid_[cell_index];
+        const auto curr_z = elevation_map_[cell_index];
 
-            for (auto& point : cell)
+        for (auto& point : cell)
+        {
+            if (point.z >= curr_z + config_.ground_height_threshold_m)
             {
-                if (point.z >= curr_z + config_.ground_height_threshold_m)
-                {
-                    point.label = Label::OBSTACLE;
-                }
+                point.label = Label::OBSTACLE;
             }
         }
     }
