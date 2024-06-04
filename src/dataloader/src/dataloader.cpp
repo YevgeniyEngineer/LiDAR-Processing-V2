@@ -90,60 +90,64 @@ class Node final : public rclcpp::Node
     rclcpp::Publisher<PointCloud2>::SharedPtr vis_publisher_;
     PointCloud2 vis_message_;
 
-    void addRingInfo(const pcl::PointCloud<pcl::PointXYZI>& cloud_in,
-                     pcl::PointCloud<pcl::PointXYZIR>& cloud_out,
-                     const float elevation_tolerance = 0.008F)
+    void addRingInfo(const pcl::PointCloud<pcl::PointXYZI>& cloud_in, pcl::PointCloud<pcl::PointXYZIR>& cloud_out)
     {
-        const auto elevationComparator = [](const auto& a, const auto& b) -> bool {
-            const auto elev_a = std::atan2(a.z, std::sqrt(a.x * a.x + a.y * a.y + a.z * a.z));
-            const auto elev_b = std::atan2(b.z, std::sqrt(b.x * b.x + b.y * b.y + b.z * b.z));
-            return (elev_a < elev_b);
-        };
-
-        cloud_out.points.resize(cloud_in.points.size());
-        cloud_out.width = cloud_in.width;
-        cloud_out.height = cloud_in.height;
-        cloud_out.is_dense = cloud_in.is_dense;
-
-        for (std::size_t i = 0U; i < cloud_in.points.size(); ++i)
+        cloud_out.clear();
+        if (cloud_in.points.empty())
         {
-            const auto& cloud_in_point = cloud_in.points[i];
-            auto& cloud_out_point = cloud_out.points[i];
-
-            cloud_out_point.x = cloud_in_point.x;
-            cloud_out_point.y = cloud_in_point.y;
-            cloud_out_point.z = cloud_in_point.z;
-            cloud_out_point.intensity = cloud_in_point.intensity;
-            cloud_out_point.ring = 0U;
+            return;
         }
 
-        if (!cloud_out.points.empty())
+        enum class Quadrants : std::int32_t
         {
-            std::sort(cloud_out.begin(), cloud_out.end(), elevationComparator);
+            FIRST = 0,
+            SECOND = 1,
+            THIRD = 2,
+            FOURTH = 3
+        };
 
-            std::uint16_t current_ring = 0U;
+        auto quadrant = Quadrants::FIRST;
+        auto previous_quadrant = Quadrants::FIRST;
+        std::uint16_t ring_index = 63;
+        pcl::PointXYZIR point_cache;
+        cloud_out.points.reserve(cloud_in.points.size());
 
-            const auto& first_point = cloud_out.points[0U];
-            auto last_elevation = std::atan2(first_point.z,
-                                             std::sqrt(first_point.x * first_point.x + first_point.y * first_point.y +
-                                                       first_point.z * first_point.z));
+        for (const auto& point : cloud_in.points)
+        {
+            float azimuth_rad = std::atan2(point.y, point.x);
+            azimuth_rad = (azimuth_rad < 0) ? (azimuth_rad + 2.0F * M_PIf) : azimuth_rad;
 
-            for (std::size_t i = 1U; i < cloud_out.points.size(); ++i)
+            if (azimuth_rad < M_PI_2f)
             {
-                auto& current_point = cloud_out.points[i];
-                const auto current_elevation =
-                    std::atan2(current_point.z,
-                               std::sqrt(current_point.x * current_point.x + current_point.y * current_point.y +
-                                         current_point.z * current_point.z));
-
-                if (std::fabs(current_elevation - last_elevation) > elevation_tolerance)
-                {
-                    ++current_ring;
-                    last_elevation = current_elevation;
-                }
-
-                current_point.ring = current_ring;
+                quadrant = Quadrants::FIRST;
             }
+            else if (azimuth_rad < M_PIf)
+            {
+                quadrant = Quadrants::SECOND;
+            }
+            else if (azimuth_rad < 1.5F * M_PIf)
+            {
+                quadrant = Quadrants::THIRD;
+            }
+            else
+            {
+                quadrant = Quadrants::FOURTH;
+            }
+
+            if (quadrant == Quadrants::FIRST && previous_quadrant == Quadrants::FOURTH && ring_index > 0U)
+            {
+                --ring_index;
+            }
+
+            previous_quadrant = quadrant;
+
+            point_cache.x = point.x;
+            point_cache.y = point.y;
+            point_cache.z = point.z;
+            point_cache.intensity = point.intensity;
+            point_cache.ring = ring_index;
+
+            cloud_out.push_back(point_cache);
         }
     }
 
