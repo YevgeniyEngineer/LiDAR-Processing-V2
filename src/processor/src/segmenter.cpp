@@ -173,7 +173,13 @@ void Segmenter::RECM(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
         }
     }
 
+    // RECM algorithm
+
     // Correct erroneous elevation map values due to outlier points
+
+    const auto max_positive_height_difference_between_adjacent_grid_cells =
+        config_.grid_radial_spacing_m * std::tan(config_.road_maximum_slope_m_per_m);
+
     for (std::int32_t azimuth_index = 0; azimuth_index < grid_number_of_azimuth_slices_; ++azimuth_index)
     {
         const auto azimuth_index_offset = azimuth_index * grid_number_of_radial_rings_;
@@ -182,10 +188,13 @@ void Segmenter::RECM(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
         for (std::int32_t radial_index = 1; radial_index < grid_number_of_radial_rings_; ++radial_index)
         {
             const auto cell_index = azimuth_index_offset + radial_index;
-            const auto& cell = polar_grid_[cell_index];
+            auto& cell = polar_grid_[cell_index];
 
             if (cell.empty())
             {
+                elevation_map_[cell_index] =
+                    elevation_map_[cell_index - 1] + max_positive_height_difference_between_adjacent_grid_cells;
+
                 continue;
             }
 
@@ -209,43 +218,19 @@ void Segmenter::RECM(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
                     break;
                 }
             }
-        }
-    }
 
-    // RECM algorithm
-
-    const auto max_positive_height_difference_between_adjacent_grid_cells =
-        config_.grid_radial_spacing_m * std::tan(config_.road_maximum_slope_m_per_m);
-
-    for (std::int32_t azimuth_index = 0; azimuth_index < grid_number_of_azimuth_slices_; ++azimuth_index)
-    {
-        const auto azimuth_index_offset = azimuth_index * grid_number_of_radial_rings_;
-
-        for (std::int32_t radial_index = 1; radial_index < grid_number_of_radial_rings_; ++radial_index)
-        {
-            const auto cell_index = azimuth_index_offset + radial_index;
+            elevation_map_[cell_index] =
+                std::min(elevation_map_[cell_index],
+                         elevation_map_[cell_index - 1] + max_positive_height_difference_between_adjacent_grid_cells);
 
             const auto curr_z = elevation_map_[cell_index];
-            const auto prev_z = elevation_map_[cell_index - 1];
 
-            if (isValidZ(prev_z))
+            for (auto& point : cell)
             {
-                elevation_map_[cell_index] =
-                    std::min(curr_z, prev_z + max_positive_height_difference_between_adjacent_grid_cells);
-            }
-        }
-    }
-
-    for (std::uint32_t cell_index = 0; cell_index < polar_grid_.size(); ++cell_index)
-    {
-        auto& cell = polar_grid_[cell_index];
-        const auto curr_z = elevation_map_[cell_index];
-
-        for (auto& point : cell)
-        {
-            if (point.z >= curr_z + config_.ground_height_threshold_m)
-            {
-                point.label = Label::OBSTACLE;
+                if (point.z >= curr_z + config_.ground_height_threshold_m)
+                {
+                    point.label = Label::OBSTACLE;
+                }
             }
         }
     }
