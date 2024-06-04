@@ -108,7 +108,7 @@ class Segmenter
     static constexpr std::int32_t INVALID_INDEX = -1;
 
     // Values acceptable for Velodyne HDL-64E (tightest values)
-    static constexpr auto IMAGE_WIDTH = 2150;
+    static constexpr auto IMAGE_WIDTH = 2000;
     static constexpr auto IMAGE_HEIGHT = 64;
 
     // Colour labels
