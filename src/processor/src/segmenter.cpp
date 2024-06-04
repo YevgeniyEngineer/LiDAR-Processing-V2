@@ -157,7 +157,7 @@ void Segmenter::RECM(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
         else
         {
             // Calculated below
-            // elevation_map_[cell_index] = std::min(elevation_map_.at(cell_index), point.z); // SEE BELOW
+            // elevation_map_[cell_index] = std::min(elevation_map_[cell_index], point.z); // SEE BELOW
 
             const std::uint16_t height_index = point.ring;
 
@@ -177,8 +177,7 @@ void Segmenter::RECM(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
     for (std::int32_t azimuth_index = 0; azimuth_index < grid_number_of_azimuth_slices_; ++azimuth_index)
     {
         const auto azimuth_index_offset = azimuth_index * grid_number_of_radial_rings_;
-        // elevation_map_[azimuth_index_offset] =
-        //     -config_.sensor_height_m; // For zeroth cell set to sensor offset
+        // elevation_map_[azimuth_index_offset] = -config_.sensor_height_m; // For zeroth cell set to sensor offset
 
         for (std::int32_t radial_index = 1; radial_index < grid_number_of_radial_rings_; ++radial_index)
         {

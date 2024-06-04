@@ -66,7 +66,7 @@ struct Configuration
     float grid_radial_spacing_m = 2.0F;
     float grid_slice_resolution_deg = 1.0F;
     float ground_height_threshold_m = 0.2F;
-    float road_maximum_slope_m_per_m = 0.15F;
+    float road_maximum_slope_m_per_m = 0.2F;
     float min_distance_m = 2.0F;
     float max_distance_m = 100.0F;
     float sensor_height_m = 1.73F;
@@ -95,13 +95,6 @@ inline std::ostream& operator<<(std::ostream& os, const Configuration& config)
     return os;
 }
 
-static constexpr std::int32_t ceil(float num) noexcept
-{
-    return (static_cast<float>(static_cast<std::int32_t>(num)) == num)
-               ? static_cast<std::int32_t>(num)
-               : static_cast<std::int32_t>(num) + ((num > 0) ? 1 : 0);
-}
-
 class Segmenter
 {
   public:
@@ -115,19 +108,8 @@ class Segmenter
     static constexpr std::int32_t INVALID_INDEX = -1;
 
     // Values acceptable for Velodyne HDL-64E (tightest values)
-    static constexpr float VERTICAL_RESOLUTION_DEG = 0.425F;
-    static constexpr float VERTICAL_FIELD_OF_VIEW_DEG = 26.9F;
-
-    static constexpr float HORIZONTAL_RESOLUTION_DEG = 0.2F;
-    static constexpr float HORIZONTAL_FIELD_OF_VIEW_DEG = 360.0F;
-
-    static constexpr float VERTICAL_RESOLUTION_RAD = VERTICAL_RESOLUTION_DEG * DEG_TO_RAD;
-    static constexpr float HORIZONTAL_RESOLUTION_RAD = HORIZONTAL_RESOLUTION_DEG * DEG_TO_RAD;
-
-    static constexpr auto IMAGE_WIDTH =
-        static_cast<std::int32_t>(ceil(HORIZONTAL_FIELD_OF_VIEW_DEG / HORIZONTAL_RESOLUTION_DEG));
-    static constexpr auto IMAGE_HEIGHT =
-        static_cast<std::int32_t>(ceil(VERTICAL_FIELD_OF_VIEW_DEG / VERTICAL_RESOLUTION_DEG));
+    static constexpr auto IMAGE_WIDTH = 2150;
+    static constexpr auto IMAGE_HEIGHT = 64;
 
     // Colour labels
     inline static const auto CV_OBSTACLE = cv::Vec3b(0, 0, 255);

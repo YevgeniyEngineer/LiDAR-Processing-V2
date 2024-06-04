@@ -112,6 +112,9 @@ class Node final : public rclcpp::Node
         pcl::PointXYZIR point_cache;
         cloud_out.points.reserve(cloud_in.points.size());
 
+        std::uint32_t points_per_ring = 0;
+        std::uint32_t max_points_per_ring = 0;
+
         for (const auto& point : cloud_in.points)
         {
             float azimuth_rad = std::atan2(point.y, point.x);
@@ -136,6 +139,8 @@ class Node final : public rclcpp::Node
 
             if (quadrant == Quadrants::FIRST && previous_quadrant == Quadrants::FOURTH && ring_index > 0U)
             {
+                max_points_per_ring = std::max(max_points_per_ring, points_per_ring);
+                points_per_ring = 0;
                 --ring_index;
             }
 
@@ -148,7 +153,10 @@ class Node final : public rclcpp::Node
             point_cache.ring = ring_index;
 
             cloud_out.push_back(point_cache);
+            ++points_per_ring;
         }
+
+        RCLCPP_INFO(this->get_logger(), "Max points per ring: %u", max_points_per_ring);
     }
 
     void loadData()
