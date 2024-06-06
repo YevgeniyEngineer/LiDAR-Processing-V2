@@ -320,6 +320,11 @@ void Segmenter::correctCloseRangeFalsePositivesRANSAC()
         }
     }
 
+    if (ransac_points_.empty())
+    {
+        return;
+    }
+
     // Set pivot
     RansacPoint p1 {0.0, 0.0, -config_.sensor_height_m};
     const float max_plane_cosine_angle = std::cos(std::tan(config_.road_maximum_slope_m_per_m));
