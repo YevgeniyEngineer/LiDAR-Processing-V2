@@ -1,5 +1,7 @@
 #include "segmenter.hpp"
 
+#include <random>
+
 namespace segmentation
 {
 Segmenter::Segmenter()
@@ -22,6 +24,8 @@ Segmenter::Segmenter()
 
     cloud_mapping_indices_.resize(IMAGE_HEIGHT * IMAGE_WIDTH, INVALID_INDEX);
     depth_image_.resize(IMAGE_HEIGHT * IMAGE_WIDTH, INVALID_DEPTH_M);
+
+    ransac_points_.reserve(MAX_CLOUD_SIZE);
 
     image_channels_.resize(3);
     for (auto& channel : image_channels_)
@@ -140,13 +144,19 @@ void Segmenter::RECM(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
             continue;
         }
 
-        // float azimuth_rad = std::atan2(point.y, point.x);
         float azimuth_rad = atan2Approx(point.y, point.x);
-
         azimuth_rad = (azimuth_rad < 0) ? (azimuth_rad + TWO_M_PIf) : azimuth_rad;
 
         const auto radial_index = static_cast<std::int32_t>(radius_m / config_.grid_radial_spacing_m);
-        const auto azimuth_index = static_cast<std::int32_t>(azimuth_rad / grid_slice_resolution_rad_);
+
+        if (radial_index >= grid_number_of_radial_rings_)
+        {
+            continue;
+        }
+
+        const auto azimuth_index = std::min(static_cast<std::int32_t>(azimuth_rad / grid_slice_resolution_rad_),
+                                            grid_number_of_azimuth_slices_ - 1);
+
         const auto cell_index = static_cast<std::uint32_t>(azimuth_index * grid_number_of_radial_rings_ + radial_index);
 
         if (radius_m < config_.min_distance_m)
@@ -157,7 +167,7 @@ void Segmenter::RECM(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
         else
         {
             // Calculated below
-            // elevation_map_[cell_index] = std::min(elevation_map_[cell_index], point.z); // SEE BELOW
+            elevation_map_[cell_index] = std::min(elevation_map_[cell_index], point.z);
 
             const std::uint16_t height_index = point.ring;
 
@@ -174,16 +184,19 @@ void Segmenter::RECM(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
     }
 
     // RECM algorithm
+    const auto max_positive_height_difference_between_adjacent_grid_cells =
+        std::min(config_.grid_radial_spacing_m * std::tan(config_.road_maximum_slope_m_per_m),
+                 config_.ground_height_threshold_m - std::numeric_limits<float>::epsilon());
 
     // Correct erroneous elevation map values due to outlier points
-
-    const auto max_positive_height_difference_between_adjacent_grid_cells =
-        config_.grid_radial_spacing_m * std::tan(config_.road_maximum_slope_m_per_m);
 
     for (std::int32_t azimuth_index = 0; azimuth_index < grid_number_of_azimuth_slices_; ++azimuth_index)
     {
         const auto azimuth_index_offset = azimuth_index * grid_number_of_radial_rings_;
-        elevation_map_[azimuth_index_offset] = -config_.sensor_height_m; // For zeroth cell set to sensor offset
+
+        elevation_map_[azimuth_index_offset] =
+            -config_.sensor_height_m + config_.ground_height_threshold_m; // For zeroth cell set to sensor offset
+        float prev_z_min = elevation_map_[azimuth_index_offset];
 
         for (std::int32_t radial_index = 1; radial_index < grid_number_of_radial_rings_; ++radial_index)
         {
@@ -192,8 +205,8 @@ void Segmenter::RECM(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
 
             if (cell.empty())
             {
-                elevation_map_[cell_index] =
-                    elevation_map_[cell_index - 1] + max_positive_height_difference_between_adjacent_grid_cells;
+                elevation_map_[cell_index] = prev_z_min + max_positive_height_difference_between_adjacent_grid_cells;
+                prev_z_min = elevation_map_[cell_index];
 
                 continue;
             }
@@ -204,25 +217,28 @@ void Segmenter::RECM(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
                 cell_z_values_.push_back(point.z);
             }
 
-            // Sort in descending order
+            // Sort in increasing order
             std::sort(cell_z_values_.begin(), cell_z_values_.end());
 
             // Find z min accounting for outliers
-            float z_min = cell_z_values_[0]; // take the smallest value
+            float curr_z_min = cell_z_values_[0];
 
             for (std::int32_t i = cell_z_values_.size() / 2; i >= 1; --i)
             {
-                if (cell_z_values_[i] - cell_z_values_[i - 1] > 0.5F) // Hard-coded threshold
+                if (cell_z_values_[i] - cell_z_values_[i - 1] > 0.5F) // This accounts for retroreflections
                 {
-                    z_min = cell_z_values_[i]; // take min value
+                    curr_z_min = cell_z_values_[i];
                     break;
                 }
             }
 
-            elevation_map_[cell_index] = std::min(
-                z_min, elevation_map_[cell_index - 1] + max_positive_height_difference_between_adjacent_grid_cells);
+            elevation_map_[cell_index] =
+                std::min(curr_z_min, prev_z_min + max_positive_height_difference_between_adjacent_grid_cells);
+            prev_z_min = elevation_map_[cell_index];
         }
     }
+
+    // Classify obstacle points
 
     for (std::uint32_t cell_index = 0; cell_index < polar_grid_.size(); ++cell_index)
     {
@@ -237,6 +253,10 @@ void Segmenter::RECM(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
             }
         }
     }
+
+    // Correct false positives close to the vehicle
+
+    correctCloseRangeFalsePositivesRANSAC();
 
     // Transfer points from the grid to the image
 
@@ -265,9 +285,153 @@ void Segmenter::RECM(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
                     depth_image_[image_index] = depth_squarred;
                     cloud_mapping_indices_[image_index] = point.cloud_index;
                 }
-                else
+            }
+        }
+    }
+}
+
+void Segmenter::correctCloseRangeFalsePositivesRANSAC()
+{
+    static constexpr std::int32_t MAX_RADIAL_BINS = 4;
+    static constexpr std::uint32_t NUMBER_OF_ITERATIONS = 60;
+
+    ransac_points_.clear();
+
+    for (std::int32_t azimuth_index = 0; azimuth_index < grid_number_of_azimuth_slices_; ++azimuth_index)
+    {
+        const auto azimuth_index_offset = azimuth_index * grid_number_of_radial_rings_;
+
+        for (std::int32_t radial_index = 0; radial_index < MAX_RADIAL_BINS; ++radial_index)
+        {
+            const auto cell_index = azimuth_index_offset + radial_index;
+
+            const auto& cell = polar_grid_[cell_index];
+
+            const float z_min = elevation_map_[cell_index];
+
+            for (const auto& point : cell)
+            {
+                if (std::fabs(z_min - point.z) <
+                    2.0F * config_.ground_height_threshold_m) // Add only higher confidence points
                 {
-                    // Never happens
+                    ransac_points_.push_back({point.x, point.y, point.z});
+                }
+            }
+        }
+    }
+
+    // Set pivot
+    RansacPoint p1 {0.0, 0.0, -config_.sensor_height_m};
+    const float max_plane_cosine_angle = std::cos(std::tan(config_.road_maximum_slope_m_per_m));
+
+    // Plane coefficients
+    float a = 0.0F;
+    float b = 0.0F;
+    float c = 1.0F;
+    float d = 0.0F;
+
+    // For index generation
+    std::mt19937 gen {42};
+    std::uniform_int_distribution<std::uint32_t> dist {0, static_cast<std::uint32_t>(ransac_points_.size()) - 1U};
+
+    // RANSAC
+    std::uint32_t best_inlier_count = 0U;
+
+    for (std::uint32_t iteration = 0; iteration < NUMBER_OF_ITERATIONS; ++iteration)
+    {
+        // Choose 2 random points
+        const std::uint32_t p2_index = dist(gen);
+        const auto& p2 = ransac_points_[p2_index];
+
+        std::uint32_t p3_index = dist(gen);
+        while (p3_index == p2_index)
+        {
+            p3_index = dist(gen);
+        }
+        const auto& p3 = ransac_points_[p3_index];
+
+        // Calculate a plane defined by three points
+        float normal_x = ((p2.y - p1.y) * (p3.z - p1.z)) - ((p2.z - p1.z) * (p3.y - p1.y));
+        float normal_y = ((p2.z - p1.z) * (p3.x - p1.x)) - ((p2.x - p1.x) * (p3.z - p1.z));
+        float normal_z = ((p2.x - p1.x) * (p3.y - p1.y)) - ((p2.y - p1.y) * (p3.x - p1.x));
+
+        // Calculate normalization
+        const float denominator = std::sqrt((normal_x * normal_x) + (normal_y * normal_y) + (normal_z * normal_z));
+
+        // Check that denominator is not too small
+        if (denominator < 1.0e-4F)
+        {
+            continue;
+        }
+        const float normalization = 1.0F / denominator;
+
+        // Normalize plane coefficients
+        normal_z *= normalization;
+
+        // Constrain plane
+        if (std::fabs(normal_z) < max_plane_cosine_angle)
+        {
+            continue;
+        }
+
+        normal_x *= normalization;
+        normal_y *= normalization;
+
+        const float plane_d = (normal_x * p1.x) + (normal_y * p1.y) + (normal_z * p1.z);
+
+        // Count inlier points
+        std::uint32_t inlier_count = 0U;
+        for (const auto& point : ransac_points_)
+        {
+            const float orthogonal_distance =
+                std::fabs((normal_x * point.x) + (normal_y * point.y) + (normal_z * point.z) - plane_d);
+
+            if (orthogonal_distance < config_.ground_height_threshold_m)
+            {
+                ++inlier_count;
+            }
+        }
+
+        // If the plane is best so far, update the plane coefficients
+        if (inlier_count > best_inlier_count)
+        {
+            best_inlier_count = inlier_count;
+
+            a = normal_x;
+            b = normal_y;
+            c = normal_z;
+            d = plane_d;
+        }
+    }
+
+    if (best_inlier_count > 0)
+    {
+        if (c < 0)
+        {
+            a = -a;
+            b = -b;
+            c = -c;
+            d = -d;
+        }
+
+        // Decide which points are GROUND and which points are NON-GROUND
+        for (std::int32_t azimuth_index = 0; azimuth_index < grid_number_of_azimuth_slices_; ++azimuth_index)
+        {
+            const auto azimuth_index_offset = azimuth_index * grid_number_of_radial_rings_;
+
+            for (std::int32_t radial_index = 0; radial_index < MAX_RADIAL_BINS; ++radial_index)
+            {
+                const auto cell_index = azimuth_index_offset + radial_index;
+                auto& cell = polar_grid_[cell_index];
+
+                for (auto& point : cell)
+                {
+                    const float signed_orthogonal_distance = (a * point.x) + (b * point.y) + (c * point.z) - d;
+
+                    if (signed_orthogonal_distance < config_.ground_height_threshold_m)
+                    {
+                        point.label = Label::GROUND;
+                    }
                 }
             }
         }

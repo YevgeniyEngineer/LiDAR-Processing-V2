@@ -72,7 +72,7 @@ struct Configuration
     float sensor_height_m = 1.73F;
     float kernel_threshold_distance_m = 1.0F;
     float amplification_factor = 5.0F;
-    float z_min_m = -2.0F;
+    float z_min_m = -3.0F;
     float z_max_m = 4.0F;
 
     bool display_recm_with_low_confidence_points = false;
@@ -167,6 +167,15 @@ class Segmenter
     cv::Mat display_image_;
     std::vector<float> depth_image_;
 
+    struct RansacPoint
+    {
+        float x;
+        float y;
+        float z;
+    };
+
+    std::vector<RansacPoint> ransac_points_;
+
     cv::Mat kernel_;
     std::vector<cv::Mat> image_channels_;
     containers::CircularQueue<Index, IMAGE_HEIGHT * IMAGE_WIDTH> index_queue_;
@@ -215,6 +224,7 @@ class Segmenter
 
     void RECM(const pcl::PointCloud<pcl::PointXYZIR>& cloud);
     void JCP(const pcl::PointCloud<pcl::PointXYZIR>& cloud);
+    void correctCloseRangeFalsePositivesRANSAC();
     void populateLabels(const pcl::PointCloud<pcl::PointXYZIR>& cloud, std::vector<Label>& labels);
 };
 } // namespace segmentation
