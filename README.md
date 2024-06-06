@@ -2,7 +2,7 @@
 
 A LiDAR processing pipeline based on ROS2 Humble node system, improvement to <https://github.com/YevgeniyEngineer/LiDAR-Processing>
 
-![segmentation-teaser](https://github.com/YevgeniyEngineer/LiDAR-Processing-V2/blob/main/images/segmentation_teaser.png)
+![segmentation-teaser](https://github.com/YevgeniyEngineer/LiDAR-Processing-V2/blob/main/images/segmentation_teaser.gif)
 
 ## Build and Launch
 
