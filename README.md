@@ -16,7 +16,7 @@ Once you are inside of Devcontainer, you can build and launch the nodes. In the 
 
 ## Point Cloud Data Format
 
-Prior to processing point cloud is converted from unorganized to organized. The approximate ring partitioning scheme is used to cluster rings, approximating the natural Velodyne HDL-64E as closely as possible.
+Prior to processing point cloud is converted from unorganized to organized. The approximate ring partitioning scheme is used to cluster rings, approximating the natural Velodyne HDL-64E scan pattern as closely as possible.
 
 ![ring-partitioning](https://github.com/YevgeniyEngineer/LiDAR-Processing-V2/blob/main/images/ring_partitioning.png)
 
