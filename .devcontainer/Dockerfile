@@ -63,26 +63,22 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install cmake-format via pip
-RUN pip3 install cmake-format
-
 # Add a user for the development environment
 ARG USERNAME=devuser
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
-RUN groupadd --gid $USER_GID $USERNAME \
-    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
-    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
-    && chmod 0440 /etc/sudoers.d/$USERNAME
+
+# Create user with specified home directory
+RUN groupadd --gid $USER_GID $USERNAME || echo "Group $USERNAME already exists"
+RUN useradd --uid $USER_UID --gid $USER_GID --create-home --home-dir /home/$USERNAME $USERNAME || echo "User $USERNAME already exists"
+RUN echo "$USERNAME ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/$USERNAME 
+RUN chmod 0440 /etc/sudoers.d/$USERNAME
 
 # Setup ROS2 environment in the bashrc for interactive bash shells
 RUN echo "source /opt/ros/humble/setup.bash" >> /home/$USERNAME/.bashrc
 
 # Setup GUI forwarding with the correct DISPLAY setting
 RUN echo "export DISPLAY=:1" >> /home/$USERNAME/.bashrc
-
-# Expose ports (if needed)
-# EXPOSE 6000
 
 # Command to run on container start
 CMD ["/bin/bash"]

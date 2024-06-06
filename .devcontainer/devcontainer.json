@@ -23,11 +23,16 @@
         "--env=DISPLAY=:1",
         "--volume=/tmp/.X11-unix:/tmp/.X11-unix:rw"
     ],
+    "remoteUser": "devuser",
+    "workspaceFolder": "/home/devuser/workspace/LiDAR-Processing-V2",
     "mounts": [
-        "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached"
+        {
+            "source": "${env:HOME}/workspace",
+            "target": "/home/devuser/workspace",
+            "type": "bind"
+        }
     ],
     "postCreateCommand": "bash -c 'source /opt/ros/humble/setup.bash'",
-    "remoteUser": "devuser",
     "customizations": {
         "vscode": {
             "extensions": [
