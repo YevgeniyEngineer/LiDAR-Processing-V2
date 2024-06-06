@@ -75,7 +75,7 @@ struct Configuration
     float z_min_m = -3.0F;
     float z_max_m = 4.0F;
 
-    bool display_recm_with_low_confidence_points = false;
+    bool display_recm_with_low_confidence_points = true;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const Configuration& config)

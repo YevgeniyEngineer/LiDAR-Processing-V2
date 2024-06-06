@@ -2,6 +2,37 @@
 
 A LiDAR processing pipeline based on ROS2 Humble node system, improvement to <https://github.com/YevgeniyEngineer/LiDAR-Processing>
 
+![segmentation-teaser](https://github.com/YevgeniyEngineer/LiDAR-Processing-V2/blob/main/images/segmentation_teaser.png)
+
+## Build and Launch
+
+Once you are inside of Devcontainer, you can build and launch the nodes. In the main directory:
+
+```bash
+./scripts/clean.sh
+./scripts/build.sh
+./scripts/launch.sh
+```
+
+## Point Cloud Data Format
+
+Prior to processing point cloud is converted from unorganized to organized. The approximate ring partitioning scheme is used to cluster rings, approximating the natural Velodyne HDL-64E as closely as possible.
+
+![ring-partitioning](https://github.com/YevgeniyEngineer/LiDAR-Processing-V2/blob/main/images/ring_partitioning.png)
+
+## Segmentation
+
+The implementation is based on ["Fast Ground Segmentation for 3D LiDAR Point Cloud Based on
+Jump-Convolution-Process"](https://www.semanticscholar.org/paper/Fast-Ground-Segmentation-for-3D-LiDAR-Point-Cloud-Shen-Liang/01b8149e0ed6c5fe4932d961ff14ccca8f94ab47). The implementation follows most of the steps outlined in the original paper, except I added an intermediate RANSAC filter to correct erroneous classification close to the vehicle, which are caused by either pitch deviation of the vehicle, uncertainty in sensor mounting position, or reflective LiDAR artifacs, present below the ground surface.
+
+![segmentation](https://github.com/YevgeniyEngineer/LiDAR-Processing-V2/blob/main/images/segmentation.png)
+
+## Clustering
+
+The implementation is based on ["Curved-Voxel Clustering for Accurate Segmentation of 3D LiDAR Point Clouds with Real-Time Performance"](https://ieeexplore.ieee.org/document/8968026).
+
+TO BE IMPLEMENTED.
+
 ## Enable Required Extensions in VSCode
 
 ```bash
@@ -195,34 +226,3 @@ Restart the Docker service to apply these configuration changes:
 ```bash
 sudo systemctl restart docker
 ```
-
-## Build and Launch
-
-Once you are inside of Devcontainer, you can build and launch the nodes. In the main directory:
-
-```bash
-./scripts/clean.sh
-./scripts/build.sh
-./scripts/launch.sh
-```
-
-## Example Output
-
-### Point Cloud Data Format
-
-Prior to processing point cloud is converted from unorganized to organized. The approximate ring partitioning scheme is used to cluster rings, approximating the natural Velodyne HDL-64E as closely as possible.
-
-![ring-partitioning](https://github.com/YevgeniyEngineer/LiDAR-Processing-V2/blob/main/images/ring_partitioning.png)
-
-### Segmentation
-
-The implementation is based on ["Fast Ground Segmentation for 3D LiDAR Point Cloud Based on
-Jump-Convolution-Process"](https://www.semanticscholar.org/paper/Fast-Ground-Segmentation-for-3D-LiDAR-Point-Cloud-Shen-Liang/01b8149e0ed6c5fe4932d961ff14ccca8f94ab47). The implementation follows most of the steps outlined in the original paper, except I added an intermediate RANSAC filter to correct erroneous classification close to the vehicle, which are caused by either pitch deviation of the vehicle, uncertainty in sensor mounting position, or reflective LiDAR artifacs, present below the ground surface.
-
-![segmentation](https://github.com/YevgeniyEngineer/LiDAR-Processing-V2/blob/main/images/segmentation.png)
-
-### Clustering
-
-The implementation is based on ["Curved-Voxel Clustering for Accurate Segmentation of 3D LiDAR Point Clouds with Real-Time Performance"](https://ieeexplore.ieee.org/document/8968026).
-
-TO BE IMPLEMENTED.
