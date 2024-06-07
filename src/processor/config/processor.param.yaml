@@ -1,7 +1,9 @@
 processor:
   ros__parameters:
-    input_cloud_topic: /pointcloud
+    input_cloud_topic: /pointcloud_organized
     ground_cloud_topic: /ground_pointcloud
     obstacle_cloud_topic: /obstacle_pointcloud
+    unsegmented_cloud_topic: /unknown_pointcloud
+    segmented_image_topic: /jcp_image
     clustered_cloud_topic: /clustered_pointcloud
     obstacle_outlines_topic: /obstacle_outlines

@@ -1,3 +1,25 @@
+/*
+ * Copyright (c) 2024 Yevgeniy Simonov
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #ifndef SEGMENTER_HPP
 #define SEGMENTER_HPP
 
@@ -25,10 +47,8 @@
 // OpenCV
 #include <opencv2/opencv.hpp>
 
-namespace pcl
-{
-struct EIGEN_ALIGN16 PointXYZIR
-{
+namespace pcl {
+struct EIGEN_ALIGN16 PointXYZIR {
     PCL_ADD_POINT4D;                // This adds the XYZ coordinates and padding
     float intensity;                // Intensity of reflection
     std::uint16_t ring;             // Laser ring index
@@ -38,20 +58,12 @@ struct EIGEN_ALIGN16 PointXYZIR
 
 POINT_CLOUD_REGISTER_POINT_STRUCT(pcl::PointXYZIR,
                                   (float, x, x)(float, y, y)(float, z, z)(float, intensity, intensity)(std::uint16_t,
-                                                                                                       ring,
-                                                                                                       ring))
+                                                                                                       ring, ring))
 
-namespace segmentation
-{
-enum class Label : std::uint32_t
-{
-    UNKNOWN = 0,
-    GROUND,
-    OBSTACLE
-};
+namespace segmentation {
+enum class Label : std::uint32_t { UNKNOWN = 0, GROUND, OBSTACLE };
 
-struct Point
-{
+struct Point {
     float x;
     float y;
     float z;
@@ -61,8 +73,7 @@ struct Point
     std::int32_t cloud_index;
 };
 
-struct Configuration
-{
+struct Configuration {
     float grid_radial_spacing_m = 2.0F;
     float grid_slice_resolution_deg = 1.0F;
     float ground_height_threshold_m = 0.2F;
@@ -78,8 +89,7 @@ struct Configuration
     bool display_recm_with_low_confidence_points = false;
 };
 
-inline std::ostream& operator<<(std::ostream& os, const Configuration& config)
-{
+inline std::ostream &operator<<(std::ostream &os, const Configuration &config) {
     os << "grid_radial_spacing_m: " << config.grid_radial_spacing_m << "\n"
        << "grid_slice_resolution_deg: " << config.grid_slice_resolution_deg << "\n"
        << "ground_height_threshold_m: " << config.ground_height_threshold_m << "\n"
@@ -95,8 +105,7 @@ inline std::ostream& operator<<(std::ostream& os, const Configuration& config)
     return os;
 }
 
-class Segmenter
-{
+class Segmenter {
   public:
     // Constants
     static constexpr float DEG_TO_RAD = static_cast<float>(M_PI / 180.0);
@@ -124,23 +133,16 @@ class Segmenter
     Segmenter();
     ~Segmenter() = default;
 
-    void config(const Configuration& config);
+    void config(const Configuration &config);
 
-    inline const Configuration& config() const noexcept
-    {
-        return config_;
-    }
+    inline const Configuration &config() const noexcept { return config_; }
 
-    inline const cv::Mat& image() const noexcept
-    {
-        return image_;
-    }
+    inline const cv::Mat &image() const noexcept { return image_; }
 
-    void segment(const pcl::PointCloud<pcl::PointXYZIR>& cloud, std::vector<Label>& labels);
+    void segment(const pcl::PointCloud<pcl::PointXYZIR> &cloud, std::vector<Label> &labels);
 
   private:
-    struct Index
-    {
+    struct Index {
         std::int32_t height_index;
         std::int32_t width_index;
     };
@@ -167,8 +169,7 @@ class Segmenter
     cv::Mat display_image_;
     std::vector<float> depth_image_;
 
-    struct RansacPoint
-    {
+    struct RansacPoint {
         float x;
         float y;
         float z;
@@ -186,46 +187,32 @@ class Segmenter
 
     void resetValues();
 
-    inline bool isValidZ(const float z) const noexcept
-    {
-        if (z < 0)
-        {
+    inline bool isValidZ(const float z) const noexcept {
+        if (z < 0) {
             return true;
-        }
-        else if (std::fabs(INVALID_Z - z) < std::numeric_limits<float>::epsilon())
-        {
+        } else if (std::fabs(INVALID_Z - z) < std::numeric_limits<float>::epsilon()) {
             return false;
         }
         return true;
     }
 
-    inline bool isInvalidZ(const float z) const noexcept
-    {
-        if (z < 0)
-        {
+    inline bool isInvalidZ(const float z) const noexcept {
+        if (z < 0) {
             return false;
-        }
-        else if (std::fabs(INVALID_Z - z) < std::numeric_limits<float>::epsilon())
-        {
+        } else if (std::fabs(INVALID_Z - z) < std::numeric_limits<float>::epsilon()) {
             return true;
         }
         return false;
     }
 
-    inline bool isValidIndex(const std::int32_t index) const noexcept
-    {
-        return index != INVALID_INDEX;
-    }
+    inline bool isValidIndex(const std::int32_t index) const noexcept { return index != INVALID_INDEX; }
 
-    inline bool isInvalidIndex(const std::int32_t index) const noexcept
-    {
-        return index == INVALID_INDEX;
-    }
+    inline bool isInvalidIndex(const std::int32_t index) const noexcept { return index == INVALID_INDEX; }
 
-    void RECM(const pcl::PointCloud<pcl::PointXYZIR>& cloud);
-    void JCP(const pcl::PointCloud<pcl::PointXYZIR>& cloud);
+    void RECM(const pcl::PointCloud<pcl::PointXYZIR> &cloud);
+    void JCP(const pcl::PointCloud<pcl::PointXYZIR> &cloud);
     void correctCloseRangeFalsePositivesRANSAC();
-    void populateLabels(const pcl::PointCloud<pcl::PointXYZIR>& cloud, std::vector<Label>& labels);
+    void populateLabels(const pcl::PointCloud<pcl::PointXYZIR> &cloud, std::vector<Label> &labels);
 };
 } // namespace segmentation
 

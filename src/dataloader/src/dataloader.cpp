@@ -1,3 +1,25 @@
+/*
+ * Copyright (c) 2024 Yevgeniy Simonov
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 // STL
 #include <algorithm>
 #include <array>
@@ -30,10 +52,8 @@
 #include <sensor_msgs/msg/point_cloud2.hpp> // sensor_msgs::msg::PointCloud2
 #include <sensor_msgs/msg/point_field.hpp>  // sensor_msgs::msg::PointField
 
-namespace pcl
-{
-struct EIGEN_ALIGN16 PointXYZIR
-{
+namespace pcl {
+struct EIGEN_ALIGN16 PointXYZIR {
     PCL_ADD_POINT4D;                // This adds the XYZ coordinates and padding
     float intensity;                // Intensity of reflection
     std::uint16_t ring;             // Laser ring index
@@ -44,31 +64,29 @@ struct EIGEN_ALIGN16 PointXYZIR
 // Register the point type
 POINT_CLOUD_REGISTER_POINT_STRUCT(pcl::PointXYZIR,
                                   (float, x, x)(float, y, y)(float, z, z)(float, intensity, intensity)(std::uint16_t,
-                                                                                                       ring,
-                                                                                                       ring))
+                                                                                                       ring, ring))
 
-class Node final : public rclcpp::Node
-{
+class Node final : public rclcpp::Node {
   public:
     using PointFieldTypes = pcl::PCLPointField::PointFieldTypes;
     using PointCloud2 = sensor_msgs::msg::PointCloud2;
 
-    Node()
-        : rclcpp::Node("dataloader")
-    {
+    Node() : rclcpp::Node("dataloader") {
         this->declare_parameter<std::string>("data_path");
-        this->declare_parameter<std::string>("topic");
+        this->declare_parameter<std::string>("vis_cloud_topic");
+        this->declare_parameter<std::string>("organized_cloud_topic");
         this->declare_parameter<std::int32_t>("frequency_hz");
 
         data_path_ = this->get_parameter("data_path").as_string();
-        topic_ = this->get_parameter("topic").as_string();
+        vis_cloud_topic_ = this->get_parameter("vis_cloud_topic").as_string();
+        organized_cloud_topic_ = this->get_parameter("organized_cloud_topic").as_string();
         sleep_duration_ms_ = std::chrono::milliseconds(
             static_cast<std::int64_t>(1000.0 / static_cast<double>(this->get_parameter("frequency_hz").as_int())));
 
         loadData();
 
-        publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(topic_, 10);
-        vis_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/pointcloud_rings", 10);
+        publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(organized_cloud_topic_, 10);
+        vis_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(vis_cloud_topic_, 10);
         timer_ = this->create_wall_timer(sleep_duration_ms_, std::bind(&Node::timerCallback, this));
 
         RCLCPP_INFO(this->get_logger(), "%s node constructed", this->get_name());
@@ -76,7 +94,8 @@ class Node final : public rclcpp::Node
 
   private:
     std::filesystem::path data_path_;
-    std::string topic_;
+    std::string vis_cloud_topic_;
+    std::string organized_cloud_topic_;
     std::chrono::milliseconds sleep_duration_ms_;
 
     rclcpp::TimerBase::SharedPtr timer_;
@@ -90,21 +109,13 @@ class Node final : public rclcpp::Node
     rclcpp::Publisher<PointCloud2>::SharedPtr vis_publisher_;
     PointCloud2 vis_message_;
 
-    void addRingInfo(const pcl::PointCloud<pcl::PointXYZI>& cloud_in, pcl::PointCloud<pcl::PointXYZIR>& cloud_out)
-    {
+    void addRingInfo(const pcl::PointCloud<pcl::PointXYZI> &cloud_in, pcl::PointCloud<pcl::PointXYZIR> &cloud_out) {
         cloud_out.clear();
-        if (cloud_in.points.empty())
-        {
+        if (cloud_in.points.empty()) {
             return;
         }
 
-        enum class Quadrants : std::int32_t
-        {
-            FIRST = 0,
-            SECOND = 1,
-            THIRD = 2,
-            FOURTH = 3
-        };
+        enum class Quadrants : std::int32_t { FIRST = 0, SECOND = 1, THIRD = 2, FOURTH = 3 };
 
         auto quadrant = Quadrants::FIRST;
         auto previous_quadrant = Quadrants::FIRST;
@@ -115,30 +126,21 @@ class Node final : public rclcpp::Node
         std::uint32_t points_per_ring = 0;
         std::uint32_t max_points_per_ring = 0;
 
-        for (const auto& point : cloud_in.points)
-        {
+        for (const auto &point : cloud_in.points) {
             float azimuth_rad = std::atan2(point.y, point.x);
             azimuth_rad = (azimuth_rad < 0) ? (azimuth_rad + 2.0F * M_PIf) : azimuth_rad;
 
-            if (azimuth_rad < M_PI_2f)
-            {
+            if (azimuth_rad < M_PI_2f) {
                 quadrant = Quadrants::FIRST;
-            }
-            else if (azimuth_rad < M_PIf)
-            {
+            } else if (azimuth_rad < M_PIf) {
                 quadrant = Quadrants::SECOND;
-            }
-            else if (azimuth_rad < 1.5F * M_PIf)
-            {
+            } else if (azimuth_rad < 1.5F * M_PIf) {
                 quadrant = Quadrants::THIRD;
-            }
-            else
-            {
+            } else {
                 quadrant = Quadrants::FOURTH;
             }
 
-            if (quadrant == Quadrants::FIRST && previous_quadrant == Quadrants::FOURTH && ring_index > 0U)
-            {
+            if (quadrant == Quadrants::FIRST && previous_quadrant == Quadrants::FOURTH && ring_index > 0U) {
                 max_points_per_ring = std::max(max_points_per_ring, points_per_ring);
                 points_per_ring = 0;
                 --ring_index;
@@ -159,14 +161,11 @@ class Node final : public rclcpp::Node
         RCLCPP_INFO(this->get_logger(), "Max points per ring: %u", max_points_per_ring);
     }
 
-    void loadData()
-    {
+    void loadData() {
         std::vector<std::filesystem::path> files;
 
-        for (const auto& file : std::filesystem::directory_iterator(data_path_))
-        {
-            if (std::filesystem::is_regular_file(file) && (file.path().extension() == ".pcd"))
-            {
+        for (const auto &file : std::filesystem::directory_iterator(data_path_)) {
+            if (std::filesystem::is_regular_file(file) && (file.path().extension() == ".pcd")) {
                 files.push_back(file.path());
             }
         }
@@ -175,12 +174,10 @@ class Node final : public rclcpp::Node
 
         pcl::PointCloud<pcl::PointXYZI> cloud_in;
 
-        for (const auto& file : files)
-        {
+        for (const auto &file : files) {
             cloud_in.points.clear();
 
-            if (pcl::io::loadPCDFile<pcl::PointXYZI>(file, cloud_in) == -1)
-            {
+            if (pcl::io::loadPCDFile<pcl::PointXYZI>(file, cloud_in) == -1) {
                 throw std::runtime_error("Cloud not read " + file.string() + " file");
             }
 
@@ -194,8 +191,7 @@ class Node final : public rclcpp::Node
         pointcloud_iterator_ = pointclouds_.cbegin();
 
         std::size_t reservation_size = 0U;
-        for (const auto& cloud : pointclouds_)
-        {
+        for (const auto &cloud : pointclouds_) {
             reservation_size = std::max(reservation_size, (cloud.points.size() * sizeof(pcl::PointXYZIR)));
         }
 
@@ -255,12 +251,10 @@ class Node final : public rclcpp::Node
         vis_message_.fields[3].count = 1;
     }
 
-    void timerCallback()
-    {
+    void timerCallback() {
         static constexpr std::int64_t SECONDS_TO_NANOSECONDS = 1'000'000'000LL;
 
-        if (pointcloud_iterator_ == pointclouds_.cend())
-        {
+        if (pointcloud_iterator_ == pointclouds_.cend()) {
             pointcloud_iterator_ = pointclouds_.cbegin();
         }
 
@@ -281,8 +275,7 @@ class Node final : public rclcpp::Node
         message_.is_dense = pointcloud_iterator_->is_dense;
 
         message_.data.resize(sizeof(pcl::PointXYZIR) * pointcloud_iterator_->size());
-        std::memcpy(static_cast<void*>(message_.data.data()),
-                    static_cast<const void*>(pointcloud_iterator_->data()),
+        std::memcpy(static_cast<void *>(message_.data.data()), static_cast<const void *>(pointcloud_iterator_->data()),
                     sizeof(pcl::PointXYZIR) * pointcloud_iterator_->size());
 
         publisher_->publish(message_);
@@ -300,12 +293,10 @@ class Node final : public rclcpp::Node
             vis_message_.data.resize(sizeof(pcl::PointXYZRGB) * pointcloud_iterator_->size());
 
             const auto max_point_ring_index_iterator =
-                std::max_element(pointcloud_iterator_->points.cbegin(),
-                                 pointcloud_iterator_->points.cend(),
-                                 [](const auto& a, const auto& b) -> bool { return (a.ring < b.ring); });
+                std::max_element(pointcloud_iterator_->points.cbegin(), pointcloud_iterator_->points.cend(),
+                                 [](const auto &a, const auto &b) -> bool { return (a.ring < b.ring); });
 
-            if (max_point_ring_index_iterator != pointcloud_iterator_->points.cend())
-            {
+            if (max_point_ring_index_iterator != pointcloud_iterator_->points.cend()) {
                 const auto max_ring_index = max_point_ring_index_iterator->ring;
 
                 pcl::PointXYZRGB point_cache;
@@ -324,25 +315,21 @@ class Node final : public rclcpp::Node
 
                 static constexpr std::size_t num_colors = color_palette.size();
 
-                for (std::uint16_t ring = 0U; ring < max_ring_index + 1U; ++ring)
-                {
-                    const auto& ring_colour = color_palette[ring % num_colors];
+                for (std::uint16_t ring = 0U; ring < max_ring_index + 1U; ++ring) {
+                    const auto &ring_colour = color_palette[ring % num_colors];
 
                     point_cache.r = ring_colour[0];
                     point_cache.g = ring_colour[1];
                     point_cache.b = ring_colour[2];
 
-                    for (const auto& point : pointcloud_iterator_->points)
-                    {
-                        if (point.ring == ring)
-                        {
+                    for (const auto &point : pointcloud_iterator_->points) {
+                        if (point.ring == ring) {
                             point_cache.x = point.x;
                             point_cache.y = point.y;
                             point_cache.z = point.z;
 
-                            std::memcpy(static_cast<void*>(&vis_message_.data[pointer_offset]),
-                                        static_cast<const void*>(&point_cache),
-                                        sizeof(point_cache));
+                            std::memcpy(static_cast<void *>(&vis_message_.data[pointer_offset]),
+                                        static_cast<const void *>(&point_cache), sizeof(point_cache));
 
                             pointer_offset += sizeof(pcl::PointXYZRGB);
                         }
@@ -357,24 +344,18 @@ class Node final : public rclcpp::Node
     }
 };
 
-std::int32_t main(std::int32_t argc, const char* const* argv)
-{
+std::int32_t main(std::int32_t argc, const char *const *argv) {
     std::int32_t ret = EXIT_SUCCESS;
 
     rclcpp::init(argc, argv);
     rclcpp::install_signal_handlers();
 
-    try
-    {
+    try {
         rclcpp::spin(std::make_shared<Node>());
-    }
-    catch (const std::exception& e)
-    {
+    } catch (const std::exception &e) {
         std::cerr << "Exception: " << e.what() << std::endl;
         ret = EXIT_FAILURE;
-    }
-    catch (...)
-    {
+    } catch (...) {
         std::cerr << "Unknown exception." << std::endl;
         ret = EXIT_FAILURE;
     }
