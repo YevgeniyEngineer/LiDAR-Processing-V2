@@ -23,6 +23,9 @@
 #ifndef CLUSTERER_HPP
 #define CLUSTERER_HPP
 
+// External
+#include "ankerl/unordered_dense.h"
+
 // Internal
 #include "circular_queue.hpp"
 
@@ -35,6 +38,8 @@
 #include <limits>
 #include <ostream>
 #include <stdexcept>
+#include <unordered_map>
+#include <unordered_set>
 #include <utility>
 
 // PCL
@@ -55,9 +60,9 @@ struct SphericalPoint
 
 struct Configuration
 {
-    float voxel_grid_range_resolution_m_ = 1.0F;
-    float voxel_grid_azimuth_resolution_deg_ = 1.0F;
-    float voxel_grid_elevation_resolution_deg_ = 1.0F;
+    float voxel_grid_range_resolution_m = 0.3F;
+    float voxel_grid_azimuth_resolution_deg = 1.0F;
+    float voxel_grid_elevation_resolution_deg = 1.5F;
 };
 
 class Clusterer
@@ -73,17 +78,21 @@ class Clusterer
     void cluster(const pcl::PointCloud<PointT>& cloud, std::vector<ClusterLabel>& labels);
 
   private:
+    // Elevation index should be the primary sorting key.
+    // Azimuth index should be the secondary sorting key.
+    // Range index should be the tertiary sorting key.
+
     static constexpr std::int32_t INDEX_OFFSETS[27][3] = {
-        {-1, -1, -1}, {-1, -1, 0}, {-1, -1, 1}, {-1, 0, -1}, {-1, 0, 0},  {-1, 0, 1}, {-1, 1, -1},
-        {-1, 1, 0},   {-1, 1, 1},  {0, -1, -1}, {0, -1, 0},  {0, -1, 1},  {0, 0, -1}, {0, 0, 0},
-        {0, 0, 1},    {0, 1, -1},  {0, 1, 0},   {0, 1, 1},   {1, -1, -1}, {1, -1, 0}, {1, -1, 1},
-        {1, 0, -1},   {1, 0, 0},   {1, 0, 1},   {1, 1, -1},  {1, 1, 0},   {1, 1, 1}};
+        {-1, -1, -1}, {-1, 0, -1}, {-1, 1, -1}, {0, -1, -1}, {0, 0, -1},  {0, 1, -1}, {1, -1, -1},
+        {1, 0, -1},   {1, 1, -1},  {-1, -1, 0}, {-1, 0, 0},  {-1, 1, 0},  {0, -1, 0}, {0, 0, 0},
+        {0, 1, 0},    {1, -1, 0},  {1, 0, 0},   {1, 1, 0},   {-1, -1, 1}, {-1, 0, 1}, {-1, 1, 1},
+        {0, -1, 1},   {0, 0, 1},   {0, 1, 1},   {1, -1, 1},  {1, 0, 1},   {1, 1, 1}};
 
     static constexpr std::int32_t INDEX_OFFSETS_WITHOUT_CORE[26][3] = {
-        {-1, -1, -1}, {-1, -1, 0}, {-1, -1, 1}, {-1, 0, -1}, {-1, 0, 0}, {-1, 0, 1}, {-1, 1, -1},
-        {-1, 1, 0},   {-1, 1, 1},  {0, -1, -1}, {0, -1, 0},  {0, -1, 1}, {0, 0, -1}, {0, 0, 1},
-        {0, 1, -1},   {0, 1, 0},   {0, 1, 1},   {1, -1, -1}, {1, -1, 0}, {1, -1, 1}, {1, 0, -1},
-        {1, 0, 0},    {1, 0, 1},   {1, 1, -1},  {1, 1, 0},   {1, 1, 1}};
+        {-1, -1, -1}, {-1, 0, -1}, {-1, 1, -1}, {0, -1, -1}, {0, 0, -1}, {0, 1, -1}, {1, -1, -1},
+        {1, 0, -1},   {1, 1, -1},  {-1, -1, 0}, {-1, 0, 0},  {-1, 1, 0}, {0, -1, 0}, {0, 1, 0},
+        {1, -1, 0},   {1, 0, 0},   {1, 1, 0},   {-1, -1, 1}, {-1, 0, 1}, {-1, 1, 1}, {0, -1, 1},
+        {0, 0, 1},    {0, 1, 1},   {1, -1, 1},  {1, 0, 1},   {1, 1, 1}};
 
     struct VoxelKey
     {
@@ -98,21 +107,16 @@ class Clusterer
     float voxel_grid_azimuth_resolution_rad_;
     float voxel_grid_elevation_resolution_rad_;
 
-    std::vector<SphericalPoint> spherical_cloud_;
-
     std::int32_t num_range_;
     std::int32_t num_azimuth_;
     std::int32_t num_elevation_;
 
-    std::vector<std::int32_t> range_indices_;
-    std::vector<std::int32_t> azimuth_indices_;
-    std::vector<std::int32_t> elevation_indices_;
-
-    std::unordered_map<std::int32_t, std::vector<std::uint32_t>> hash_table_;
-    std::unordered_map<std::int32_t, ClusterLabel> voxel_labels_;
+    std::vector<SphericalPoint> spherical_cloud_;
     std::vector<std::int32_t> voxel_indices_;
+    std::vector<VoxelKey> voxel_keys_;
 
-    std::vector<std::int32_t> neighbour_voxel_indices_;
+    ankerl::unordered_dense::segmented_map<std::int32_t, ClusterLabel> voxel_labels_;
+    ankerl::unordered_dense::segmented_set<std::int32_t> visited_voxels_;
 
     containers::CircularQueue<VoxelKey, 150'000> voxel_queue_;
 
@@ -154,16 +158,12 @@ class Clusterer
     void cartesianToSpherical(const pcl::PointCloud<PointT>& cartesian_cloud,
                               std::vector<SphericalPoint>& spherical_cloud);
 
-    void buildHashTable(const std::vector<SphericalPoint>& spherical_cloud,
-                        std::unordered_map<std::int32_t, std::vector<std::uint32_t>>& hash_table);
+    void buildHashTable();
 
-    void clusterImpl(const std::vector<SphericalPoint>& cloud,
-                     std::unordered_map<std::int32_t, std::vector<std::uint32_t>>& hash_table,
-                     std::vector<ClusterLabel>& labels);
+    void clusterImpl(std::vector<ClusterLabel>& labels);
 
     void propagateLabel(ClusterLabel label,
                         const VoxelKey& voxel_index,
-                        std::unordered_map<std::int32_t, std::vector<std::uint32_t>>& hash_table,
                         std::vector<ClusterLabel>& labels);
 };
 

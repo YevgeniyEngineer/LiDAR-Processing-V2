@@ -1,0 +1,4 @@
+[submodule "src/processor/src/unordered_dense"]
+	path = src/processor/src/unordered_dense
+	url = https://github.com/martinus/unordered_dense.git
+	branch = main

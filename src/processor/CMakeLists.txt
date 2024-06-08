@@ -19,6 +19,8 @@ find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 
+add_subdirectory(./src/unordered_dense)
+
 # Add executable
 add_executable(${PROJECT_NAME}
     src/segmenter.cpp
@@ -50,6 +52,7 @@ target_link_libraries(${PROJECT_NAME}
     ${PCL_LIBRARIES}
     ${OpenCV_LIBS}
     ${rclcpp_LIBRARIES}
+    unordered_dense
 )
 
 # Install the executable (ROS2 convention)
