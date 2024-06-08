@@ -160,9 +160,6 @@ void Clusterer::clusterImpl(std::vector<ClusterLabel>& labels)
             common_voxel_label = label++;
         }
 
-        // Basic propagation for neighbours surrounding core voxel
-        voxel_labels_[core_voxel_index] = common_voxel_label;
-
         // Propagation of label to neighbours of neighbours
         propagateLabel(common_voxel_label, {range_index, azimuth_index, elevation_index}, labels);
     }
@@ -196,7 +193,7 @@ void Clusterer::propagateLabel(ClusterLabel label,
 
         voxel_labels_[current_voxel_index] = label;
 
-        for (const auto& [i, j, k] : INDEX_OFFSETS_WITHOUT_CORE)
+        for (const auto& [i, j, k] : INDEX_OFFSETS)
         {
             const std::int32_t range_index_with_offset = range_index + i;
             const std::int32_t azimuth_index_with_offset = azimuth_index + j;
