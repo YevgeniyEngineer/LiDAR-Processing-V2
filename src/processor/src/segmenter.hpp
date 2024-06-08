@@ -116,7 +116,7 @@ class Segmenter {
     static constexpr float INVALID_DEPTH_M = std::numeric_limits<float>::max();
     static constexpr std::int32_t INVALID_INDEX = -1;
 
-    // Values acceptable for Velodyne HDL-64E (tightest values)
+    // Values acceptable for Velodyne HDL-64E (64 - ring LiDAR)
     static constexpr auto IMAGE_WIDTH = 2000;
     static constexpr auto IMAGE_HEIGHT = 64;
 
@@ -128,7 +128,7 @@ class Segmenter {
     inline static const auto CV_UNKNOWN = cv::Vec3b(255, 255, 255);
 
     // For memory allocation
-    static constexpr std::uint32_t MAX_CLOUD_SIZE = 350'000U;
+    static constexpr std::uint32_t MAX_CLOUD_SIZE = 200'000U;
 
     Segmenter();
     ~Segmenter() = default;
@@ -183,7 +183,7 @@ class Segmenter {
 
     Eigen::Vector<float, 24> unnormalized_weight_matrix_;
     Eigen::Vector<float, 24> weight_matrix_;
-    std::array<std::int32_t, 24> mask_;
+    std::array<Label, 24> kernel_label_mask_;
 
     void resetValues();
 

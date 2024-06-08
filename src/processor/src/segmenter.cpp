@@ -142,43 +142,29 @@ void Segmenter::RECM(const pcl::PointCloud<pcl::PointXYZIR> &cloud) {
         }
 
         const float radius_m = std::sqrt(point.x * point.x + point.y * point.y);
+        const auto radial_index = static_cast<std::int32_t>(radius_m / config_.grid_radial_spacing_m);
 
-        if (radius_m > config_.max_distance_m) {
+        if (radius_m < config_.min_distance_m || radius_m > config_.max_distance_m ||
+            radial_index >= grid_number_of_radial_rings_) {
             continue;
         }
 
         float azimuth_rad = atan2Approx(point.y, point.x);
         azimuth_rad = (azimuth_rad < 0) ? (azimuth_rad + TWO_M_PIf) : azimuth_rad;
-
-        const auto radial_index = static_cast<std::int32_t>(radius_m / config_.grid_radial_spacing_m);
-
-        if (radial_index >= grid_number_of_radial_rings_) {
-            continue;
-        }
-
         const auto azimuth_index = std::min(static_cast<std::int32_t>(azimuth_rad / grid_slice_resolution_rad_),
                                             grid_number_of_azimuth_slices_ - 1);
 
         const auto cell_index = static_cast<std::uint32_t>(azimuth_index * grid_number_of_radial_rings_ + radial_index);
 
-        if (radius_m < config_.min_distance_m) {
-            elevation_map_[cell_index] =
-                std::min(-config_.sensor_height_m, std::min(elevation_map_[cell_index], point.z));
-        } else {
-            // Calculated below
-            elevation_map_[cell_index] = std::min(elevation_map_[cell_index], point.z);
-
-            const std::uint16_t height_index = point.ring;
-
-            if (height_index >= IMAGE_HEIGHT) {
-                continue;
-            }
-
-            const auto width_index = static_cast<std::uint16_t>((IMAGE_WIDTH - 1) * azimuth_rad / TWO_M_PIf);
-
-            polar_grid_[cell_index].push_back(
-                {point.x, point.y, point.z, Label::GROUND, height_index, width_index, cloud_index});
+        const std::uint16_t height_index = point.ring;
+        if (height_index >= IMAGE_HEIGHT) {
+            continue;
         }
+
+        const auto width_index = static_cast<std::uint16_t>((IMAGE_WIDTH - 1) * azimuth_rad / TWO_M_PIf);
+
+        polar_grid_[cell_index].push_back(
+            {point.x, point.y, point.z, Label::GROUND, height_index, width_index, cloud_index});
     }
 
     // RECM algorithm
@@ -338,13 +324,14 @@ void Segmenter::correctCloseRangeFalsePositivesRANSAC() {
         float normal_z = ((p2.x - p1.x) * (p3.y - p1.y)) - ((p2.y - p1.y) * (p3.x - p1.x));
 
         // Calculate normalization
-        const float denominator = std::sqrt((normal_x * normal_x) + (normal_y * normal_y) + (normal_z * normal_z));
+        const float denominator_sqr = (normal_x * normal_x) + (normal_y * normal_y) + (normal_z * normal_z);
 
         // Check that denominator is not too small
-        if (denominator < 1.0e-4F) {
+        if (denominator_sqr < 1.0e-5F) {
             continue;
         }
-        const float normalization = 1.0F / denominator;
+
+        const float normalization = 1.0F / std::sqrt(denominator_sqr);
 
         // Normalize plane coefficients
         normal_z *= normalization;
@@ -441,7 +428,7 @@ void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZIR> &cloud) {
         cv::waitKey(1);
     }
 
-    mask_.fill(INVALID_INDEX);
+    kernel_label_mask_.fill(Label::UNKNOWN);
     unnormalized_weight_matrix_.fill(0);
     weight_matrix_.fill(0);
 
@@ -474,7 +461,7 @@ void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZIR> &cloud) {
 
             if (isInvalidIndex(neighbour_point_index)) {
                 unnormalized_weight_matrix_[i] = 0.0F;
-                mask_[i] = INVALID_INDEX;
+                kernel_label_mask_[i] = Label::UNKNOWN;
                 continue;
             }
 
@@ -485,7 +472,7 @@ void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZIR> &cloud) {
 
             if (dist_xyz > config_.kernel_threshold_distance_m) {
                 unnormalized_weight_matrix_[i] = 0.0F;
-                mask_[i] = INVALID_INDEX;
+                kernel_label_mask_[i] = Label::UNKNOWN;
                 continue;
             } else {
                 unnormalized_weight_matrix_[i] = std::exp(-config_.amplification_factor * dist_xyz);
@@ -494,11 +481,11 @@ void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZIR> &cloud) {
                 const auto &image_pixel = image_.at<cv::Vec3b>(neighbour_height_index, neighbour_width_index);
 
                 if (image_pixel == CV_GROUND) {
-                    mask_[i] = 0;
+                    kernel_label_mask_[i] = Label::GROUND;
                 } else if (image_pixel == CV_OBSTACLE) {
-                    mask_[i] = 1;
+                    kernel_label_mask_[i] = Label::OBSTACLE;
                 } else {
-                    mask_[i] = INVALID_INDEX;
+                    kernel_label_mask_[i] = Label::UNKNOWN;
                 }
             }
         }
@@ -510,10 +497,10 @@ void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZIR> &cloud) {
             float weight_ground = 0.0F;
 
             for (std::size_t i = 0; i < weight_matrix_.size(); ++i) {
-                if (mask_[i] == 1) {
-                    weight_obstacle += weight_matrix_[i];
-                } else if (mask_[i] == 0) {
+                if (kernel_label_mask_[i] == Label::GROUND) {
                     weight_ground += weight_matrix_[i];
+                } else if (kernel_label_mask_[i] == Label::OBSTACLE) {
+                    weight_obstacle += weight_matrix_[i];
                 }
             }
 
