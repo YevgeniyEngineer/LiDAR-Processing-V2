@@ -65,12 +65,33 @@ class Clusterer
   public:
     static constexpr float TWO_M_PIf = static_cast<float>(2.0 * M_PI);
     static constexpr float DEG_TO_RAD = static_cast<float>(M_PI / 180.0);
+    static constexpr std::int32_t INVALID_LABEL = -1;
 
     Clusterer();
 
-    void cluster(const pcl::PointCloud<pcl::PointXYZ>& cloud, std::vector<ClusterLabel>& labels);
+    template <typename PointT>
+    void cluster(const pcl::PointCloud<PointT>& cloud, std::vector<ClusterLabel>& labels);
 
   private:
+    static constexpr std::int32_t INDEX_OFFSETS[27][3] = {
+        {-1, -1, -1}, {-1, -1, 0}, {-1, -1, 1}, {-1, 0, -1}, {-1, 0, 0},  {-1, 0, 1}, {-1, 1, -1},
+        {-1, 1, 0},   {-1, 1, 1},  {0, -1, -1}, {0, -1, 0},  {0, -1, 1},  {0, 0, -1}, {0, 0, 0},
+        {0, 0, 1},    {0, 1, -1},  {0, 1, 0},   {0, 1, 1},   {1, -1, -1}, {1, -1, 0}, {1, -1, 1},
+        {1, 0, -1},   {1, 0, 0},   {1, 0, 1},   {1, 1, -1},  {1, 1, 0},   {1, 1, 1}};
+
+    static constexpr std::int32_t INDEX_OFFSETS_WITHOUT_CORE[26][3] = {
+        {-1, -1, -1}, {-1, -1, 0}, {-1, -1, 1}, {-1, 0, -1}, {-1, 0, 0}, {-1, 0, 1}, {-1, 1, -1},
+        {-1, 1, 0},   {-1, 1, 1},  {0, -1, -1}, {0, -1, 0},  {0, -1, 1}, {0, 0, -1}, {0, 0, 1},
+        {0, 1, -1},   {0, 1, 0},   {0, 1, 1},   {1, -1, -1}, {1, -1, 0}, {1, -1, 1}, {1, 0, -1},
+        {1, 0, 0},    {1, 0, 1},   {1, 1, -1},  {1, 1, 0},   {1, 1, 1}};
+
+    struct VoxelKey
+    {
+        std::int32_t range_index;
+        std::int32_t azimuth_index;
+        std::int32_t elevation_index;
+    };
+
     Configuration config_;
 
     float voxel_grid_range_resolution_m_;
@@ -79,41 +100,93 @@ class Clusterer
 
     std::vector<SphericalPoint> spherical_cloud_;
 
-    std::uint16_t num_range_;
-    std::uint16_t num_azimuth_;
-    std::uint16_t num_elevation_;
+    std::int32_t num_range_;
+    std::int32_t num_azimuth_;
+    std::int32_t num_elevation_;
 
-    std::unordered_map<std::uint32_t, std::vector<std::uint32_t>> hash_table_;
+    std::vector<std::int32_t> range_indices_;
+    std::vector<std::int32_t> azimuth_indices_;
+    std::vector<std::int32_t> elevation_indices_;
 
-    inline std::uint32_t flatVoxelIndex(std::uint16_t range_index,
-                                        std::uint16_t azimuth_index,
-                                        std::uint16_t elevation_index) const noexcept
+    std::unordered_map<std::int32_t, std::vector<std::uint32_t>> hash_table_;
+    std::unordered_map<std::int32_t, ClusterLabel> voxel_labels_;
+    std::vector<std::int32_t> voxel_indices_;
+
+    std::vector<std::int32_t> neighbour_voxel_indices_;
+
+    containers::CircularQueue<VoxelKey, 150'000> voxel_queue_;
+
+    inline std::int32_t flatVoxelIndex(std::int32_t range_index,
+                                       std::int32_t azimuth_index,
+                                       std::int32_t elevation_index) const noexcept
     {
-        return static_cast<std::uint32_t>(
+        return static_cast<std::int32_t>(
             num_range_ * (num_azimuth_ * elevation_index + azimuth_index) + range_index);
     }
 
-    inline std::uint16_t rangeToIndex(float range_m) const noexcept
+    inline std::int32_t rangeToIndex(float range_m) const noexcept
     {
-        return static_cast<std::uint16_t>(range_m / voxel_grid_range_resolution_m_);
+        return static_cast<std::int32_t>(range_m / voxel_grid_range_resolution_m_);
     }
 
-    inline std::uint16_t azimuthToIndex(float azimuth_rad) const noexcept
+    inline std::int32_t azimuthToIndex(float azimuth_rad) const noexcept
     {
-        return static_cast<std::uint16_t>(azimuth_rad / voxel_grid_azimuth_resolution_rad_);
+        return static_cast<std::int32_t>(azimuth_rad / voxel_grid_azimuth_resolution_rad_);
     }
 
-    inline std::uint16_t elevationToIndex(float elevation_rad) const noexcept
+    inline std::int32_t elevationToIndex(float elevation_rad) const noexcept
     {
-        return static_cast<std::uint16_t>(elevation_rad / voxel_grid_elevation_resolution_rad_);
+        return static_cast<std::int32_t>(elevation_rad / voxel_grid_elevation_resolution_rad_);
     }
 
-    void cartesianToSpherical(const pcl::PointCloud<pcl::PointXYZ>& cartesian_cloud,
+    inline std::int32_t flatVoxelIndex(const SphericalPoint& point) const noexcept
+    {
+        const std::int32_t range_index = rangeToIndex(point.range_m);
+        const std::int32_t azimuth_index = azimuthToIndex(point.azimuth_rad);
+        const std::int32_t elevation_index = elevationToIndex(point.elevation_rad);
+        const std::int32_t voxel_index =
+            flatVoxelIndex(range_index, azimuth_index, elevation_index);
+
+        return voxel_index;
+    }
+
+    template <typename PointT>
+    void cartesianToSpherical(const pcl::PointCloud<PointT>& cartesian_cloud,
                               std::vector<SphericalPoint>& spherical_cloud);
 
     void buildHashTable(const std::vector<SphericalPoint>& spherical_cloud,
-                        std::unordered_map<std::uint32_t, std::vector<std::uint32_t>>& hash_table);
+                        std::unordered_map<std::int32_t, std::vector<std::uint32_t>>& hash_table);
+
+    void clusterImpl(const std::vector<SphericalPoint>& cloud,
+                     std::unordered_map<std::int32_t, std::vector<std::uint32_t>>& hash_table,
+                     std::vector<ClusterLabel>& labels);
+
+    void propagateLabel(ClusterLabel label,
+                        const VoxelKey& voxel_index,
+                        std::unordered_map<std::int32_t, std::vector<std::uint32_t>>& hash_table,
+                        std::vector<ClusterLabel>& labels);
 };
+
+extern template void Clusterer::cluster(const pcl::PointCloud<pcl::PointXYZ>& cloud,
+                                        std::vector<ClusterLabel>& labels);
+
+extern template void Clusterer::cluster(const pcl::PointCloud<pcl::PointXYZI>& cloud,
+                                        std::vector<ClusterLabel>& labels);
+
+extern template void Clusterer::cluster(const pcl::PointCloud<pcl::PointXYZRGB>& cloud,
+                                        std::vector<ClusterLabel>& labels);
+
+extern template void Clusterer::cartesianToSpherical(
+    const pcl::PointCloud<pcl::PointXYZ>& cartesian_cloud,
+    std::vector<SphericalPoint>& spherical_cloud);
+
+extern template void Clusterer::cartesianToSpherical(
+    const pcl::PointCloud<pcl::PointXYZI>& cartesian_cloud,
+    std::vector<SphericalPoint>& spherical_cloud);
+
+extern template void Clusterer::cartesianToSpherical(
+    const pcl::PointCloud<pcl::PointXYZRGB>& cartesian_cloud,
+    std::vector<SphericalPoint>& spherical_cloud);
 } // namespace clustering
 
 #endif // CLUSTERER_HPP

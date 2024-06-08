@@ -26,6 +26,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <random>
 #include <vector>
 
 // PCL
@@ -47,6 +48,9 @@
 
 // Segmenter
 #include "segmenter.hpp"
+
+// Clusterer
+#include "clusterer.hpp"
 
 class Node final : public rclcpp::Node
 {
@@ -136,6 +140,10 @@ class Node final : public rclcpp::Node
     pcl::PointCloud<pcl::PointXYZRGB> ground_cloud_;
     pcl::PointCloud<pcl::PointXYZRGB> obstacle_cloud_;
     pcl::PointCloud<pcl::PointXYZRGB> unsegmented_cloud_;
+
+    clustering::Clusterer clusterer_;
+    std::vector<clustering::ClusterLabel> clustering_labels_;
+    pcl::PointCloud<pcl::PointXYZRGB> clustered_cloud_;
 };
 
 static void convertImageToRosMessage(const cv::Mat& cv_image,
@@ -264,7 +272,55 @@ void Node::topicCallback(const PointCloud2& msg)
                 obstacle_cloud_.size(),
                 input_cloud_.size());
 
-    // Show the JCP image
+    // Obstacle clustering
+    const auto t_clustering_start = std::chrono::steady_clock::now();
+
+    clusterer_.cluster(obstacle_cloud_, clustering_labels_);
+
+    const auto t_clustering_stop = std::chrono::steady_clock::now();
+    const auto t_clustering_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                          t_clustering_stop - t_clustering_start)
+                                          .count();
+
+    RCLCPP_INFO(this->get_logger(), "Clustering time [ms]: %ld", t_clustering_elapsed);
+
+    // Populate output cloud with labels
+    clustered_cloud_.clear();
+    clustered_cloud_.reserve(clustering_labels_.size());
+
+    const auto max_label_it =
+        std::max_element(clustering_labels_.cbegin(), clustering_labels_.cend());
+
+    if (max_label_it != clustering_labels_.cend())
+    {
+        const auto max_label = *max_label_it;
+        RCLCPP_INFO(this->get_logger(), "Extracted %d clusters", max_label);
+
+        const auto number_of_points = clustering_labels_.size();
+
+        for (std::int32_t label = 0; label <= max_label; ++label)
+        {
+            // Generate random RGB values for the current cluster
+            const auto r = static_cast<std::uint8_t>(std::rand() % 256);
+            const auto g = static_cast<std::uint8_t>(std::rand() % 256);
+            const auto b = static_cast<std::uint8_t>(std::rand() % 256);
+
+            for (std::uint32_t point_index = 0; point_index < number_of_points; ++point_index)
+            {
+                if (clustering_labels_[point_index] == label)
+                {
+                    const auto& point = obstacle_cloud_[point_index];
+                    clustered_cloud_.push_back({point.x, point.y, point.z, r, g, b});
+                }
+            }
+        }
+    }
+    else
+    {
+        RCLCPP_WARN(this->get_logger(), "No clusters were extracted");
+    }
+
+    // Visualizations
     {
         cv::flip(segmenter_.image(), image_cache_, 0); // '0' denotes flipping around x-axis
 
@@ -303,6 +359,15 @@ void Node::topicCallback(const PointCloud2& msg)
         cloud_msg_cache_.is_bigendian = msg.is_bigendian;
         convertPCLToPointCloud2(unsegmented_cloud_, cloud_msg_cache_);
         unsegmented_cloud_publisher_->publish(cloud_msg_cache_);
+    }
+
+    if (!clustered_cloud_.empty())
+    {
+        cloud_msg_cache_.data.reserve(sizeof(pcl::PointXYZRGB) * clustered_cloud_.size());
+        cloud_msg_cache_.header = msg.header;
+        cloud_msg_cache_.is_bigendian = msg.is_bigendian;
+        convertPCLToPointCloud2(clustered_cloud_, cloud_msg_cache_);
+        clustered_cloud_publisher_->publish(cloud_msg_cache_);
     }
 }
 

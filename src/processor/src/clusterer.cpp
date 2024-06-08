@@ -32,14 +32,23 @@ Clusterer::Clusterer()
     voxel_grid_azimuth_resolution_rad_ = config_.voxel_grid_azimuth_resolution_deg_ * DEG_TO_RAD;
     voxel_grid_elevation_resolution_rad_ =
         config_.voxel_grid_elevation_resolution_deg_ * DEG_TO_RAD;
+
+    voxel_indices_.reserve(150'000);
+    neighbour_voxel_indices_.reserve(27);
 }
 
-void Clusterer::cluster(const pcl::PointCloud<pcl::PointXYZ>& cloud,
-                        std::vector<ClusterLabel>& labels)
+template <typename PointT>
+void Clusterer::cluster(const pcl::PointCloud<PointT>& cloud, std::vector<ClusterLabel>& labels)
 {
+    cartesianToSpherical(cloud, spherical_cloud_);
+
+    buildHashTable(spherical_cloud_, hash_table_);
+
+    clusterImpl(spherical_cloud_, hash_table_, labels);
 }
 
-void Clusterer::cartesianToSpherical(const pcl::PointCloud<pcl::PointXYZ>& cartesian_cloud,
+template <typename PointT>
+void Clusterer::cartesianToSpherical(const pcl::PointCloud<PointT>& cartesian_cloud,
                                      std::vector<SphericalPoint>& spherical_cloud)
 {
     spherical_cloud.clear();
@@ -76,34 +85,210 @@ void Clusterer::cartesianToSpherical(const pcl::PointCloud<pcl::PointXYZ>& carte
     }
 
     num_range_ =
-        static_cast<std::uint16_t>(std::ceil(max_range_m / voxel_grid_range_resolution_m_) + 1);
+        static_cast<std::int32_t>(std::ceil(max_range_m / voxel_grid_range_resolution_m_) + 1);
 
-    num_azimuth_ = static_cast<std::uint16_t>(
-        std::ceil(max_azimuth_rad / voxel_grid_azimuth_resolution_rad_) + 1);
+    num_azimuth_ = static_cast<std::int32_t>(TWO_M_PIf / voxel_grid_azimuth_resolution_rad_ + 1);
 
-    num_elevation_ = static_cast<std::uint16_t>(
-        std::ceil(max_elevation_rad / voxel_grid_elevation_resolution_rad_) + 1);
+    num_elevation_ = static_cast<std::int32_t>(M_PIf / voxel_grid_elevation_resolution_rad_ + 1);
 }
 
 void Clusterer::buildHashTable(
     const std::vector<SphericalPoint>& spherical_cloud,
-    std::unordered_map<std::uint32_t, std::vector<std::uint32_t>>& hash_table)
+    std::unordered_map<std::int32_t, std::vector<std::uint32_t>>& hash_table)
 {
     hash_table.clear();
     hash_table.reserve(spherical_cloud.size());
+
+    voxel_labels_.clear();
+    voxel_labels_.reserve(spherical_cloud.size());
+
+    range_indices_.clear();
+    range_indices_.reserve(spherical_cloud.size());
+
+    azimuth_indices_.clear();
+    azimuth_indices_.reserve(spherical_cloud.size());
+
+    elevation_indices_.clear();
+    elevation_indices_.reserve(spherical_cloud.size());
+
+    voxel_indices_.clear();
+    voxel_indices_.reserve(spherical_cloud.size());
 
     for (std::uint32_t point_index = 0; point_index < spherical_cloud.size(); ++point_index)
     {
         const auto& point = spherical_cloud[point_index];
 
-        const std::uint16_t range_index = rangeToIndex(point.range_m);
-        const std::uint16_t azimuth_index = azimuthToIndex(point.azimuth_rad);
-        const std::uint16_t elevation_index = elevationToIndex(point.elevation_rad);
-        const std::uint32_t voxel_index =
+        const std::int32_t range_index = rangeToIndex(point.range_m);
+        const std::int32_t azimuth_index = azimuthToIndex(point.azimuth_rad);
+        const std::int32_t elevation_index = elevationToIndex(point.elevation_rad);
+        const std::int32_t voxel_index =
             flatVoxelIndex(range_index, azimuth_index, elevation_index);
 
         hash_table_[voxel_index].push_back(point_index);
+        voxel_labels_[voxel_index] = INVALID_LABEL;
+
+        range_indices_.push_back(range_index);
+        azimuth_indices_.push_back(azimuth_index);
+        elevation_indices_.push_back(elevation_index);
+
+        voxel_indices_.push_back(voxel_index);
     }
 }
 
+void Clusterer::clusterImpl(
+    const std::vector<SphericalPoint>& cloud,
+    std::unordered_map<std::int32_t, std::vector<std::uint32_t>>& hash_table,
+    std::vector<ClusterLabel>& labels)
+{
+    labels.assign(cloud.size(), INVALID_LABEL);
+
+    ClusterLabel label = 0;
+
+    for (std::uint32_t point_index = 0; point_index < cloud.size(); ++point_index)
+    {
+        const std::int32_t core_point_voxel_index = voxel_indices_[point_index];
+
+        if (voxel_labels_[core_point_voxel_index] != INVALID_LABEL)
+        {
+            continue;
+        }
+
+        const auto range_index = range_indices_[point_index];
+        const auto azimuth_index = azimuth_indices_[point_index];
+        const auto elevation_index = elevation_indices_[point_index];
+
+        ClusterLabel common_voxel_label = std::numeric_limits<ClusterLabel>::max();
+
+        for (const auto& [i, j, k] : INDEX_OFFSETS)
+        {
+            const std::int32_t range_index_with_offset = range_index + i;
+            const std::int32_t azimuth_index_with_offset = azimuth_index + j;
+            const std::int32_t elevation_index_with_offset = elevation_index + k;
+
+            if (range_index_with_offset < 0 || range_index_with_offset >= num_range_ ||
+                azimuth_index_with_offset < 0 || azimuth_index_with_offset >= num_azimuth_ ||
+                elevation_index_with_offset < 0 || elevation_index_with_offset >= num_elevation_)
+            {
+                continue;
+            }
+
+            const std::int32_t voxel_index = flatVoxelIndex(
+                range_index_with_offset, azimuth_index_with_offset, elevation_index_with_offset);
+
+            if (const auto search = voxel_labels_.find(voxel_index); search != voxel_labels_.cend())
+            {
+                if (search->second != INVALID_LABEL)
+                {
+                    common_voxel_label = std::min(common_voxel_label, search->second);
+                }
+            }
+        }
+
+        if (common_voxel_label == std::numeric_limits<ClusterLabel>::max())
+        {
+            common_voxel_label = label++;
+        }
+
+        for (const auto& [i, j, k] : INDEX_OFFSETS)
+        {
+            const std::int32_t range_index_with_offset = range_index + i;
+            const std::int32_t azimuth_index_with_offset = azimuth_index + j;
+            const std::int32_t elevation_index_with_offset = elevation_index + k;
+
+            if (range_index_with_offset < 0 || range_index_with_offset >= num_range_ ||
+                azimuth_index_with_offset < 0 || azimuth_index_with_offset >= num_azimuth_ ||
+                elevation_index_with_offset < 0 || elevation_index_with_offset >= num_elevation_)
+            {
+                continue;
+            }
+
+            const std::int32_t voxel_index = flatVoxelIndex(
+                range_index_with_offset, azimuth_index_with_offset, elevation_index_with_offset);
+
+            if (const auto search = voxel_labels_.find(voxel_index); search != voxel_labels_.cend())
+            {
+                if (search->second != common_voxel_label)
+                {
+                    propagateLabel(common_voxel_label,
+                                   {range_index_with_offset,
+                                    azimuth_index_with_offset,
+                                    elevation_index_with_offset},
+                                   hash_table,
+                                   labels);
+                }
+            }
+        }
+    }
+
+    for (std::uint32_t point_index = 0; point_index < cloud.size(); ++point_index)
+    {
+        labels[point_index] = voxel_labels_[voxel_indices_[point_index]];
+    }
+}
+
+void Clusterer::propagateLabel(
+    ClusterLabel label,
+    const VoxelKey& voxel_key,
+    std::unordered_map<std::int32_t, std::vector<std::uint32_t>>& hash_table,
+    std::vector<ClusterLabel>& labels)
+{
+    voxel_queue_.push(voxel_key);
+
+    while (!voxel_queue_.empty())
+    {
+        const auto [range_index, azimuth_index, elevation_index] = voxel_queue_.front();
+        voxel_queue_.pop();
+        const std::int32_t current_voxel_index =
+            flatVoxelIndex(range_index, azimuth_index, elevation_index);
+
+        voxel_labels_[current_voxel_index] = label;
+
+        for (const auto& [i, j, k] : INDEX_OFFSETS_WITHOUT_CORE)
+        {
+            const std::int32_t range_index_with_offset = range_index + i;
+            const std::int32_t azimuth_index_with_offset = azimuth_index + j;
+            const std::int32_t elevation_index_with_offset = elevation_index + k;
+
+            if (range_index_with_offset < 0 || range_index_with_offset >= num_range_ ||
+                azimuth_index_with_offset < 0 || azimuth_index_with_offset >= num_azimuth_ ||
+                elevation_index_with_offset < 0 || elevation_index_with_offset >= num_elevation_)
+            {
+                continue;
+            }
+
+            const std::int32_t voxel_index = flatVoxelIndex(
+                range_index_with_offset, azimuth_index_with_offset, elevation_index_with_offset);
+
+            if (const auto search = voxel_labels_.find(voxel_index); search != voxel_labels_.cend())
+            {
+                if (search->second != INVALID_LABEL && search->second != label)
+                {
+                    voxel_queue_.push({range_index_with_offset,
+                                       azimuth_index_with_offset,
+                                       elevation_index_with_offset});
+                }
+            }
+        }
+    }
+}
+
+template void Clusterer::cluster(const pcl::PointCloud<pcl::PointXYZ>& cloud,
+                                 std::vector<ClusterLabel>& labels);
+
+template void Clusterer::cluster(const pcl::PointCloud<pcl::PointXYZI>& cloud,
+                                 std::vector<ClusterLabel>& labels);
+
+template void Clusterer::cluster(const pcl::PointCloud<pcl::PointXYZRGB>& cloud,
+                                 std::vector<ClusterLabel>& labels);
+
+template void Clusterer::cartesianToSpherical(const pcl::PointCloud<pcl::PointXYZ>& cartesian_cloud,
+                                              std::vector<SphericalPoint>& spherical_cloud);
+
+template void Clusterer::cartesianToSpherical(
+    const pcl::PointCloud<pcl::PointXYZI>& cartesian_cloud,
+    std::vector<SphericalPoint>& spherical_cloud);
+
+template void Clusterer::cartesianToSpherical(
+    const pcl::PointCloud<pcl::PointXYZRGB>& cartesian_cloud,
+    std::vector<SphericalPoint>& spherical_cloud);
 } // namespace clustering
