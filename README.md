@@ -37,8 +37,6 @@ Jump-Convolution-Process"](https://www.semanticscholar.org/paper/Fast-Ground-Seg
 
 The implementation is based on ["Curved-Voxel Clustering for Accurate Segmentation of 3D LiDAR Point Clouds with Real-Time Performance"](https://ieeexplore.ieee.org/document/8968026).
 
-TO BE IMPLEMENTED.
-
 ## Enable Required Extensions in VSCode
 
 ```bash
