@@ -436,12 +436,15 @@ void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZIR> &cloud) {
         {-2, -2}, {-2, -1}, {-2, 0}, {-2, 1}, {-2, 2}, {-1, -2}, {-1, -1}, {-1, 0}, {-1, 1}, {-1, 2}, {0, -2}, {0, -1},
         {0, 1},   {0, 2},   {1, -2}, {1, -1}, {1, 0},  {1, 1},   {1, 2},   {2, -2}, {2, -1}, {2, 0},  {2, 1},  {2, 2}};
 
+    const auto kernel_threshold_distance_sqr =
+        config_.kernel_threshold_distance_m * config_.kernel_threshold_distance_m;
+
     while (!index_queue_.empty()) {
         const auto [height_index, width_index] = index_queue_.front();
         index_queue_.pop();
         const std::int32_t image_index = height_index * IMAGE_WIDTH + width_index;
         const auto point_index = cloud_mapping_indices_[image_index];
-        const auto &point_1 = cloud.points[point_index];
+        const auto &core_point = cloud.points[point_index];
 
         float sum_of_coefficients = 0.0F;
 
@@ -465,16 +468,21 @@ void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZIR> &cloud) {
                 continue;
             }
 
-            const auto &point_2 = cloud.points[neighbour_point_index];
-            const auto dist_xyz = std::sqrt((point_1.x - point_2.x) * (point_1.x - point_2.x) +
-                                            (point_1.y - point_2.y) * (point_1.y - point_2.y) +
-                                            (point_1.z - point_2.z) * (point_1.z - point_2.z));
+            const auto &neighbour_point = cloud.points[neighbour_point_index];
 
-            if (dist_xyz > config_.kernel_threshold_distance_m) {
+            const float dx = core_point.x - neighbour_point.x;
+            const float dy = core_point.y - neighbour_point.y;
+            const float dz = core_point.z - neighbour_point.z;
+
+            const float dist_xyz_sqr = dx * dx + dy * dy + dz * dz;
+
+            if (dist_xyz_sqr > kernel_threshold_distance_sqr) {
                 unnormalized_weight_matrix_[i] = 0.0F;
                 kernel_label_mask_[i] = Label::UNKNOWN;
                 continue;
             } else {
+                const float dist_xyz = std::sqrt(dist_xyz_sqr);
+
                 unnormalized_weight_matrix_[i] = std::exp(-config_.amplification_factor * dist_xyz);
                 sum_of_coefficients += unnormalized_weight_matrix_[i];
 
