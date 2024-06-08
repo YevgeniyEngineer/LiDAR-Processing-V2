@@ -22,6 +22,7 @@ find_package(visualization_msgs REQUIRED)
 # Add executable
 add_executable(${PROJECT_NAME}
     src/segmenter.cpp
+    src/clusterer.cpp
     src/processor.cpp
 )
 
