@@ -268,3 +268,18 @@ Restart the Docker service to apply these configuration changes:
 ```bash
 sudo systemctl restart docker
 ```
+
+## Citation
+
+If you use this software, please cite it as follows:
+
+```bibtex
+@software{simonov_lidar_pipeline_2024,
+  author = {Simonov, Yevgeniy},
+  title = {{LiDAR Processing Pipeline}},
+  url = {https://github.com/YevgeniyEngineer/LiDAR-Processing-V2},
+  version = {0.2.0},
+  date = {2024-06-09},
+  license = {GPL-3.0}
+}
+```
