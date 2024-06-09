@@ -12,7 +12,7 @@ To update submodule, `git submodule update --init --recursive`.
 
 ## Example Devcontainer and VSCode Tasks
 
-[![Watch the video](https://github.com/YevgeniyEngineer/LiDAR-Processing-V2/raw/main/images/example_pipeline_thumbnail.jpg)](https://github.com/YevgeniyEngineer/LiDAR-Processing-V2/blob/main/images/example_pipeline.mp4)
+<iframe width="560" height="315" src="https://youtu.be/AN4WgETAy6A" frameborder="0" allowfullscreen></iframe>
 
 ## Build Dependencies
 
