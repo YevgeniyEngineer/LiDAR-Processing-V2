@@ -10,6 +10,18 @@ To update submodule, `git submodule update --init --recursive`.
 
 ![clustering-teaser](https://github.com/YevgeniyEngineer/LiDAR-Processing-V2/blob/main/images/clustering_teaser.gif)
 
+## Build Dependencies
+
+For ROS2 installation, follow <https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debians.html#ubuntu-debian-packages>.
+
+I included Devcontainer setup instructions in `Docker Setup` section below.
+
+- `build-essential`
+- `cmake`
+- `ros-humble-desktop`
+- `libpcl-dev`
+- `libopencv-dev`
+
 ## Build and Launch
 
 Once you are inside of Devcontainer, you can build and launch the nodes. In the main directory:

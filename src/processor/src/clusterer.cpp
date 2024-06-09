@@ -240,7 +240,7 @@ void Clusterer::removeSmallClusters(std::vector<ClusterLabel>& labels)
 
     if (max_label == INVALID_LABEL)
     {
-        return; // Not clusters
+        return; // No clusters
     }
 
     const auto counts_size = max_label + 1;
