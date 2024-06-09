@@ -10,6 +10,10 @@ To update submodule, `git submodule update --init --recursive`.
 
 ![clustering-teaser](https://github.com/YevgeniyEngineer/LiDAR-Processing-V2/blob/main/images/clustering_teaser.gif)
 
+## Example Devcontainer and VSCode Tasks
+
+[![Watch the video](https://github.com/YevgeniyEngineer/LiDAR-Processing-V2/raw/main/images/example_pipeline_thumbnail.jpg)](https://github.com/YevgeniyEngineer/LiDAR-Processing-V2/blob/main/images/example_pipeline.mp4)
+
 ## Build Dependencies
 
 For ROS2 installation, if you prefer not using Devcontainer, follow <https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debians.html#ubuntu-debian-packages>.
