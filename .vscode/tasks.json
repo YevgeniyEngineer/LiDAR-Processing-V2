@@ -2,6 +2,36 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "Build All Nodes (Release Mode)",
+            "type": "shell",
+            "command": "bash -c 'source /opt/ros/humble/setup.bash && colcon build --symlink-install --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_BUILD_TYPE=Release'",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Build Individual Node/Package (Release Mode)",
+            "type": "shell",
+            "command": "bash -c 'source /opt/ros/humble/setup.bash && colcon build --symlink-install --packages-select ${input:packageName} --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_BUILD_TYPE=Release'",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Build Individual Node/Package (Debug Mode)",
+            "type": "shell",
+            "command": "bash -c 'source /opt/ros/humble/setup.bash && colcon build --symlink-install --packages-select ${input:packageName} --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_BUILD_TYPE=Debug'",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        },
+        {
             "label": "Launch Processor Node",
             "type": "shell",
             "command": "bash -c 'chmod +x ${workspaceFolder}/install/local_setup.bash && source /opt/ros/humble/setup.bash && source ${workspaceFolder}/install/local_setup.bash && ros2 run processor processor --ros-args --params-file ${workspaceFolder}/install/processor/share/processor/config/processor.param.yaml'",
@@ -43,7 +73,7 @@
                 "Launch Dataloader Node",
                 "Launch RViz2"
             ]
-        }
+        },
         {
             "label": "Launch ROS2 Node with GDB",
             "type": "shell",

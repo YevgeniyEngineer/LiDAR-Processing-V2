@@ -37,16 +37,16 @@ done
 if [ "${#DEBUG_PACKAGES[@]}" -gt 0 ]; then
     echo "Building the following packages in Debug mode: ${DEBUG_PACKAGES[*]}"
     colcon build --packages-select "${DEBUG_PACKAGES[@]}" \
-                 --cmake-args -DCMAKE_BUILD_TYPE=Debug
+                 --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_BUILD_TYPE=Debug
 fi
 
 # Build all other packages in Release mode
 if [ "$RELEASE_ONLY" = true ]; then
     echo "Building all packages in Release mode"
-    colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
+    colcon build --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_BUILD_TYPE=Release
 else
     # Exclude debug packages when building the rest in Release mode
     echo "Building remaining packages in Release mode"
     colcon build --packages-skip "${DEBUG_PACKAGES[@]}" \
-                 --cmake-args -DCMAKE_BUILD_TYPE=Release
+                 --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_BUILD_TYPE=Release
 fi
