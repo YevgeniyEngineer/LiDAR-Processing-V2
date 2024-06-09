@@ -223,22 +223,19 @@ void Clusterer::propagateLabel(ClusterLabel label,
     }
 }
 
+// Explicit template instantiations
 template void Clusterer::cluster(const pcl::PointCloud<pcl::PointXYZ>& cloud,
                                  std::vector<ClusterLabel>& labels);
-
 template void Clusterer::cluster(const pcl::PointCloud<pcl::PointXYZI>& cloud,
                                  std::vector<ClusterLabel>& labels);
-
 template void Clusterer::cluster(const pcl::PointCloud<pcl::PointXYZRGB>& cloud,
                                  std::vector<ClusterLabel>& labels);
 
 template void Clusterer::cartesianToSpherical(const pcl::PointCloud<pcl::PointXYZ>& cartesian_cloud,
                                               std::vector<SphericalPoint>& spherical_cloud);
-
 template void Clusterer::cartesianToSpherical(
     const pcl::PointCloud<pcl::PointXYZI>& cartesian_cloud,
     std::vector<SphericalPoint>& spherical_cloud);
-
 template void Clusterer::cartesianToSpherical(
     const pcl::PointCloud<pcl::PointXYZRGB>& cartesian_cloud,
     std::vector<SphericalPoint>& spherical_cloud);

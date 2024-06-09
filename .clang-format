@@ -5,6 +5,9 @@ ColumnLimit: 100
 BreakBeforeBraces: Custom
 BraceWrapping:
   AfterCaseLabel: true
+  AfterFunction: true
+  AfterClass: true
+  AfterStruct: true
 IndentCaseLabels: true
 UseTab: Never
 PointerAlignment: Left
