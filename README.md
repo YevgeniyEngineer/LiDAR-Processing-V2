@@ -12,7 +12,7 @@ To update submodule, `git submodule update --init --recursive`.
 
 ## Build Dependencies
 
-For ROS2 installation, follow <https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debians.html#ubuntu-debian-packages>.
+For ROS2 installation, if you prefer not using Devcontainer, follow <https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debians.html#ubuntu-debian-packages>.
 
 I included Devcontainer setup instructions in `Docker Setup` section below.
 
