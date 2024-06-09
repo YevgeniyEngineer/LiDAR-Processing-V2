@@ -106,7 +106,6 @@ class Node final : public rclcpp::Node
         image_msg_cache_.data.reserve(3 * segmentation::Segmenter::IMAGE_HEIGHT *
                                       segmentation::Segmenter::IMAGE_WIDTH);
         cloud_msg_cache_.data.reserve(MAX_PTS);
-        colours_.reserve(MAX_PTS);
 
         RCLCPP_INFO(this->get_logger(), "%s node constructed", this->get_name());
     }
@@ -146,7 +145,6 @@ class Node final : public rclcpp::Node
     clustering::Clusterer clusterer_;
     std::vector<clustering::ClusterLabel> clustering_labels_;
     pcl::PointCloud<pcl::PointXYZRGB> clustered_cloud_;
-    std::vector<std::tuple<std::uint8_t, std::uint8_t, std::uint8_t>> colours_;
 };
 
 static void convertImageToRosMessage(const cv::Mat& cv_image,
@@ -203,75 +201,6 @@ static void convertPCLToPointCloud2(const pcl::PointCloud<pcl::PointXYZRGB>& clo
     cloud_ros.data.resize(byte_size);
     std::memcpy(cloud_ros.data.data(), &cloud_pcl.at(0), byte_size);
 };
-
-// Function to convert HSV to RGB
-static void HSVtoRGB(float h, float s, float v, std::uint8_t& r, std::uint8_t& g, std::uint8_t& b)
-{
-    auto i = static_cast<std::int32_t>(h * 6);
-    const float f = h * 6 - i;
-    const float p = v * (1 - s);
-    const float q = v * (1 - f * s);
-    const float t = v * (1 - (1 - f) * s);
-    i = i % 6;
-
-    float r_float, g_float, b_float;
-    switch (i)
-    {
-        case 0:
-        {
-            r_float = v, g_float = t, b_float = p;
-            break;
-        }
-        case 1:
-        {
-            r_float = q, g_float = v, b_float = p;
-            break;
-        }
-        case 2:
-        {
-            r_float = p, g_float = v, b_float = t;
-            break;
-        }
-        case 3:
-        {
-            r_float = p, g_float = q, b_float = v;
-            break;
-        }
-        case 4:
-        {
-            r_float = t, g_float = p, b_float = v;
-            break;
-        }
-        case 5:
-        {
-            r_float = v, g_float = p, b_float = q;
-            break;
-        }
-    }
-    r = static_cast<std::uint8_t>(r_float * 255);
-    g = static_cast<std::uint8_t>(g_float * 255);
-    b = static_cast<std::uint8_t>(b_float * 255);
-}
-
-// Function to generate distinct colors
-static void generateDistinctColors(
-    std::int32_t num_labels,
-    std::vector<std::tuple<std::uint8_t, std::uint8_t, std::uint8_t>>& colors)
-{
-    colors.reserve(num_labels);
-    for (std::int32_t i = 0; i < num_labels; ++i)
-    {
-        const float h = static_cast<float>(i) / static_cast<float>(num_labels);
-        const float s =
-            0.5F + (static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX)) * 0.5F;
-        const float v =
-            0.5F + (static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX)) * 0.5F;
-
-        std::uint8_t r, g, b;
-        HSVtoRGB(h, s, v, r, g, b);
-        colors.emplace_back(r, g, b);
-    }
-}
 
 void Node::topicCallback(const PointCloud2& msg)
 {
@@ -368,15 +297,10 @@ void Node::topicCallback(const PointCloud2& msg)
         const auto max_label = *max_label_it;
         RCLCPP_INFO(this->get_logger(), "Extracted %d clusters", max_label);
 
-        // colours_.clear();
-        // generateDistinctColors(max_label + 1, colours_);
-
         const auto number_of_points = clustering_labels_.size();
 
         for (std::int32_t label = 0; label <= max_label; ++label)
         {
-            // const auto& [r, g, b] = colours_[label];
-
             // Generate random RGB values for the current cluster
             const auto r = static_cast<std::uint8_t>(std::rand() % 256);
             const auto g = static_cast<std::uint8_t>(std::rand() % 256);
