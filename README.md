@@ -12,7 +12,7 @@ To update submodule, `git submodule update --init --recursive`.
 
 ## Example Devcontainer and VSCode Tasks
 
-<iframe width="560" height="315" src="https://youtu.be/AN4WgETAy6A" frameborder="0" allowfullscreen></iframe>
+[![Watch the video](https://img.youtube.com/vi/AN4WgETAy6A/0.jpg)](https://www.youtube.com/watch?v=AN4WgETAy6A)
 
 ## Build Dependencies
 
