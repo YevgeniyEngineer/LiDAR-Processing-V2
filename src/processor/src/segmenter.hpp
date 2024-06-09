@@ -38,6 +38,7 @@
 #include <numeric>
 #include <ostream>
 #include <queue>
+#include <type_traits>
 #include <vector>
 
 // PCL
@@ -61,6 +62,18 @@ struct EIGEN_ALIGN16 PointXYZIR
 POINT_CLOUD_REGISTER_POINT_STRUCT(
     pcl::PointXYZIR,
     (float, x, x)(float, y, y)(float, z, z)(float, intensity, intensity)(std::uint16_t, ring, ring))
+
+// Trait to detect if 'ring' is a member of PointT
+template <typename PointT> class HasRing
+{
+  private:
+    template <typename U>
+    static auto test(int) -> decltype(std::declval<U>().ring, std::true_type());
+    template <typename U> static std::false_type test(...);
+
+  public:
+    static constexpr bool value = decltype(test<PointT>(0))::value;
+};
 
 namespace segmentation
 {
@@ -129,7 +142,9 @@ class Segmenter
     static constexpr std::int32_t INVALID_INDEX = -1;
 
     // Values acceptable for Velodyne HDL-64E (64 - ring LiDAR)
-    static constexpr auto IMAGE_WIDTH = 2000;
+    static constexpr float ELEVATION_UP_DEG = +2.0F;
+    static constexpr float ELEVATION_DOWN_DEG = -24.8F;
+    static constexpr auto IMAGE_WIDTH = 2048;
     static constexpr auto IMAGE_HEIGHT = 64;
 
     // Colour labels
@@ -157,7 +172,8 @@ class Segmenter
         return image_;
     }
 
-    void segment(const pcl::PointCloud<pcl::PointXYZIR>& cloud, std::vector<Label>& labels);
+    template <typename PointT>
+    void segment(const pcl::PointCloud<PointT>& cloud, std::vector<Label>& labels);
 
   private:
     struct Index
@@ -243,11 +259,28 @@ class Segmenter
         return index == INVALID_INDEX;
     }
 
-    void RECM(const pcl::PointCloud<pcl::PointXYZIR>& cloud);
-    void JCP(const pcl::PointCloud<pcl::PointXYZIR>& cloud);
+    template <typename PointT> void constructPolarGrid(const pcl::PointCloud<PointT>& cloud);
+    void RECM();
+    template <typename PointT> void JCP(const pcl::PointCloud<PointT>& cloud);
     void correctCloseRangeFalsePositivesRANSAC();
-    void populateLabels(const pcl::PointCloud<pcl::PointXYZIR>& cloud, std::vector<Label>& labels);
+    void populateLabels(std::vector<Label>& labels);
 };
+
+extern template void Segmenter::segment(const pcl::PointCloud<pcl::PointXYZ>& cloud,
+                                        std::vector<Label>& labels);
+extern template void Segmenter::segment(const pcl::PointCloud<pcl::PointXYZI>& cloud,
+                                        std::vector<Label>& labels);
+extern template void Segmenter::segment(const pcl::PointCloud<pcl::PointXYZIR>& cloud,
+                                        std::vector<Label>& labels);
+
+extern template void Segmenter::constructPolarGrid(const pcl::PointCloud<pcl::PointXYZ>& cloud);
+extern template void Segmenter::constructPolarGrid(const pcl::PointCloud<pcl::PointXYZI>& cloud);
+extern template void Segmenter::constructPolarGrid(const pcl::PointCloud<pcl::PointXYZIR>& cloud);
+
+extern template void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZ>& cloud);
+extern template void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZI>& cloud);
+extern template void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZIR>& cloud);
+
 } // namespace segmentation
 
 #endif // SEGMENTER_HPP

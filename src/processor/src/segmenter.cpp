@@ -26,6 +26,41 @@
 
 namespace segmentation
 {
+// Taken from
+// https://stackoverflow.com/questions/46210708/atan2-approximation-with-11bits-in-mantissa-on-x86with-sse2-and-armwith-vfpv4
+// maximum relative error about 3.6e-5
+static inline float atan2Approx(const float y, const float x) noexcept
+{
+    const float ax = std::fabs(x);
+    const float ay = std::fabs(y);
+    const float mx = std::max(ay, ax);
+    const float mn = std::min(ay, ax);
+    const float a = mn / mx;
+    /* Minimax polynomial approximation to atan(a) on [0,1] */
+    const float s = a * a;
+    const float c = s * a;
+    const float q = s * s;
+    float r = 0.024840285F * q + 0.18681418F;
+    const float t = -0.094097948F * q - 0.33213072F;
+    r = r * s + t;
+    r = r * c + a;
+    /* Map to full circle */
+    if (ay > ax)
+    {
+        r = 1.57079637F - r;
+    }
+    if (x < 0)
+    {
+        r = 3.14159274F - r;
+    }
+    if (y < 0)
+    {
+        r = -r;
+    }
+
+    return r;
+}
+
 Segmenter::Segmenter()
     : config_{}, image_{cv::Mat::zeros(IMAGE_HEIGHT, IMAGE_WIDTH, CV_8UC3)},
       kernel_{cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5))}
@@ -94,67 +129,44 @@ void Segmenter::resetValues()
     }
 }
 
-void Segmenter::segment(const pcl::PointCloud<pcl::PointXYZIR>& cloud, std::vector<Label>& labels)
+template <typename PointT>
+void Segmenter::segment(const pcl::PointCloud<PointT>& cloud, std::vector<Label>& labels)
 {
     labels.assign(cloud.points.size(), Label::UNKNOWN);
 
     resetValues();
 
-    RECM(cloud);
+    constructPolarGrid(cloud);
+
+    RECM();
 
     JCP(cloud);
 
-    populateLabels(cloud, labels);
+    populateLabels(labels);
 }
 
-// Taken from
-// https://stackoverflow.com/questions/46210708/atan2-approximation-with-11bits-in-mantissa-on-x86with-sse2-and-armwith-vfpv4
-// maximum relative error about 3.6e-5
-static inline float atan2Approx(const float y, const float x) noexcept
+template <typename PointT> void Segmenter::constructPolarGrid(const pcl::PointCloud<PointT>& cloud)
 {
-    const float ax = std::fabs(x);
-    const float ay = std::fabs(y);
-    const float mx = std::max(ay, ax);
-    const float mn = std::min(ay, ax);
-    const float a = mn / mx;
-    /* Minimax polynomial approximation to atan(a) on [0,1] */
-    const float s = a * a;
-    const float c = s * a;
-    const float q = s * s;
-    float r = 0.024840285F * q + 0.18681418F;
-    const float t = -0.094097948F * q - 0.33213072F;
-    r = r * s + t;
-    r = r * c + a;
-    /* Map to full circle */
-    if (ay > ax)
-    {
-        r = 1.57079637F - r;
-    }
-    if (x < 0)
-    {
-        r = 3.14159274F - r;
-    }
-    if (y < 0)
-    {
-        r = -r;
-    }
-
-    return r;
-}
-
-void Segmenter::RECM(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
-{
-    // Embed cloud into grid cells
+    static constexpr float ELEVATION_UP_RAD = ELEVATION_UP_DEG * DEG_TO_RAD;
+    static constexpr float ELEVATION_DOWN_RAD = ELEVATION_DOWN_DEG * DEG_TO_RAD;
+    static constexpr float VERTICAL_FIELD_OF_VIEW_RAD = ELEVATION_UP_RAD - ELEVATION_DOWN_RAD;
+    static constexpr float RADIANS_PER_VERTICAL_PIXEL = VERTICAL_FIELD_OF_VIEW_RAD / IMAGE_HEIGHT;
 
     for (auto& cell : polar_grid_)
     {
         cell.clear();
     }
 
+    if (cloud.empty())
+    {
+        return;
+    }
+
     const float z_min_adjusted = -config_.sensor_height_m + config_.z_min_m;
     const float z_max_adjusted = -config_.sensor_height_m + config_.z_max_m;
 
-    for (std::int32_t cloud_index = 0; cloud_index < cloud.points.size(); ++cloud_index)
+    for (std::int32_t cloud_index = 0; cloud_index < static_cast<std::int32_t>(cloud.points.size());
+         ++cloud_index)
     {
         const auto& point = cloud.points[cloud_index];
 
@@ -163,11 +175,11 @@ void Segmenter::RECM(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
             continue;
         }
 
-        const float radius_m = std::sqrt(point.x * point.x + point.y * point.y);
+        const float distance_m = std::sqrt(point.x * point.x + point.y * point.y);
         const auto radial_index =
-            static_cast<std::int32_t>(radius_m / config_.grid_radial_spacing_m);
+            static_cast<std::int32_t>(distance_m / config_.grid_radial_spacing_m);
 
-        if (radius_m < config_.min_distance_m || radius_m > config_.max_distance_m ||
+        if (distance_m < config_.min_distance_m || distance_m > config_.max_distance_m ||
             radial_index >= grid_number_of_radial_rings_)
         {
             continue;
@@ -179,22 +191,45 @@ void Segmenter::RECM(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
             std::min(static_cast<std::int32_t>(azimuth_rad / grid_slice_resolution_rad_),
                      grid_number_of_azimuth_slices_ - 1);
 
-        const auto cell_index =
-            static_cast<std::uint32_t>(azimuth_index * grid_number_of_radial_rings_ + radial_index);
+        std::uint16_t height_index;
 
-        const std::uint16_t height_index = point.ring;
-        if (height_index >= IMAGE_HEIGHT)
+        if constexpr (HasRing<PointT>::value)
         {
-            continue;
+            height_index = point.ring;
+
+            if (height_index >= IMAGE_HEIGHT)
+            {
+                continue;
+            }
+        }
+        else
+        {
+            const float elevation_rad = std::atan(point.z / distance_m);
+
+            const auto height_index_signed = static_cast<std::int32_t>(
+                (elevation_rad - ELEVATION_DOWN_RAD) / RADIANS_PER_VERTICAL_PIXEL);
+
+            if (height_index_signed < 0 || height_index_signed >= IMAGE_HEIGHT)
+            {
+                continue;
+            }
+
+            height_index = static_cast<std::uint16_t>(height_index_signed);
         }
 
         const auto width_index =
             static_cast<std::uint16_t>((IMAGE_WIDTH - 1) * azimuth_rad / TWO_M_PIf);
 
+        const auto cell_index =
+            static_cast<std::uint32_t>(azimuth_index * grid_number_of_radial_rings_ + radial_index);
+
         polar_grid_[cell_index].push_back(
             {point.x, point.y, point.z, Label::GROUND, height_index, width_index, cloud_index});
     }
+}
 
+void Segmenter::RECM()
+{
     // RECM algorithm
     const auto max_positive_height_difference_between_adjacent_grid_cells =
         std::min(config_.grid_radial_spacing_m * std::tan(config_.road_maximum_slope_m_per_m),
@@ -468,7 +503,7 @@ void Segmenter::correctCloseRangeFalsePositivesRANSAC()
     }
 }
 
-void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
+template <typename PointT> void Segmenter::JCP(const pcl::PointCloud<PointT>& cloud)
 {
     // JCP Algorithm
 
@@ -626,8 +661,7 @@ void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZIR>& cloud)
     }
 }
 
-void Segmenter::populateLabels(const pcl::PointCloud<pcl::PointXYZIR>& cloud,
-                               std::vector<Label>& labels)
+void Segmenter::populateLabels(std::vector<Label>& labels)
 {
     for (std::int32_t height_index = 0; height_index < IMAGE_HEIGHT; ++height_index)
     {
@@ -657,5 +691,21 @@ void Segmenter::populateLabels(const pcl::PointCloud<pcl::PointXYZIR>& cloud,
         }
     }
 }
+
+// Explicit template instantiations
+template void Segmenter::segment(const pcl::PointCloud<pcl::PointXYZ>& cloud,
+                                 std::vector<Label>& labels);
+template void Segmenter::segment(const pcl::PointCloud<pcl::PointXYZI>& cloud,
+                                 std::vector<Label>& labels);
+template void Segmenter::segment(const pcl::PointCloud<pcl::PointXYZIR>& cloud,
+                                 std::vector<Label>& labels);
+
+template void Segmenter::constructPolarGrid(const pcl::PointCloud<pcl::PointXYZ>& cloud);
+template void Segmenter::constructPolarGrid(const pcl::PointCloud<pcl::PointXYZI>& cloud);
+template void Segmenter::constructPolarGrid(const pcl::PointCloud<pcl::PointXYZIR>& cloud);
+
+template void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZ>& cloud);
+template void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZI>& cloud);
+template void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZIR>& cloud);
 
 } // namespace segmentation
