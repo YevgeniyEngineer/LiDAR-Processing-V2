@@ -37,8 +37,7 @@
             "command": "bash -c 'chmod +x ${workspaceFolder}/install/local_setup.bash && source /opt/ros/humble/setup.bash && source ${workspaceFolder}/install/local_setup.bash && ros2 run processor processor --ros-args --params-file ${workspaceFolder}/install/processor/share/processor/config/processor.param.yaml'",
             "presentation": {
                 "reveal": "always",
-                "panel": "new",
-                "close": true
+                "panel": "new"
             },
             "problemMatcher": []
         },
@@ -48,8 +47,7 @@
             "command": "bash -c 'chmod +x ${workspaceFolder}/install/local_setup.bash && source /opt/ros/humble/setup.bash && source ${workspaceFolder}/install/local_setup.bash && ros2 run dataloader dataloader --ros-args --params-file ${workspaceFolder}/install/dataloader/share/dataloader/config/dataloader.param.yaml'",
             "presentation": {
                 "reveal": "always",
-                "panel": "new",
-                "close": true
+                "panel": "new"
             },
             "problemMatcher": []
         },
@@ -59,8 +57,7 @@
             "command": "bash -c 'chmod +x ${workspaceFolder}/install/local_setup.bash && source /opt/ros/humble/setup.bash && source ${workspaceFolder}/install/local_setup.bash && ros2 run rviz2 rviz2 --display-config ${workspaceFolder}/src/rviz2_config/config/rviz2_config.rviz'",
             "presentation": {
                 "reveal": "always",
-                "panel": "new",
-                "close": true
+                "panel": "new"
             },
             "problemMatcher": []
         },
