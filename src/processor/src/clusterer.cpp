@@ -35,6 +35,8 @@ Clusterer::Clusterer()
     voxel_keys_.reserve(200'000);
     voxel_labels_.reserve(200'000);
     visited_voxels_.reserve(150);
+    cluster_labels_counts_.reserve(200'000);
+    cluster_labels_cache_.reserve(200'000);
 }
 
 template <typename PointT>
@@ -45,6 +47,8 @@ void Clusterer::cluster(const pcl::PointCloud<PointT>& cloud, std::vector<Cluste
     buildHashTable();
 
     clusterImpl(labels);
+
+    removeSmallClusters(labels);
 }
 
 template <typename PointT>
@@ -220,6 +224,52 @@ void Clusterer::propagateLabel(ClusterLabel label,
                 }
             }
         }
+    }
+}
+
+void Clusterer::removeSmallClusters(std::vector<ClusterLabel>& labels)
+{
+    const auto max_label_it = std::max_element(labels.cbegin(), labels.cend());
+
+    if (max_label_it == labels.cend())
+    {
+        return; // No labels
+    }
+
+    const auto max_label = *max_label_it;
+
+    if (max_label == INVALID_LABEL)
+    {
+        return; // Not clusters
+    }
+
+    const auto counts_size = max_label + 1;
+    cluster_labels_counts_.assign(counts_size, 0U);
+
+    for (const auto label : labels)
+    {
+        if (label != INVALID_LABEL)
+        {
+            ++cluster_labels_counts_[label];
+        }
+    }
+
+    cluster_labels_cache_.assign(counts_size, INVALID_LABEL);
+
+    std::int32_t current_label = 0;
+
+    for (std::int32_t label = 0; label <= max_label; ++label)
+    {
+        if (cluster_labels_counts_[label] >= config_.min_cluster_size)
+        {
+            cluster_labels_cache_[label] = current_label;
+            ++current_label;
+        }
+    }
+
+    for (auto& label : labels)
+    {
+        label = cluster_labels_cache_[label];
     }
 }
 

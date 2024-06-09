@@ -63,6 +63,8 @@ struct Configuration
     float voxel_grid_range_resolution_m = 0.3F;
     float voxel_grid_azimuth_resolution_deg = 1.0F;
     float voxel_grid_elevation_resolution_deg = 1.5F;
+
+    std::uint32_t min_cluster_size = 3;
 };
 
 class Clusterer
@@ -114,6 +116,9 @@ class Clusterer
 
     containers::CircularQueue<VoxelKey, 150'000> voxel_queue_;
 
+    std::vector<std::uint32_t> cluster_labels_counts_;
+    std::vector<ClusterLabel> cluster_labels_cache_;
+
     inline std::int32_t flatVoxelIndex(std::int32_t range_index,
                                        std::int32_t azimuth_index,
                                        std::int32_t elevation_index) const noexcept
@@ -159,6 +164,8 @@ class Clusterer
     void propagateLabel(ClusterLabel label,
                         const VoxelKey& voxel_index,
                         std::vector<ClusterLabel>& labels);
+
+    void removeSmallClusters(std::vector<ClusterLabel>& labels);
 };
 
 extern template void Clusterer::cluster(const pcl::PointCloud<pcl::PointXYZ>& cloud,

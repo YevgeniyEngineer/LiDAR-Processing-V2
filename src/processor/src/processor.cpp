@@ -292,7 +292,8 @@ void Node::topicCallback(const PointCloud2& msg)
     const auto max_label_it =
         std::max_element(clustering_labels_.cbegin(), clustering_labels_.cend());
 
-    if (max_label_it != clustering_labels_.cend())
+    if (max_label_it != clustering_labels_.cend() &&
+        *max_label_it != clustering::Clusterer::INVALID_LABEL)
     {
         const auto max_label = *max_label_it;
         RCLCPP_INFO(this->get_logger(), "Extracted %d clusters", max_label);
