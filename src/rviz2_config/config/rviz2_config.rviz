@@ -126,7 +126,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: RGB8
       Decay Time: 0
-      Enabled: true
+      Enabled: false
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: 4096
@@ -147,7 +147,7 @@ Visualization Manager:
         Value: /ground_pointcloud
       Use Fixed Frame: true
       Use rainbow: true
-      Value: true
+      Value: false
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -160,7 +160,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: RGB8
       Decay Time: 0
-      Enabled: true
+      Enabled: false
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: 4096
@@ -181,7 +181,7 @@ Visualization Manager:
         Value: /obstacle_pointcloud
       Use Fixed Frame: true
       Use rainbow: true
-      Value: true
+      Value: false
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -242,7 +242,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: RGB8
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: 4096
@@ -251,7 +251,7 @@ Visualization Manager:
       Name: ClusteredPoints
       Position Transformer: XYZ
       Selectable: true
-      Size (Pixels): 1
+      Size (Pixels): 1.5
       Size (m): 0.20000000298023224
       Style: Points
       Topic:
@@ -263,7 +263,7 @@ Visualization Manager:
         Value: /clustered_pointcloud
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Class: rviz_default_plugins/MarkerArray
       Enabled: false
       Name: ObstacleOutlines
@@ -278,7 +278,7 @@ Visualization Manager:
       Value: false
   Enabled: true
   Global Options:
-    Background Color: 48; 48; 48
+    Background Color: 21; 21; 21
     Fixed Frame: lidar
     Frame Rate: 10
   Name: root
