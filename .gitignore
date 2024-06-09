@@ -36,3 +36,4 @@ build
 log
 install
 .cache
+.gdb*

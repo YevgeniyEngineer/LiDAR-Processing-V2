@@ -3,10 +3,6 @@
 # Absolute path to the root of the project
 ROOT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )/.." &> /dev/null && pwd )
 
-# Re-build first
-echo "Building the project..."
-colcon build --symlink-install --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_BUILD_TYPE=Release
-
 # Unset GTK_PATH needed for Rviz to avoid crashes
 unset GTK_PATH
 
@@ -36,6 +32,28 @@ else
     exit 1
 fi
 
-# Launch ROS2 nodes using the launch file
-echo "Launching ROS2 nodes..."
-ros2 launch launch_pkg global_launch.py
+# Default package and launch file
+DEFAULT_PACKAGE="launch_pkg"
+DEFAULT_LAUNCH_FILE="global_launch.py"
+
+# Specific configuration for RVIZ2
+RVIZ2_CONFIG_PATH="${ROOT_DIR}/src/rviz2_config/config/rviz2_config.rviz"
+
+# Check if the first argument is 'rviz2'
+if [[ "$1" == "rviz2" ]]; then
+    echo "Detected request to launch rviz2 using config: $RVIZ2_CONFIG_PATH"
+    ros2 run rviz2 rviz2 --display-config "$RVIZ2_CONFIG_PATH"
+    exit 0
+elif [ ! -z "$1" ]; then
+    # Automatically derive the launch file name from the package name
+    PACKAGE_NAME="$1"
+    LAUNCH_FILE_NAME="${PACKAGE_NAME}.launch.py"
+    PACKAGE_TO_LAUNCH="$PACKAGE_NAME $LAUNCH_FILE_NAME"
+    echo "Launching $PACKAGE_NAME with $LAUNCH_FILE_NAME"
+    ros2 launch $PACKAGE_TO_LAUNCH
+else
+    # Launch the default package and launch file
+    PACKAGE_TO_LAUNCH="$DEFAULT_PACKAGE $DEFAULT_LAUNCH_FILE"
+    echo "Launching default package with: ros2 launch $PACKAGE_TO_LAUNCH"
+    ros2 launch $PACKAGE_TO_LAUNCH
+fi
