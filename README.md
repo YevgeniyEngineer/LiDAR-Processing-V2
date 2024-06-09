@@ -36,8 +36,6 @@ Once you are inside of Devcontainer, you can build and launch the nodes. In the 
 
 It is recommended to setup GDB dashboard: <https://github.com/cyrus-and/gdb-dashboard>.
 
-To build a single node in Debug mode:
-
 By convention, I assigned one node per package, so the node name matches its corresponding package name. This was done to simplify the launch scripts and setting up Tasks with VS Code.
 
 ```bash
