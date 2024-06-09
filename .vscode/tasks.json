@@ -1,86 +1,69 @@
 {
-    // See https://go.microsoft.com/fwlink/?LinkId=733558
-    // for the documentation about the tasks.json format
     "version": "2.0.0",
     "tasks": [
-        // Build tasks
         {
-            "label": "build workspace",
-            "detail": "Build ROS 2 workspace",
+            "label": "Launch Processor Node",
             "type": "shell",
-            "command": "colcon build --symlink-install --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+            "command": "bash -c 'chmod +x ${workspaceFolder}/install/local_setup.bash && source /opt/ros/humble/setup.bash && source ${workspaceFolder}/install/local_setup.bash && ros2 run processor processor --ros-args --params-file ${workspaceFolder}/install/processor/share/processor/config/processor.param.yaml'",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "close": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Launch Dataloader Node",
+            "type": "shell",
+            "command": "bash -c 'chmod +x ${workspaceFolder}/install/local_setup.bash && source /opt/ros/humble/setup.bash && source ${workspaceFolder}/install/local_setup.bash && ros2 run dataloader dataloader --ros-args --params-file ${workspaceFolder}/install/dataloader/share/dataloader/config/dataloader.param.yaml'",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "close": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Launch RViz2",
+            "type": "shell",
+            "command": "bash -c 'chmod +x ${workspaceFolder}/install/local_setup.bash && source /opt/ros/humble/setup.bash && source ${workspaceFolder}/install/local_setup.bash && ros2 run rviz2 rviz2 --display-config ${workspaceFolder}/src/rviz2_config/config/rviz2_config.rviz'",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "close": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Launch All Nodes",
+            "type": "shell",
+            "dependsOrder": "parallel",
+            "dependsOn": [
+                "Launch Processor Node",
+                "Launch Dataloader Node",
+                "Launch RViz2"
+            ]
+        }
+        {
+            "label": "Launch ROS2 Node with GDB",
+            "type": "shell",
+            "command": "chmod +x ${workspaceFolder}/install/local_setup.bash && source /opt/ros/humble/setup.bash && source ${workspaceFolder}/install/local_setup.bash && ros2 run --prefix 'gdb -ex run --args' ${input:packageName} ${input:packageName} --ros-args --params-file ${workspaceFolder}/install/${input:packageName}/share/${input:packageName}/config/${input:packageName}.param.yaml",
             "group": {
                 "kind": "build",
                 "isDefault": true
             },
-            "problemMatcher": "$gcc"
-        },
-        {
-            "label": "build pedantic release",
-            "detail": "Build workspace with release info and with all warnings enabled",
-            "type": "shell",
-            "command": "colcon build --symlink-install --cmake-args '-DCMAKE_BUILD_TYPE=RelWithDebInfo' '-DCMAKE_EXPORT_COMPILE_COMMANDS=On' -Wall -Wextra -Wpedantic",
-            "group": {
-                "kind": "build",
-                "isDefault": true
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
             },
-            "problemMatcher": "$gcc"
-        },
-        {
-            "label": "build single package",
-            "detail": "Build single ROS 2 package",
-            "type": "shell",
-            "command": "colcon build --symlink-install --packages-select ${input:package} --cmake-args '-DCMAKE_EXPORT_COMPILE_COMMANDS=On'",
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "problemMatcher": "$gcc"
-        },
-        {
-            "label": "debug workspace",
-            "detail": "Build ROS 2 workspace with debug symbols",
-            "type": "shell",
-            "command": "colcon build --symlink-install  --cmake-args '-DCMAKE_BUILD_TYPE=Debug'",
-            "group": "build",
-            "problemMatcher": "$gcc"
-        },
-        {
-            "label": "debug single package",
-            "detail": "Build single ROS 2 package with debug symbols",
-            "type": "shell",
-            "command": "colcon build --symlink-install --packages-select ${input:package} --cmake-args '-DCMAKE_BUILD_TYPE=Debug'",
-            "group": "build",
-            "problemMatcher": "$gcc"
-        },
-        {
-            "label": "source-humble",
-            "detail": "Sources the current workspace with bash shell",
-            "type": "shell",
-            "command": "source ${workspaceFolder}/install/setup.bash && printenv > ${workspaceFolder}/local_humble_ws.env",
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "problemMatcher": "$gcc"
-        },
-        {
-            "label": "test workspace",
-            "detail": "Run all unit tests and show results.",
-            "type": "shell",
-            "command": "colcon test && colcon test-result --all",
-            "group": {
-                "kind": "test",
-                "isDefault": true
-            }
+            "problemMatcher": []
         }
     ],
     "inputs": [
         {
-            "id": "package",
-            "type": "promptString",
-            "description": "Package name",
-            "default": "demo_nodes_cpp"
+            "id": "packageName",
+            "description": "Package/Node Name:",
+            "type": "promptString"
         }
     ]
 }

@@ -37,3 +37,4 @@ log
 install
 .cache
 .gdb*
+.env

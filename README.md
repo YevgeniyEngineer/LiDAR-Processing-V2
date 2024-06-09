@@ -32,6 +32,28 @@ Once you are inside of Devcontainer, you can build and launch the nodes. In the 
 ./scripts/launch.sh
 ```
 
+## GDB Debugging
+
+It is recommended to setup GDB dashboard: <https://github.com/cyrus-and/gdb-dashboard>.
+
+To build a single node in Debug mode:
+
+By convention, I assigned one node per package, so the node name matches its corresponding package name. This was done to simplify the launch scripts and setting up Tasks with VS Code.
+
+```bash
+# Build a single package in Debug mode
+./scripts/build.sh -d processor
+
+# Launch an individual node
+./scripts/launch.sh dataloader
+./scripts/launch.sh processor
+./scripts/launch.sh rviz2
+
+# Launch a GDB Debugger VS Code task
+# Ctrl + Shift + P -> Tasks: Run Task -> Launch ROS2 Node with GDB
+# When prompted, enter package name processor
+```
+
 ## Point Cloud Data Format
 
 Prior to processing point cloud is converted from unorganized to organized, however this is strictly not necessary because I templated segmentation function to accept unorganized point cloud too. The approximate ring partitioning scheme is used to cluster rings, approximating the natural Velodyne HDL-64E scan pattern as closely as possible. If the cloud is provided in the unorganized format, the height index of the image will be determined from linear point mapping, considering vertical field of view of the Velodyne sensor.
