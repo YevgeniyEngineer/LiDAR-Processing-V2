@@ -30,7 +30,8 @@
 
 namespace containers
 {
-template <typename T, std::size_t Capacity> class CircularQueue
+template <typename T, std::size_t Capacity>
+class CircularQueue
 {
   public:
     static constexpr std::size_t CAPACITY = Capacity;
@@ -109,7 +110,8 @@ template <typename T, std::size_t Capacity> class CircularQueue
     std::size_t size_{0};
     std::unique_ptr<T[]> data_;
 
-    template <typename U> inline bool push_impl(U&& value) noexcept
+    template <typename U>
+    inline bool push_impl(U&& value) noexcept
     {
         if (size_ == CAPACITY)
         {

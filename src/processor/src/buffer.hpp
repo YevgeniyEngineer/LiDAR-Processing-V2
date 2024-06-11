@@ -44,7 +44,8 @@ and returns this item.
 Return a Loan: This method finds the item in the loans_ array,
 marks it as not in use, and swaps it back into the buffer_ array.
 */
-template <typename T, std::size_t N> class Buffer final
+template <typename T, std::size_t N>
+class Buffer final
 {
     static_assert(std::is_swappable_v<T>, "T should be swappable");
     static_assert(N > 0, "Buffer size must be greater than zero");
@@ -170,7 +171,8 @@ template <typename T, std::size_t N> class Buffer final
         return in_use_[index];
     }
 
-    template <typename U = T> std::enable_if_t<std::is_pointer_v<U>, bool> is_in_use(U ptr) const
+    template <typename U = T>
+    std::enable_if_t<std::is_pointer_v<U>, bool> is_in_use(U ptr) const
     {
         const std::lock_guard<std::mutex> lock(mutex_);
         for (std::size_t index = 0; index < loans_.size(); ++index)

@@ -64,12 +64,14 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(
     (float, x, x)(float, y, y)(float, z, z)(float, intensity, intensity)(std::uint16_t, ring, ring))
 
 // Trait to detect if 'ring' is a member of PointT
-template <typename PointT> class HasRing
+template <typename PointT>
+class HasRing
 {
   private:
     template <typename U>
     static auto test(int) -> decltype(std::declval<U>().ring, std::true_type());
-    template <typename U> static std::false_type test(...);
+    template <typename U>
+    static std::false_type test(...);
 
   public:
     static constexpr bool value = decltype(test<PointT>(0))::value;
@@ -259,9 +261,11 @@ class Segmenter
         return index == INVALID_INDEX;
     }
 
-    template <typename PointT> void constructPolarGrid(const pcl::PointCloud<PointT>& cloud);
+    template <typename PointT>
+    void constructPolarGrid(const pcl::PointCloud<PointT>& cloud);
     void RECM();
-    template <typename PointT> void JCP(const pcl::PointCloud<PointT>& cloud);
+    template <typename PointT>
+    void JCP(const pcl::PointCloud<PointT>& cloud);
     void correctCloseRangeFalsePositivesRANSAC();
     void populateLabels(std::vector<Label>& labels);
 };

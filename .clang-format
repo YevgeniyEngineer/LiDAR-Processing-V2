@@ -13,3 +13,4 @@ UseTab: Never
 PointerAlignment: Left
 BinPackArguments: false
 BinPackParameters: false
+AlwaysBreakTemplateDeclarations: Yes

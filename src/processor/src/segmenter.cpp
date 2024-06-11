@@ -145,7 +145,8 @@ void Segmenter::segment(const pcl::PointCloud<PointT>& cloud, std::vector<Label>
     populateLabels(labels);
 }
 
-template <typename PointT> void Segmenter::constructPolarGrid(const pcl::PointCloud<PointT>& cloud)
+template <typename PointT>
+void Segmenter::constructPolarGrid(const pcl::PointCloud<PointT>& cloud)
 {
     static constexpr float ELEVATION_UP_RAD = ELEVATION_UP_DEG * DEG_TO_RAD;
     static constexpr float ELEVATION_DOWN_RAD = ELEVATION_DOWN_DEG * DEG_TO_RAD;
@@ -503,7 +504,8 @@ void Segmenter::correctCloseRangeFalsePositivesRANSAC()
     }
 }
 
-template <typename PointT> void Segmenter::JCP(const pcl::PointCloud<PointT>& cloud)
+template <typename PointT>
+void Segmenter::JCP(const pcl::PointCloud<PointT>& cloud)
 {
     // JCP Algorithm
 

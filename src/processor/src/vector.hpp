@@ -35,7 +35,8 @@
 
 namespace containers
 {
-template <typename T, typename Allocator = std::allocator<T>> class Vector final
+template <typename T, typename Allocator = std::allocator<T>>
+class Vector final
 {
   public:
     using value_type = T;
@@ -124,12 +125,14 @@ template <typename T, typename Allocator = std::allocator<T>> class Vector final
               typename std::enable_if<!std::is_integral<InputIt>::value, InputIt>::type* = nullptr>
     iterator insert(const_iterator pos, InputIt first, InputIt last);
     iterator insert(const_iterator pos, std::initializer_list<T> ilist);
-    template <typename... Args> iterator emplace(const_iterator pos, Args&&... args);
+    template <typename... Args>
+    iterator emplace(const_iterator pos, Args&&... args);
     iterator erase(const_iterator pos);
     iterator erase(const_iterator first, const_iterator last);
     void push_back(const T& value);
     void push_back(T&& value);
-    template <typename... Args> void emplace_back(Args&&... args);
+    template <typename... Args>
+    void emplace_back(Args&&... args);
     void pop_back() noexcept;
     void resize(std::size_t new_size);
     void resize(std::size_t new_size, const T& value);
@@ -145,7 +148,8 @@ template <typename T, typename Allocator = std::allocator<T>> class Vector final
     bool buffer_reached_capacity() const noexcept;
 };
 
-template <typename T, typename Allocator> bool Vector<T, Allocator>::buffer_full() const noexcept
+template <typename T, typename Allocator>
+bool Vector<T, Allocator>::buffer_full() const noexcept
 {
     return size_ == buffer_.size();
 }
@@ -304,7 +308,8 @@ void Vector<T, Allocator>::assign(std::initializer_list<T> ilist)
     size_ = buffer_.size();
 }
 
-template <typename T, typename Allocator> T& Vector<T, Allocator>::at(std::size_t index)
+template <typename T, typename Allocator>
+T& Vector<T, Allocator>::at(std::size_t index)
 {
     if (index >= size_)
     {
@@ -314,7 +319,8 @@ template <typename T, typename Allocator> T& Vector<T, Allocator>::at(std::size_
     return buffer_[index];
 }
 
-template <typename T, typename Allocator> const T& Vector<T, Allocator>::at(std::size_t index) const
+template <typename T, typename Allocator>
+const T& Vector<T, Allocator>::at(std::size_t index) const
 {
     if (index >= size_)
     {
@@ -336,7 +342,8 @@ const T& Vector<T, Allocator>::operator[](std::size_t index) const noexcept
     return buffer_[index];
 }
 
-template <typename T, typename Allocator> T& Vector<T, Allocator>::front()
+template <typename T, typename Allocator>
+T& Vector<T, Allocator>::front()
 {
     if (empty())
     {
@@ -345,7 +352,8 @@ template <typename T, typename Allocator> T& Vector<T, Allocator>::front()
     return buffer_[0U];
 }
 
-template <typename T, typename Allocator> const T& Vector<T, Allocator>::front() const
+template <typename T, typename Allocator>
+const T& Vector<T, Allocator>::front() const
 {
     if (empty())
     {
@@ -354,7 +362,8 @@ template <typename T, typename Allocator> const T& Vector<T, Allocator>::front()
     return buffer_[0U];
 }
 
-template <typename T, typename Allocator> T& Vector<T, Allocator>::back()
+template <typename T, typename Allocator>
+T& Vector<T, Allocator>::back()
 {
     if (empty())
     {
@@ -363,7 +372,8 @@ template <typename T, typename Allocator> T& Vector<T, Allocator>::back()
     return buffer_[size_ - 1U];
 }
 
-template <typename T, typename Allocator> const T& Vector<T, Allocator>::back() const
+template <typename T, typename Allocator>
+const T& Vector<T, Allocator>::back() const
 {
     if (empty())
     {
@@ -372,12 +382,14 @@ template <typename T, typename Allocator> const T& Vector<T, Allocator>::back() 
     return buffer_[size_ - 1U];
 }
 
-template <typename T, typename Allocator> T* Vector<T, Allocator>::data() noexcept
+template <typename T, typename Allocator>
+T* Vector<T, Allocator>::data() noexcept
 {
     return buffer_.data();
 }
 
-template <typename T, typename Allocator> const T* Vector<T, Allocator>::data() const noexcept
+template <typename T, typename Allocator>
+const T* Vector<T, Allocator>::data() const noexcept
 {
     return buffer_.data();
 }
@@ -454,12 +466,14 @@ typename Vector<T, Allocator>::const_reverse_iterator Vector<T, Allocator>::cren
     return const_reverse_iterator(cbegin());
 }
 
-template <typename T, typename Allocator> bool Vector<T, Allocator>::empty() const noexcept
+template <typename T, typename Allocator>
+bool Vector<T, Allocator>::empty() const noexcept
 {
     return (size_ == 0);
 }
 
-template <typename T, typename Allocator> std::size_t Vector<T, Allocator>::size() const noexcept
+template <typename T, typename Allocator>
+std::size_t Vector<T, Allocator>::size() const noexcept
 {
     return size_;
 }
@@ -482,7 +496,8 @@ std::size_t Vector<T, Allocator>::capacity() const noexcept
     return buffer_.capacity();
 }
 
-template <typename T, typename Allocator> void Vector<T, Allocator>::clear() noexcept
+template <typename T, typename Allocator>
+void Vector<T, Allocator>::clear() noexcept
 {
     size_ = 0;
 }
@@ -706,7 +721,8 @@ typename Vector<T, Allocator>::iterator Vector<T, Allocator>::erase(const_iterat
     return mut_first;
 }
 
-template <typename T, typename Allocator> void Vector<T, Allocator>::push_back(const T& value)
+template <typename T, typename Allocator>
+void Vector<T, Allocator>::push_back(const T& value)
 {
     if (buffer_full())
     {
@@ -720,7 +736,8 @@ template <typename T, typename Allocator> void Vector<T, Allocator>::push_back(c
     ++size_;
 }
 
-template <typename T, typename Allocator> void Vector<T, Allocator>::push_back(T&& value)
+template <typename T, typename Allocator>
+void Vector<T, Allocator>::push_back(T&& value)
 {
     if (buffer_full())
     {
@@ -750,7 +767,8 @@ void Vector<T, Allocator>::emplace_back(Args&&... args)
     ++size_;
 }
 
-template <typename T, typename Allocator> void Vector<T, Allocator>::pop_back() noexcept
+template <typename T, typename Allocator>
+void Vector<T, Allocator>::pop_back() noexcept
 {
     if (size_ > 0)
     {
@@ -758,7 +776,8 @@ template <typename T, typename Allocator> void Vector<T, Allocator>::pop_back() 
     }
 }
 
-template <typename T, typename Allocator> void Vector<T, Allocator>::resize(std::size_t new_size)
+template <typename T, typename Allocator>
+void Vector<T, Allocator>::resize(std::size_t new_size)
 {
     if (buffer_.size() < new_size)
     {
