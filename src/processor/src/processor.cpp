@@ -53,6 +53,9 @@
 // Clusterer
 #include "clusterer.hpp"
 
+// Polygonizer
+#include "polygonizer.hpp"
+
 class Node final : public rclcpp::Node
 {
   public:

@@ -25,6 +25,7 @@ add_subdirectory(./src/unordered_dense)
 add_executable(${PROJECT_NAME}
     src/segmenter.cpp
     src/clusterer.cpp
+    src/polygonizer.cpp
     src/processor.cpp
 )
 
