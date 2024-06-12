@@ -86,18 +86,23 @@ class Node final : public rclcpp::Node
         clustered_cloud_topic_ = this->get_parameter("clustered_cloud_topic").as_string();
         obstacle_outlines_topic_ = this->get_parameter("obstacle_outlines_topic").as_string();
 
-        input_cloud_subscriber_ = this->create_subscription<PointCloud2>(
-            input_cloud_topic_, 10, std::bind(&Node::topicCallback, this, _1));
+        input_cloud_subscriber_ =
+            this->create_subscription<PointCloud2>(input_cloud_topic_,
+                                                   rclcpp::QoS(2).reliable().durability_volatile(),
+                                                   std::bind(&Node::topicCallback, this, _1));
 
-        ground_cloud_publisher_ = this->create_publisher<PointCloud2>(ground_cloud_topic_, 10);
-        obstacle_cloud_publisher_ = this->create_publisher<PointCloud2>(obstacle_cloud_topic_, 10);
-        unsegmented_cloud_publisher_ =
-            this->create_publisher<PointCloud2>(unsegmented_cloud_topic_, 10);
-        segmented_image_publisher_ = this->create_publisher<Image>(segmented_image_topic_, 10);
-        clustered_cloud_publisher_ =
-            this->create_publisher<PointCloud2>(clustered_cloud_topic_, 10);
-        obstacle_outlines_publisher_ =
-            this->create_publisher<MarkerArray>(obstacle_outlines_topic_, 10);
+        ground_cloud_publisher_ = this->create_publisher<PointCloud2>(
+            ground_cloud_topic_, rclcpp::QoS(2).reliable().durability_volatile());
+        obstacle_cloud_publisher_ = this->create_publisher<PointCloud2>(
+            obstacle_cloud_topic_, rclcpp::QoS(2).reliable().durability_volatile());
+        unsegmented_cloud_publisher_ = this->create_publisher<PointCloud2>(
+            unsegmented_cloud_topic_, rclcpp::QoS(2).reliable().durability_volatile());
+        segmented_image_publisher_ = this->create_publisher<Image>(
+            segmented_image_topic_, rclcpp::QoS(2).reliable().durability_volatile());
+        clustered_cloud_publisher_ = this->create_publisher<PointCloud2>(
+            clustered_cloud_topic_, rclcpp::QoS(2).reliable().durability_volatile());
+        obstacle_outlines_publisher_ = this->create_publisher<MarkerArray>(
+            obstacle_outlines_topic_, rclcpp::QoS(2).reliable().durability_volatile());
 
         // Reserve memory
         input_cloud_.points.reserve(MAX_PTS);

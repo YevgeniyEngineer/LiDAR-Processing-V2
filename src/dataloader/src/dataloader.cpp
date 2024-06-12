@@ -89,10 +89,10 @@ class Node final : public rclcpp::Node
 
         loadData();
 
-        publisher_ =
-            this->create_publisher<sensor_msgs::msg::PointCloud2>(organized_cloud_topic_, 10);
-        vis_publisher_ =
-            this->create_publisher<sensor_msgs::msg::PointCloud2>(vis_cloud_topic_, 10);
+        publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+            organized_cloud_topic_, rclcpp::QoS(2).reliable().durability_volatile());
+        vis_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+            vis_cloud_topic_, rclcpp::QoS(2).reliable().durability_volatile());
         timer_ = this->create_wall_timer(sleep_duration_ms_, std::bind(&Node::timerCallback, this));
 
         RCLCPP_INFO(this->get_logger(), "%s node constructed", this->get_name());
