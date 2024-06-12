@@ -33,33 +33,44 @@
 
 namespace polygonization
 {
-enum class PolygonOrientation : std::uint8_t
+enum class Orientation : std::uint8_t
 {
     ANTICLOCKWISE = 0,
-    CLOCKWISE = 1
+    CLOCKWISE = 1,
+    COLINEAR = 2
 };
 
 enum class PolygonContour : std::uint8_t
 {
     OPEN = 0,
-    CLOSED = 1
+    ENCLOSED = 1
 };
 
 struct Configuration
 {
-    PolygonOrientation orientation = PolygonOrientation::ANTICLOCKWISE;
+    Orientation orientation = Orientation::ANTICLOCKWISE;
     PolygonContour contour = PolygonContour::OPEN;
 
     std::uint32_t max_points = 100'000;
 };
 
+struct PointXY
+{
+    double x;
+    double y;
+};
+
+struct PointXYZ
+{
+    double x;
+    double y;
+    double z;
+};
+
 class Polygonizer final
 {
   public:
-    Polygonizer()
-    {
-        sorted_indices_.reserve(config_.max_points);
-    }
+    Polygonizer() = default;
 
     template <typename PointT>
     void boundingBox(const std::vector<PointT>& points, std::vector<std::uint32_t>& indices);
@@ -88,28 +99,32 @@ class Polygonizer final
     std::vector<std::uint32_t> sorted_indices_;
 };
 
-template <typename PointT, typename T>
-inline static T crossProduct(const PointT& O, const PointT& A, const PointT& B) noexcept
-{
-    return static_cast<T>((A.x - O.x) * (B.y - O.y) - (A.y - O.y) * (B.x - O.x));
-}
-
 template <typename PointT>
-void Polygonizer::boundingBox(const std::vector<PointT>& points,
-                              std::vector<std::uint32_t>& indices)
+inline static Orientation orientation(const PointT& p1, const PointT& p2, const PointT& p3) noexcept
 {
-    // TODO
+    const auto cross_product = (p2.x - p1.x) * (p3.y - p1.y) - (p2.y - p1.y) * (p3.x - p1.x);
+
+    if (cross_product > 0.0)
+    {
+        return Orientation::ANTICLOCKWISE;
+    }
+    else if (cross_product < 0.0)
+    {
+        return Orientation::CLOCKWISE;
+    }
+    else
+    {
+        return Orientation::COLINEAR;
+    }
 }
 
 template <typename PointT>
 void Polygonizer::convexHull(const std::vector<PointT>& points, std::vector<std::uint32_t>& indices)
 {
-    // Andrew's monotone chain algorithm
-
-    indices.clear();
-
     if (points.size() < 3)
     {
+        indices.resize(points.size());
+        std::iota(indices.begin(), indices.end(), 0);
         return;
     }
 
@@ -118,60 +133,53 @@ void Polygonizer::convexHull(const std::vector<PointT>& points, std::vector<std:
 
     std::sort(sorted_indices_.begin(),
               sorted_indices_.end(),
-              [&points](const std::uint32_t i, const std::uint32_t j) noexcept {
-                  return (points[i].x < points[j].x) ||
-                         (std::fabs(points[i].x - points[j].x) < 1e-5 && points[i].y < points[j].y);
+              [&points](std::uint32_t i, std::uint32_t j) noexcept -> bool {
+                  return points[i].x < points[j].x ||
+                         (std::fabs(points[i].x - points[j].x) <
+                              std::numeric_limits<decltype(points[i].x)>::epsilon() &&
+                          points[i].y < points[j].y);
               });
 
-    indices.reserve(2 * points.size());
+    std::uint32_t n = points.size();
+    std::uint32_t k = 0;
 
-    // Build the lower hull
-    const std::size_t half_size = points.size();
-    for (std::size_t i = 0; i < half_size; ++i)
+    indices.resize(2 * points.size());
+
+    for (std::uint32_t i = 0; i < n; ++i)
     {
-        // if crossProduct(OA, OB) < 0 - Clockwise
-        while (indices.size() >= 2 &&
-               crossProduct<PointT, std::int64_t>(points[indices[indices.size() - 2]],
-                                                  points[indices.back()],
-                                                  points[sorted_indices_[i]]) <= 0)
+        while (k >= 2 && orientation(points[indices[k - 2]],
+                                     points[indices[k - 1]],
+                                     points[sorted_indices_[i]]) != Orientation::ANTICLOCKWISE)
         {
-            // Remove the last point because it's collinear or makes a right turn
-            indices.pop_back();
+            --k;
         }
-
-        indices.push_back(sorted_indices_[i]);
+        indices[k++] = sorted_indices_[i];
     }
 
-    // Build the upper hull
-    for (std::size_t i = half_size - 1, t = indices.size() + 1; i > 0; --i)
+    for (std::uint32_t i = n - 1, t = k + 1; i > 0; --i)
     {
-        while (indices.size() >= t &&
-               crossProduct<std::int64_t>(points[indices[indices.size() - 2]],
-                                          points[indices.back()],
-                                          points[sorted_indices_[i - 1]]) <= 0)
+        while (k >= t && orientation(points[indices[k - 2]],
+                                     points[indices[k - 1]],
+                                     points[sorted_indices_[i - 1]]) != Orientation::ANTICLOCKWISE)
         {
-            // Remove the last point because it's collinear or makes a right turn
-            indices.pop_back();
+            --k;
         }
-        indices.push_back(sorted_indices_[i - 1]);
+        indices[k++] = sorted_indices_[i - 1];
     }
 
-    if (config_.contour == PolygonContour::OPEN)
-    {
-        indices.pop_back(); // Remove the last point because it is the same as the first one
-    }
+    indices.resize(k - 1);
+}
 
-    if (config_.orientation == PolygonOrientation::CLOCKWISE)
-    {
-        std::reverse(indices.begin(), indices.end());
-    }
+template <typename PointT>
+void Polygonizer::boundingBox(const std::vector<PointT>& points,
+                              std::vector<std::uint32_t>& indices)
+{
 }
 
 template <typename PointT>
 void Polygonizer::concaveHull(const std::vector<PointT>& points,
                               std::vector<std::uint32_t>& indices)
 {
-    // TODO
 }
 
 } // namespace polygonization

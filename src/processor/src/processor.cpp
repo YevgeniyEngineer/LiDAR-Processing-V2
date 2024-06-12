@@ -110,6 +110,11 @@ class Node final : public rclcpp::Node
                                       segmentation::Segmenter::IMAGE_WIDTH);
         cloud_msg_cache_.data.reserve(MAX_PTS);
 
+        polygonizer_indices_.reserve(MAX_PTS);
+        polygonizer_points_.reserve(MAX_PTS);
+        polygon_msg_cache_.markers.reserve(1000); // Max expected polygons
+        polygon_points_.reserve(100);             // Max points per polygon
+
         RCLCPP_INFO(this->get_logger(), "%s node constructed", this->get_name());
     }
 
@@ -148,6 +153,12 @@ class Node final : public rclcpp::Node
     clustering::Clusterer clusterer_;
     std::vector<clustering::ClusterLabel> clustering_labels_;
     pcl::PointCloud<pcl::PointXYZRGB> clustered_cloud_;
+
+    polygonization::Polygonizer polygonizer_;
+
+    std::vector<std::uint32_t> polygonizer_indices_;
+    std::vector<polygonization::PointXY> polygonizer_points_;
+    std::vector<pcl::PointXYZ> polygon_points_;
 };
 
 static void convertImageToRosMessage(const cv::Mat& cv_image,
@@ -204,6 +215,50 @@ static void convertPCLToPointCloud2(const pcl::PointCloud<pcl::PointXYZRGB>& clo
     cloud_ros.data.resize(byte_size);
     std::memcpy(cloud_ros.data.data(), &cloud_pcl.at(0), byte_size);
 };
+
+template <typename PointT>
+static void convertPolygonPointsToMarker(std::uint32_t polygon_index,
+                                         const std::vector<PointT>& points,
+                                         const std::string& frame_id,
+                                         const builtin_interfaces::msg::Time& stamp,
+                                         visualization_msgs::msg::Marker& marker)
+{
+    marker.points.clear();
+    if (points.size() < 3)
+    {
+        return;
+    }
+    marker.lifetime.sec = 0;
+    marker.lifetime.nanosec = 150'000'000;
+    marker.header.frame_id = frame_id;
+    marker.header.stamp = stamp;
+    marker.ns = "convex_hull";
+    marker.id = polygon_index;
+    marker.type = visualization_msgs::msg::Marker::LINE_STRIP;
+    marker.action = visualization_msgs::msg::Marker::ADD;
+    marker.pose.position.x = 0.0;
+    marker.pose.position.y = 0.0;
+    marker.pose.position.z = 0.0;
+    marker.pose.orientation.x = 0.0;
+    marker.pose.orientation.y = 0.0;
+    marker.pose.orientation.z = 0.0;
+    marker.pose.orientation.w = 1.0;
+    marker.scale.x = 0.1f;
+    marker.color.a = 1.0f;
+    marker.color.r = 1.0f;
+    marker.color.g = 0.0f;
+    marker.color.b = 1.0f;
+    marker.points.reserve(points.size() + 1);
+    for (const auto& point : points)
+    {
+        geometry_msgs::msg::Point point_cache;
+        point_cache.x = point.x;
+        point_cache.y = point.y;
+        point_cache.z = point.z;
+        marker.points.push_back(point_cache);
+    }
+    marker.points.push_back(marker.points[0]);
+}
 
 void Node::topicCallback(const PointCloud2& msg)
 {
@@ -303,6 +358,10 @@ void Node::topicCallback(const PointCloud2& msg)
 
         const auto number_of_points = clustering_labels_.size();
 
+        polygon_msg_cache_.markers.clear();
+
+        std::chrono::steady_clock::duration t_polygonization_total{0};
+
         for (std::int32_t label = 0; label <= max_label; ++label)
         {
             // Generate random RGB values for the current cluster
@@ -310,15 +369,61 @@ void Node::topicCallback(const PointCloud2& msg)
             const auto g = static_cast<std::uint8_t>(std::rand() % 256);
             const auto b = static_cast<std::uint8_t>(std::rand() % 256);
 
+            // Polygonize each cluster simultaneously
+            polygonizer_points_.clear();
+            auto z_min = std::numeric_limits<float>::max();
+
             for (std::uint32_t point_index = 0; point_index < number_of_points; ++point_index)
             {
                 if (clustering_labels_[point_index] == label)
                 {
                     const auto& point = obstacle_cloud_[point_index];
                     clustered_cloud_.push_back({point.x, point.y, point.z, r, g, b});
+
+                    polygonizer_points_.push_back({point.x, point.y});
+
+                    if (point.z < z_min)
+                    {
+                        z_min = point.z;
+                    }
                 }
             }
+
+            const auto t_polygonization_start = std::chrono::steady_clock::now();
+
+            // Polygonize current cluster
+            polygonizer_.convexHull(polygonizer_points_, polygonizer_indices_);
+
+            // Transfer to a simplified polygon
+            polygon_points_.clear();
+            for (const auto& index : polygonizer_indices_)
+            {
+                const auto& point = polygonizer_points_[index];
+                polygon_points_.emplace_back(point.x, point.y, static_cast<double>(z_min));
+            }
+
+            const auto t_polygonization_stop = std::chrono::steady_clock::now();
+            t_polygonization_total += (t_polygonization_stop - t_polygonization_start);
+
+            // Convert to marker
+            polygon_msg_cache_.markers.resize(polygon_msg_cache_.markers.size() + 1);
+
+            convertPolygonPointsToMarker(label,
+                                         polygon_points_,
+                                         msg.header.frame_id,
+                                         msg.header.stamp,
+                                         polygon_msg_cache_.markers.back());
+
+            if (polygon_msg_cache_.markers.back().points.empty())
+            {
+                polygon_msg_cache_.markers.pop_back();
+            }
         }
+
+        RCLCPP_INFO(
+            this->get_logger(),
+            "Polygonization time [ms]: %ld",
+            std::chrono::duration_cast<std::chrono::milliseconds>(t_polygonization_total).count());
     }
     else
     {
@@ -373,6 +478,10 @@ void Node::topicCallback(const PointCloud2& msg)
         cloud_msg_cache_.is_bigendian = msg.is_bigendian;
         convertPCLToPointCloud2(clustered_cloud_, cloud_msg_cache_);
         clustered_cloud_publisher_->publish(cloud_msg_cache_);
+
+        { // Polygonizer
+            obstacle_outlines_publisher_->publish(polygon_msg_cache_);
+        }
     }
 }
 
