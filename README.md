@@ -77,6 +77,25 @@ The implementation is based on ["Curved-Voxel Clustering for Accurate Segmentati
 
 ![clustering_2](https://github.com/YevgeniyEngineer/LiDAR-Processing-V2/blob/main/images/clustering_2.png)
 
+## Polygonization
+
+![segmentation](https://github.com/YevgeniyEngineer/LiDAR-Processing-V2/blob/main/images/polygonization_teaser.gif)
+
+Obstacle clusters are further simplified by calculating the outer contour (polygon) of the point cluster.
+
+There are three main types of simple polygons considered:
+
+- Convex hull
+- Oriented bounding box
+- Concave hull
+
+The simplified obstacle contours can be used for:
+
+- Filtering obstacles by size
+- Obstacle tracking
+- Collision detection
+- Dynamic path planning
+
 ## Enable Required Extensions in VSCode
 
 ```bash
