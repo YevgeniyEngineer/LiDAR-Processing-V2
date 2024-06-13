@@ -243,7 +243,7 @@ static void convertPolygonPointsToMarker(std::uint32_t polygon_index,
     marker.lifetime.nanosec = 150'000'000;
     marker.header.frame_id = frame_id;
     marker.header.stamp = stamp;
-    marker.ns = "convex_hull";
+    marker.ns = "boundary";
     marker.id = polygon_index;
     marker.type = visualization_msgs::msg::Marker::LINE_LIST;
     marker.action = visualization_msgs::msg::Marker::ADD;
@@ -539,10 +539,11 @@ void Node::topicCallback(const PointCloud2& msg)
         cloud_msg_cache_.is_bigendian = msg.is_bigendian;
         convertPCLToPointCloud2(clustered_cloud_, cloud_msg_cache_);
         clustered_cloud_publisher_->publish(cloud_msg_cache_);
+    }
 
-        { // Polygonizer
-            obstacle_outlines_publisher_->publish(polygon_msg_cache_);
-        }
+    if (!polygon_msg_cache_.markers.empty())
+    {
+        obstacle_outlines_publisher_->publish(polygon_msg_cache_);
     }
 }
 
