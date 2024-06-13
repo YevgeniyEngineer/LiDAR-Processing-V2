@@ -163,7 +163,7 @@ class Node final : public rclcpp::Node
 
     std::vector<std::uint32_t> polygonizer_indices_;
     std::vector<polygonization::PointXY> polygonizer_points_;
-    std::vector<pcl::PointXYZ> polygon_points_;
+    std::vector<polygonization::PointXY> polygon_points_;
 };
 
 static void convertImageToRosMessage(const cv::Mat& cv_image,
@@ -221,25 +221,31 @@ static void convertPCLToPointCloud2(const pcl::PointCloud<pcl::PointXYZRGB>& clo
     std::memcpy(cloud_ros.data.data(), &cloud_pcl.at(0), byte_size);
 };
 
-template <typename PointT>
 static void convertPolygonPointsToMarker(std::uint32_t polygon_index,
-                                         const std::vector<PointT>& points,
+                                         double z_min,
+                                         double z_max,
+                                         const std::vector<polygonization::PointXY>& points,
                                          const std::string& frame_id,
                                          const builtin_interfaces::msg::Time& stamp,
                                          visualization_msgs::msg::Marker& marker)
 {
+    // Clean cache
     marker.points.clear();
+
+    // Check if a valid polygon
     if (points.size() < 3)
     {
         return;
     }
+
+    // Set metadata
     marker.lifetime.sec = 0;
     marker.lifetime.nanosec = 150'000'000;
     marker.header.frame_id = frame_id;
     marker.header.stamp = stamp;
     marker.ns = "convex_hull";
     marker.id = polygon_index;
-    marker.type = visualization_msgs::msg::Marker::LINE_STRIP;
+    marker.type = visualization_msgs::msg::Marker::LINE_LIST;
     marker.action = visualization_msgs::msg::Marker::ADD;
     marker.pose.position.x = 0.0;
     marker.pose.position.y = 0.0;
@@ -253,16 +259,59 @@ static void convertPolygonPointsToMarker(std::uint32_t polygon_index,
     marker.color.r = 1.0f;
     marker.color.g = 0.0f;
     marker.color.b = 1.0f;
-    marker.points.reserve(points.size() + 1);
+
+    // Preallocate memory
+    const std::size_t num_horizontal_lines = 2 * points.size();
+    const std::size_t num_vertical_lines = points.size();
+    const std::size_t num_pts_3d_line_list = 2 * num_horizontal_lines + 2 * num_vertical_lines;
+    marker.points.reserve(num_pts_3d_line_list);
+
+    // Lambda function to help generating flat boundaries
+    const auto generateHorizontalBoundary = [&marker, &points](double z) -> void {
+        for (std::size_t i = 1; i < points.size(); ++i)
+        {
+            const auto& prev_point = points[i - 1];
+            const auto& curr_point = points[i];
+            geometry_msgs::msg::Point point_cache;
+            point_cache.z = z;
+            point_cache.x = prev_point.x;
+            point_cache.y = prev_point.y;
+            marker.points.push_back(point_cache);
+            point_cache.x = curr_point.x;
+            point_cache.y = curr_point.y;
+            marker.points.push_back(point_cache);
+        }
+        const auto& prev_point = points.back();
+        const auto& curr_point = points.front();
+        geometry_msgs::msg::Point point_cache;
+        point_cache.z = z;
+        point_cache.x = prev_point.x;
+        point_cache.y = prev_point.y;
+        marker.points.push_back(point_cache);
+        point_cache.x = curr_point.x;
+        point_cache.y = curr_point.y;
+        marker.points.push_back(point_cache);
+    };
+
+    // Bottom boundary
+    generateHorizontalBoundary(z_min);
+
+    // Top boundary
+    generateHorizontalBoundary(z_max);
+
+    // Vertical lines connecting bottom and top boundaries
     for (const auto& point : points)
     {
         geometry_msgs::msg::Point point_cache;
+        point_cache.z = z_min;
         point_cache.x = point.x;
         point_cache.y = point.y;
-        point_cache.z = point.z;
+        marker.points.push_back(point_cache);
+        point_cache.z = z_max;
+        point_cache.x = point.x;
+        point_cache.y = point.y;
         marker.points.push_back(point_cache);
     }
-    marker.points.push_back(marker.points[0]);
 }
 
 void Node::topicCallback(const PointCloud2& msg)
@@ -376,7 +425,9 @@ void Node::topicCallback(const PointCloud2& msg)
 
             // Polygonize each cluster simultaneously
             polygonizer_points_.clear();
-            auto z_min = std::numeric_limits<float>::max();
+
+            auto z_min = std::numeric_limits<double>::max();
+            auto z_max = std::numeric_limits<double>::lowest();
 
             for (std::uint32_t point_index = 0; point_index < number_of_points; ++point_index)
             {
@@ -391,6 +442,10 @@ void Node::topicCallback(const PointCloud2& msg)
                     {
                         z_min = point.z;
                     }
+                    if (point.z > z_max)
+                    {
+                        z_max = point.z;
+                    }
                 }
             }
 
@@ -403,8 +458,7 @@ void Node::topicCallback(const PointCloud2& msg)
             polygon_points_.clear();
             for (const auto& index : polygonizer_indices_)
             {
-                const auto& point = polygonizer_points_[index];
-                polygon_points_.emplace_back(point.x, point.y, static_cast<double>(z_min));
+                polygon_points_.push_back(polygonizer_points_[index]);
             }
 
             const auto t_polygonization_stop = std::chrono::steady_clock::now();
@@ -414,6 +468,8 @@ void Node::topicCallback(const PointCloud2& msg)
             polygon_msg_cache_.markers.resize(polygon_msg_cache_.markers.size() + 1);
 
             convertPolygonPointsToMarker(label,
+                                         z_min,
+                                         z_max,
                                          polygon_points_,
                                          msg.header.frame_id,
                                          msg.header.stamp,
