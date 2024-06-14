@@ -56,12 +56,13 @@
 // OpenCV
 #include <opencv2/opencv.hpp>
 
-namespace processor
+namespace processing
 {
 class Processor final : public rclcpp::Node
 {
   public:
     static constexpr const char* NODE_NAME = "processor";
+    static constexpr std::int64_t WAIT_SET_TIME_MS = 150;
     static constexpr std::size_t MAX_PTS = 200'000U;
 
     using PointFieldTypes = pcl::PCLPointField::PointFieldTypes;
@@ -119,6 +120,6 @@ class Processor final : public rclcpp::Node
     std::vector<polygonization::PointXY> polygon_points_;
 };
 
-} // namespace processor
+} // namespace processing
 
 #endif // PROCESSOR_HPP

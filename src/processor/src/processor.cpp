@@ -27,13 +27,14 @@
 #include <chrono>
 #include <cstring>
 #include <limits>
+#include <memory>
 #include <random>
 #include <tuple>
 
 // ROS2
 #include <rclcpp/qos.hpp>
 
-namespace processor
+namespace processing
 {
 static void convertImageToRosMessage(const cv::Mat& cv_image,
                                      std::int32_t seconds,
@@ -188,7 +189,8 @@ static void convertPolygonPointsToMarker(std::uint32_t polygon_index,
     }
 }
 
-Processor::Processor() : rclcpp::Node{NODE_NAME}
+Processor::Processor()
+    : rclcpp::Node{NODE_NAME, rclcpp::NodeOptions().use_intra_process_comms(true)}
 {
     using std::placeholders::_1;
 
@@ -254,8 +256,8 @@ void Processor::run(const PointCloud2& msg)
     input_cloud_.header.frame_id = msg.header.frame_id;
     input_cloud_.width = msg.width;
     input_cloud_.height = msg.height;
-    input_cloud_.header.stamp = static_cast<std::uint64_t>(static_cast<std::uint64_t>(
-        std::round(msg.header.stamp.sec * 1.0e9 + msg.header.stamp.nanosec) / 1.0e3));
+    input_cloud_.header.stamp = static_cast<std::uint64_t>(
+        std::round(msg.header.stamp.sec * 1.0e9 + msg.header.stamp.nanosec) / 1.0e3);
 
     input_cloud_.points.resize(msg.height * msg.width);
     const auto point_step = msg.point_step;
@@ -480,7 +482,7 @@ void Processor::run(const PointCloud2& msg)
         obstacle_outlines_publisher_->publish(polygon_msg_cache_);
     }
 }
-} // namespace processor
+} // namespace processing
 
 std::int32_t main(std::int32_t argc, const char* const* argv)
 {
@@ -491,13 +493,13 @@ std::int32_t main(std::int32_t argc, const char* const* argv)
 
     try
     {
-        const auto node = std::make_shared<processor::Processor>();
+        const auto node = std::make_shared<processing::Processor>();
         const auto subscriber = node->inputCloudSubscriber();
 
         sensor_msgs::msg::PointCloud2 msg;
         rclcpp::MessageInfo msg_info;
 
-        msg.data.reserve(200'000 * sizeof(pcl::PointXYZIR));
+        msg.data.reserve(processing::Processor::MAX_PTS * sizeof(pcl::PointXYZIR));
 
         rclcpp::WaitSet wait_set;
 
@@ -505,7 +507,8 @@ std::int32_t main(std::int32_t argc, const char* const* argv)
 
         while (rclcpp::ok())
         {
-            const auto wait_result = wait_set.wait(std::chrono::milliseconds(120));
+            const auto wait_result =
+                wait_set.wait(std::chrono::milliseconds(processing::Processor::WAIT_SET_TIME_MS));
 
             if (wait_result.kind() == rclcpp::WaitResultKind::Ready)
             {

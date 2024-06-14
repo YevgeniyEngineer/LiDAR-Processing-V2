@@ -18,9 +18,11 @@ add_executable(${PROJECT_NAME}
 )
 
 # Include directories for the target
-target_include_directories(${PROJECT_NAME} PRIVATE
-    ${PCL_INCLUDE_DIRS}
-    ${rclcpp_INCLUDE_DIRS}
+target_include_directories(${PROJECT_NAME}
+    PRIVATE
+        ${PCL_INCLUDE_DIRS}
+        ${rclcpp_INCLUDE_DIRS}
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
 # Define dependencies for the target
@@ -37,8 +39,9 @@ target_link_libraries(${PROJECT_NAME}
 )
 
 # Add PCL definitions to the target
-target_compile_definitions(${PROJECT_NAME} PRIVATE
-    ${PCL_DEFINITIONS}
+target_compile_definitions(${PROJECT_NAME}
+    PRIVATE
+        ${PCL_DEFINITIONS}
 )
 
 # Install the executable (ROS2 convention)
