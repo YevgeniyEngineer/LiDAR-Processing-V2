@@ -71,7 +71,12 @@ class Processor final : public rclcpp::Node
 
     Processor();
 
-    void topicCallback(const PointCloud2& msg);
+    void run(const PointCloud2& msg);
+
+    const rclcpp::Subscription<PointCloud2>::SharedPtr& inputCloudSubscriber() const noexcept
+    {
+        return input_cloud_subscriber_;
+    }
 
   private:
     std::string input_cloud_topic_;

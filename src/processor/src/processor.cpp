@@ -211,7 +211,9 @@ Processor::Processor() : rclcpp::Node{NODE_NAME}
     input_cloud_subscriber_ =
         this->create_subscription<PointCloud2>(input_cloud_topic_,
                                                rclcpp::QoS(2).reliable().durability_volatile(),
-                                               std::bind(&Processor::topicCallback, this, _1));
+                                               [](const PointCloud2& msg) -> void {
+                                                   // Callback does nothing
+                                               });
 
     ground_cloud_publisher_ = this->create_publisher<PointCloud2>(
         ground_cloud_topic_, rclcpp::QoS(2).reliable().durability_volatile());
@@ -245,7 +247,7 @@ Processor::Processor() : rclcpp::Node{NODE_NAME}
     RCLCPP_INFO(this->get_logger(), "%s node constructed", this->get_name());
 }
 
-void Processor::topicCallback(const PointCloud2& msg)
+void Processor::run(const PointCloud2& msg)
 {
     // Convert point cloud from sensor_msgs::msg::PointCloud2 to pcl::PointCloud<pcl::PointXYZIR>
     input_cloud_.clear();
@@ -489,7 +491,30 @@ std::int32_t main(std::int32_t argc, const char* const* argv)
 
     try
     {
-        rclcpp::spin(std::make_shared<processor::Processor>());
+        const auto node = std::make_shared<processor::Processor>();
+        const auto subscriber = node->inputCloudSubscriber();
+
+        sensor_msgs::msg::PointCloud2 msg;
+        rclcpp::MessageInfo msg_info;
+
+        msg.data.reserve(200'000 * sizeof(pcl::PointXYZIR));
+
+        rclcpp::WaitSet wait_set;
+
+        wait_set.add_subscription(subscriber);
+
+        while (rclcpp::ok())
+        {
+            const auto wait_result = wait_set.wait(std::chrono::milliseconds(120));
+
+            if (wait_result.kind() == rclcpp::WaitResultKind::Ready)
+            {
+                if (subscriber->take(msg, msg_info))
+                {
+                    node->run(msg);
+                }
+            }
+        }
     }
     catch (const std::exception& e)
     {
