@@ -86,7 +86,7 @@ Obstacle clusters are further simplified by calculating the outer contour (polyg
 There are three main types of simple polygons considered:
 
 - Convex hull (Andrew's Monotone Chain) [Implemented]
-- Oriented bounding box (Rotating Calipers) [Not implemented]
+- Oriented bounding box (Rotating Calipers and Principal Component Analysis) [Implemented]
 - Concave hull (X-Shape Concave Hull) [Not implemented]
 
 The simplified obstacle contours can be used for:
