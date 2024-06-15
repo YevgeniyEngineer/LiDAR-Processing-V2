@@ -464,7 +464,11 @@ void Processor::run(const PointCloud2& msg)
             bool is_bounding_box = false;
             const auto obstacle_height = z_max - z_min;
 
-            if (polygon_points_.size() > 3 && obstacle_height > 1.0 && obstacle_height < 3.5)
+            // TODO: Implement a vehicle template to compare bounding box against
+
+            // Should have a valid hull, cluster should not be small, height should be reasonable
+            if (polygon_points_.size() >= 3 && polygonizer_points_.size() > 150 &&
+                obstacle_height > 1.0 && obstacle_height < 3.0)
             {
                 const auto polygon_area = polygonization::polygonArea(polygon_points_);
                 const auto polygon_volume = polygon_area * obstacle_height;
