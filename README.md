@@ -79,15 +79,15 @@ The implementation is based on ["Curved-Voxel Clustering for Accurate Segmentati
 
 ## Polygonization
 
-![segmentation](https://github.com/YevgeniyEngineer/LiDAR-Processing-V2/blob/main/images/polygonization_teaser.gif)
+![polygonization](https://github.com/YevgeniyEngineer/LiDAR-Processing-V2/blob/main/images/polygonization_teaser.gif)
 
 Obstacle clusters are further simplified by calculating the outer contour (polygon) of the point cluster.
 
 There are three main types of simple polygons considered:
 
-- Convex hull
-- Oriented bounding box
-- Concave hull
+- Convex hull (Andrew's Monotone Chain) [Implemented]
+- Oriented bounding box (Rotating Calipers) [Not implemented]
+- Concave hull (X-Shape Concave Hull) [Not implemented]
 
 The simplified obstacle contours can be used for:
 
