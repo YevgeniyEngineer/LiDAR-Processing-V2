@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
 
 # Project name
 project(processor)
+include(CTest) # This enables the BUILD_TESTING option
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
@@ -72,5 +73,25 @@ install(DIRECTORY config
 install(DIRECTORY launch
     DESTINATION share/${PROJECT_NAME}
 )
+
+# Unit testing
+if (BUILD_TESTING)
+    find_package(ament_lint_auto REQUIRED)
+    find_package(ament_cmake_gtest REQUIRED)
+
+    # Define the test executable and the source files for the test
+    ament_add_gtest(test_containers
+        tests/test_circular_deque.cpp
+    )
+
+    # Link the test executable
+    target_include_directories(test_containers
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src
+    )
+
+    # Automatically find and add linters to the test dependencies
+    ament_lint_auto_find_test_dependencies()
+endif()
 
 ament_package()
