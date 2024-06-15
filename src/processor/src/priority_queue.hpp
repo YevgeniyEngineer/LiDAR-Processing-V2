@@ -23,11 +23,11 @@
 #ifndef CONTAINERS__PRIORITY_QUEUE_HPP
 #define CONTAINERS__PRIORITY_QUEUE_HPP
 
-#include "vector.hpp"
-
 // STL
 #include <algorithm>
 #include <functional>
+#include <stdexcept>
+#include <vector>
 
 namespace containers
 {
@@ -52,7 +52,7 @@ class PriorityQueue final
     const T& top() const;
 
   private:
-    containers::Vector<T> buffer_;
+    std::vector<T> buffer_;
     Comparator comp_;
 };
 
@@ -63,32 +63,32 @@ PriorityQueue<T, Comparator>::PriorityQueue(Comparator comp) : comp_(comp)
 }
 
 template <typename T, typename Comparator>
-void PriorityQueue<T, Comparator>::reserve(std::size_t new_capacity)
+inline void PriorityQueue<T, Comparator>::reserve(std::size_t new_capacity)
 {
     buffer_.reserve(new_capacity);
 }
 
 template <typename T, typename Comparator>
-bool PriorityQueue<T, Comparator>::empty() const noexcept
+inline bool PriorityQueue<T, Comparator>::empty() const noexcept
 {
     return buffer_.empty();
 }
 
 template <typename T, typename Comparator>
-std::size_t PriorityQueue<T, Comparator>::size() const noexcept
+inline std::size_t PriorityQueue<T, Comparator>::size() const noexcept
 {
     return buffer_.size();
 }
 
 template <typename T, typename Comparator>
-void PriorityQueue<T, Comparator>::push(const T& value)
+inline void PriorityQueue<T, Comparator>::push(const T& value)
 {
     buffer_.push_back(value);
     std::push_heap(buffer_.begin(), buffer_.end(), comp_);
 }
 
 template <typename T, typename Comparator>
-void PriorityQueue<T, Comparator>::push(T&& value)
+inline void PriorityQueue<T, Comparator>::push(T&& value)
 {
     buffer_.push_back(std::move(value));
     std::push_heap(buffer_.begin(), buffer_.end(), comp_);
@@ -96,14 +96,14 @@ void PriorityQueue<T, Comparator>::push(T&& value)
 
 template <typename T, typename Comparator>
 template <typename... Args>
-void PriorityQueue<T, Comparator>::emplace(Args&&... args)
+inline void PriorityQueue<T, Comparator>::emplace(Args&&... args)
 {
     buffer_.emplace_back(std::forward<Args>(args)...);
     std::push_heap(buffer_.begin(), buffer_.end(), comp_);
 }
 
 template <typename T, typename Comparator>
-void PriorityQueue<T, Comparator>::pop()
+inline void PriorityQueue<T, Comparator>::pop()
 {
     if (empty())
     {
@@ -114,7 +114,7 @@ void PriorityQueue<T, Comparator>::pop()
 }
 
 template <typename T, typename Comparator>
-bool PriorityQueue<T, Comparator>::try_pop() noexcept
+inline bool PriorityQueue<T, Comparator>::try_pop() noexcept
 {
     if (empty())
     {
@@ -125,7 +125,7 @@ bool PriorityQueue<T, Comparator>::try_pop() noexcept
 }
 
 template <typename T, typename Comparator>
-T& PriorityQueue<T, Comparator>::top()
+inline T& PriorityQueue<T, Comparator>::top()
 {
     if (empty())
     {
@@ -135,7 +135,7 @@ T& PriorityQueue<T, Comparator>::top()
 }
 
 template <typename T, typename Comparator>
-const T& PriorityQueue<T, Comparator>::top() const
+inline const T& PriorityQueue<T, Comparator>::top() const
 {
     if (empty())
     {

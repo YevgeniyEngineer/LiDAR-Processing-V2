@@ -231,6 +231,11 @@ Processor::Processor()
         obstacle_outlines_topic_, rclcpp::QoS(2).reliable().durability_volatile());
 
     // Reserve memory
+    noise_remover_.reserve(MAX_PTS);
+    noise_remover_points_.reserve(MAX_PTS);
+    noise_remover_labels_.reserve(MAX_PTS);
+    denoised_input_cloud_.reserve(MAX_PTS);
+
     input_cloud_.points.reserve(MAX_PTS);
     ground_cloud_.points.reserve(MAX_PTS);
     obstacle_cloud_.points.reserve(MAX_PTS);
@@ -280,6 +285,50 @@ void Processor::run(const PointCloud2& msg)
                 *reinterpret_cast<const std::uint16_t*>(&msg.data[offset + msg.fields[4].offset]);
         }
     }
+
+    // // Noise removal
+    // {
+    //     const auto t_noise_removal_start = std::chrono::steady_clock::now();
+
+    //     noise_remover_points_.reserve(input_cloud_.points.size());
+    //     noise_remover_points_.clear();
+
+    //     for (const auto& point : input_cloud_.points)
+    //     {
+    //         noise_remover_points_.push_back({point.x, point.y, point.z});
+    //     }
+
+    //     noise_remover_.filter(noise_remover_points_, noise_remover_labels_);
+
+    //     denoised_input_cloud_.reserve(input_cloud_.points.size());
+    //     denoised_input_cloud_.clear();
+
+    //     for (std::uint32_t point_index = 0; point_index < noise_remover_points_.size();
+    //          ++point_index)
+    //     {
+    //         if (noise_remover_labels_[point_index] == noise_removal::NoiseRemoverLabel::VALID)
+    //         {
+    //             denoised_input_cloud_.points.push_back(input_cloud_.points[point_index]);
+    //         }
+    //     }
+
+    //     denoised_input_cloud_.height = 1;
+    //     denoised_input_cloud_.width = denoised_input_cloud_.points.size();
+    //     denoised_input_cloud_.header = input_cloud_.header;
+    //     denoised_input_cloud_.is_dense = input_cloud_.is_dense;
+
+    //     const auto t_noise_removal_stop = std::chrono::steady_clock::now();
+    //     const auto t_noise_removal_elapsed =
+    //     std::chrono::duration_cast<std::chrono::milliseconds>(
+    //                                              t_noise_removal_stop - t_noise_removal_start)
+    //                                              .count();
+
+    //     RCLCPP_INFO(this->get_logger(), "Noise removal time [ms]: %ld", t_noise_removal_elapsed);
+    //     RCLCPP_INFO(this->get_logger(),
+    //                 "Size before filtering: %lu | after filtering: %lu | num removed points:
+    //                 %lu", input_cloud_.size(), denoised_input_cloud_.size(), input_cloud_.size()
+    //                 - denoised_input_cloud_.size());
+    // }
 
     // Ground segmentation
     const auto t_segmentation_start = std::chrono::steady_clock::now();

@@ -24,6 +24,7 @@ add_subdirectory(./src/unordered_dense)
 
 # Add executable
 add_executable(${PROJECT_NAME}
+    src/noise_remover.cpp
     src/segmenter.cpp
     src/clusterer.cpp
     src/polygonizer.cpp

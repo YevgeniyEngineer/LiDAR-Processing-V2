@@ -23,6 +23,9 @@
 #ifndef PROCESSOR_HPP
 #define PROCESSOR_HPP
 
+// Noise Remover
+#include "noise_remover.hpp"
+
 // Segmenter
 #include "segmenter.hpp"
 
@@ -102,6 +105,11 @@ class Processor final : public rclcpp::Node
     rclcpp::Publisher<MarkerArray>::SharedPtr obstacle_outlines_publisher_;
 
     pcl::PointCloud<pcl::PointXYZIR> input_cloud_;
+
+    noise_removal::NoiseRemover noise_remover_;
+    std::vector<noise_removal::NoiseRemover::PointT> noise_remover_points_;
+    std::vector<noise_removal::NoiseRemoverLabel> noise_remover_labels_;
+    pcl::PointCloud<pcl::PointXYZIR> denoised_input_cloud_;
 
     segmentation::Segmenter segmenter_;
     std::vector<segmentation::Label> segmentation_labels_;

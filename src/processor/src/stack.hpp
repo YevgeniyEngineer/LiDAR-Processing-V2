@@ -23,10 +23,10 @@
 #ifndef CONTAINERS__STACK_HPP
 #define CONTAINERS__STACK_HPP
 
-#include <cstddef>
-#include <memory>
+#include <cstdint>
 #include <stdexcept>
 #include <utility>
+#include <vector>
 
 namespace containers
 {
@@ -36,9 +36,8 @@ class Stack final
   public:
     using value_type = T;
 
-    Stack();
+    Stack() = default;
     explicit Stack(std::size_t initial_capacity);
-    ~Stack() noexcept;
 
     Stack(const Stack&) = delete;
     Stack& operator=(const Stack&) = delete;
@@ -59,150 +58,97 @@ class Stack final
     const T& top() const;
 
   private:
-    std::unique_ptr<T[]> buffer_;
-    std::size_t size_;
-    std::size_t capacity_;
-
-    void resize(std::size_t new_capacity);
-    void clear() noexcept;
+    std::vector<T> buffer_;
 };
 
 template <typename T>
-Stack<T>::Stack() : Stack(1)
-{
-}
-
-template <typename T>
 Stack<T>::Stack(std::size_t initial_capacity)
-    : buffer_(std::make_unique<T[]>(initial_capacity)), size_(0), capacity_(initial_capacity)
 {
+    buffer_.reserve(initial_capacity);
 }
 
 template <typename T>
-Stack<T>::~Stack() noexcept
+inline void Stack<T>::reserve(std::size_t new_capacity)
 {
-    clear();
+    buffer_.reserve(new_capacity);
 }
 
 template <typename T>
-void Stack<T>::reserve(std::size_t new_capacity)
+inline bool Stack<T>::empty() const noexcept
 {
-    resize(new_capacity);
+    return buffer_.empty();
 }
 
 template <typename T>
-bool Stack<T>::empty() const noexcept
+inline std::size_t Stack<T>::size() const noexcept
 {
-    return size_ == 0;
+    return buffer_.size();
 }
 
 template <typename T>
-std::size_t Stack<T>::size() const noexcept
+inline std::size_t Stack<T>::capacity() const noexcept
 {
-    return size_;
+    return buffer_.capacity();
 }
 
 template <typename T>
-std::size_t Stack<T>::capacity() const noexcept
+inline void Stack<T>::push(const T& value)
 {
-    return capacity_;
+    buffer_.push_back(value);
 }
 
 template <typename T>
-void Stack<T>::push(const T& value)
+inline void Stack<T>::push(T&& value)
 {
-    emplace(value);
-}
-
-template <typename T>
-void Stack<T>::push(T&& value)
-{
-    emplace(std::move(value));
+    buffer_.push_back(std::move(value));
 }
 
 template <typename T>
 template <typename... Args>
-void Stack<T>::emplace(Args&&... args)
+inline void Stack<T>::emplace(Args&&... args)
 {
-    if (size_ >= capacity_)
-    {
-        resize(capacity_ * 2); // Double the capacity
-    }
-    ::new (&buffer_[size_]) T(std::forward<Args>(args)...);
-    ++size_;
+    buffer_.emplace_back(std::forward<Args>(args)...);
 }
 
 template <typename T>
-void Stack<T>::pop()
+inline void Stack<T>::pop()
 {
-    if (empty())
+    if (!empty())
     {
         throw std::out_of_range("Stack::pop(): stack is empty");
     }
-    buffer_[size_ - 1].~T(); // Call destructor for the element
-    --size_;
+    buffer_.pop_back();
 }
 
 template <typename T>
-bool Stack<T>::try_pop() noexcept
+inline bool Stack<T>::try_pop() noexcept
 {
     if (empty())
     {
         return false;
     }
-    buffer_[size_ - 1].~T(); // Call destructor for the element
-    --size_;
+    buffer_.pop_back();
     return true;
 }
 
 template <typename T>
-T& Stack<T>::top()
+inline T& Stack<T>::top()
 {
     if (empty())
     {
         throw std::out_of_range("Stack::top(): stack is empty");
     }
-    return buffer_[size_ - 1];
+    return buffer_.back();
 }
 
 template <typename T>
-const T& Stack<T>::top() const
+inline const T& Stack<T>::top() const
 {
     if (empty())
     {
         throw std::out_of_range("Stack::top(): stack is empty");
     }
-    return buffer_[size_ - 1];
-}
-
-template <typename T>
-void Stack<T>::resize(std::size_t new_capacity)
-{
-    if (new_capacity <= capacity_)
-    {
-        return; // Only resize if the new capacity is larger
-    }
-
-    auto new_buffer = std::make_unique<T[]>(new_capacity);
-
-    for (std::size_t i = 0; i < size_; ++i)
-    {
-        ::new (&new_buffer[i]) T(std::move(buffer_[i]));
-
-        buffer_[i].~T(); // Call destructor for the element
-    }
-
-    buffer_ = std::move(new_buffer);
-    capacity_ = new_capacity;
-}
-
-template <typename T>
-void Stack<T>::clear() noexcept
-{
-    while (size_ > 0)
-    {
-        static_cast<void>(try_pop());
-    }
+    return buffer_.back();
 }
 
 } // namespace containers
