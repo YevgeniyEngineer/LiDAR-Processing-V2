@@ -24,7 +24,6 @@
 #define CONTAINERS__CIRCULAR_DEQUE_HPP
 
 #include <cstdint>
-#include <iostream>
 #include <memory>
 #include <stdexcept>
 
@@ -37,7 +36,6 @@ class CircularDeque final
     static constexpr auto MAX_SIZE = MaxSize;
 
     CircularDeque();
-
     ~CircularDeque() noexcept;
 
     CircularDeque(const CircularDeque& other) = delete;
@@ -147,8 +145,6 @@ inline void CircularDeque<T, MaxSize>::push_front(const T& key)
         --front_;
     }
 
-    std::cerr << "Front: " << front_ << " Rear: " << rear_ << std::endl;
-
     data_[front_] = key;
     ++size_;
 }
@@ -177,8 +173,6 @@ inline void CircularDeque<T, MaxSize>::push_back(const T& key)
         // Increment rear end by 1
         ++rear_;
     }
-
-    std::cerr << "Front: " << front_ << " Rear: " << rear_ << std::endl;
 
     data_[rear_] = key;
     size_++;
@@ -209,8 +203,6 @@ inline void CircularDeque<T, MaxSize>::pop_front()
         ++front_;
     }
 
-    std::cerr << "Front: " << front_ << " Rear: " << rear_ << std::endl;
-
     --size_;
 }
 
@@ -236,8 +228,6 @@ inline void CircularDeque<T, MaxSize>::pop_back()
     {
         --rear_;
     }
-
-    std::cerr << "Front: " << front_ << " Rear: " << rear_ << std::endl;
 
     --size_;
 }

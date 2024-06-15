@@ -30,14 +30,20 @@
 
 namespace containers
 {
-template <typename T, std::size_t Capacity>
+template <typename T, std::size_t MaxSize>
 class CircularQueue
 {
   public:
-    static constexpr std::size_t CAPACITY = Capacity;
+    static constexpr std::size_t MAX_SIZE = MaxSize;
 
-    CircularQueue() : data_{std::make_unique<T[]>(CAPACITY)}
+    CircularQueue()
     {
+        data_ = new T[MAX_SIZE];
+    }
+
+    ~CircularQueue() noexcept
+    {
+        delete[] data_;
     }
 
     // For non-primite types: pass by const reference
@@ -58,67 +64,67 @@ class CircularQueue
     template <typename U = T>
     inline typename std::enable_if_t<std::is_fundamental_v<U>, bool> push(T value) noexcept
     {
-        if (size_ == CAPACITY)
+        if (size_ == MAX_SIZE)
         {
             return false;
         }
         data_[rear_] = value;
-        rear_ = (rear_ + 1 == CAPACITY) ? 0 : rear_ + 1;
+        rear_ = (rear_ + 1 == MAX_SIZE) ? 0 : (rear_ + 1);
         ++size_;
         return true;
     }
 
-    bool pop() noexcept
+    inline bool pop() noexcept
     {
         if (size_ == 0)
         {
             return false;
         }
-        front_ = (front_ + 1 == CAPACITY) ? 0 : front_ + 1;
+        front_ = (front_ + 1 == MAX_SIZE) ? 0 : (front_ + 1);
         --size_;
         return true;
     }
 
-    T& front() noexcept
+    inline T& front() noexcept
     {
         return data_[front_];
     }
 
-    const T& front() const noexcept
+    inline const T& front() const noexcept
     {
         return data_[front_];
     }
 
-    bool empty() const noexcept
+    inline bool empty() const noexcept
     {
         return size_ == 0;
     }
 
-    std::size_t size() const noexcept
+    inline std::size_t size() const noexcept
     {
         return size_;
     }
 
-    std::size_t capacity() const noexcept
+    inline std::size_t max_size() const noexcept
     {
-        return CAPACITY;
+        return MAX_SIZE;
     }
 
   private:
     std::size_t front_{0};
     std::size_t rear_{0};
     std::size_t size_{0};
-    std::unique_ptr<T[]> data_;
+    T* data_;
 
     template <typename U>
     inline bool push_impl(U&& value) noexcept
     {
-        if (size_ == CAPACITY)
+        if (size_ == MAX_SIZE)
         {
             return false;
         }
         data_[rear_] = std::forward<U>(value);
-        rear_ = (rear_ + 1 == CAPACITY) ? 0 : rear_ + 1;
+        rear_ = (rear_ + 1 == MAX_SIZE) ? 0 : rear_ + 1;
         ++size_;
         return true;
     }
