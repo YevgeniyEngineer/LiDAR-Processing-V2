@@ -73,13 +73,13 @@ class Polygonizer final
     Polygonizer() = default;
 
     template <typename PointT>
-    void boundingBox(const std::vector<PointT>& points, std::vector<std::uint32_t>& indices);
+    void boundingBox(const std::vector<PointT>& points, std::vector<std::int32_t>& indices);
 
     template <typename PointT>
-    void convexHull(const std::vector<PointT>& points, std::vector<std::uint32_t>& indices);
+    void convexHull(const std::vector<PointT>& points, std::vector<std::int32_t>& indices);
 
     template <typename PointT>
-    void concaveHull(const std::vector<PointT>& points, std::vector<std::uint32_t>& indices);
+    void concaveHull(const std::vector<PointT>& points, std::vector<std::int32_t>& indices);
 
     void config(const Configuration& config)
     {
@@ -96,7 +96,7 @@ class Polygonizer final
   private:
     Configuration config_;
 
-    std::vector<std::uint32_t> sorted_indices_;
+    std::vector<std::int32_t> sorted_indices_;
 };
 
 template <typename PointT>
@@ -119,7 +119,7 @@ inline static Orientation orientation(const PointT& p1, const PointT& p2, const 
 }
 
 template <typename PointT>
-void Polygonizer::convexHull(const std::vector<PointT>& points, std::vector<std::uint32_t>& indices)
+void Polygonizer::convexHull(const std::vector<PointT>& points, std::vector<std::int32_t>& indices)
 {
     if (points.size() < 3)
     {
@@ -129,23 +129,22 @@ void Polygonizer::convexHull(const std::vector<PointT>& points, std::vector<std:
     }
 
     sorted_indices_.resize(points.size());
-    std::iota(sorted_indices_.begin(), sorted_indices_.end(), 0);
+    indices.resize(2 * points.size());
 
+    std::iota(sorted_indices_.begin(), sorted_indices_.end(), 0);
     std::sort(sorted_indices_.begin(),
               sorted_indices_.end(),
-              [&points](std::uint32_t i, std::uint32_t j) noexcept -> bool {
+              [&points](const auto i, const auto j) noexcept -> bool {
                   return points[i].x < points[j].x ||
                          (std::fabs(points[i].x - points[j].x) <
                               std::numeric_limits<decltype(points[i].x)>::epsilon() &&
                           points[i].y < points[j].y);
               });
 
-    std::uint32_t n = points.size();
-    std::uint32_t k = 0;
+    auto n = static_cast<std::int32_t>(points.size());
+    auto k = static_cast<std::int32_t>(0);
 
-    indices.resize(2 * points.size());
-
-    for (std::uint32_t i = 0; i < n; ++i)
+    for (std::int32_t i = 0; i < n; ++i)
     {
         while (k >= 2 && orientation(points[indices[k - 2]],
                                      points[indices[k - 1]],
@@ -156,29 +155,27 @@ void Polygonizer::convexHull(const std::vector<PointT>& points, std::vector<std:
         indices[k++] = sorted_indices_[i];
     }
 
-    for (std::uint32_t i = n - 1, t = k + 1; i > 0; --i)
+    for (std::int32_t i = n - 2, t = k + 1; i >= 0; --i)
     {
         while (k >= t && orientation(points[indices[k - 2]],
                                      points[indices[k - 1]],
-                                     points[sorted_indices_[i - 1]]) != Orientation::ANTICLOCKWISE)
+                                     points[sorted_indices_[i]]) != Orientation::ANTICLOCKWISE)
         {
             --k;
         }
-        indices[k++] = sorted_indices_[i - 1];
+        indices[k++] = sorted_indices_[i];
     }
 
     indices.resize(k - 1);
 }
 
 template <typename PointT>
-void Polygonizer::boundingBox(const std::vector<PointT>& points,
-                              std::vector<std::uint32_t>& indices)
+void Polygonizer::boundingBox(const std::vector<PointT>& points, std::vector<std::int32_t>& indices)
 {
 }
 
 template <typename PointT>
-void Polygonizer::concaveHull(const std::vector<PointT>& points,
-                              std::vector<std::uint32_t>& indices)
+void Polygonizer::concaveHull(const std::vector<PointT>& points, std::vector<std::int32_t>& indices)
 {
 }
 

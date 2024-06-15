@@ -115,7 +115,7 @@ class Processor final : public rclcpp::Node
 
     polygonization::Polygonizer polygonizer_;
 
-    std::vector<std::uint32_t> polygonizer_indices_;
+    std::vector<std::int32_t> polygonizer_indices_;
     std::vector<polygonization::PointXY> polygonizer_points_;
     std::vector<polygonization::PointXY> polygon_points_;
 };
