@@ -75,6 +75,7 @@ class Polygonizer final
     template <typename PointT>
     void boundingBox(const std::vector<PointT>& points, std::vector<std::int32_t>& indices);
 
+    /// @brief Returns a list of points on the convex hull in counter-clockwise order.
     template <typename PointT>
     void convexHull(const std::vector<PointT>& points, std::vector<std::int32_t>& indices);
 
@@ -99,8 +100,11 @@ class Polygonizer final
     std::vector<std::int32_t> sorted_indices_;
 };
 
+/// @brief Three points are a counter-clockwise turn if ccw > 0, clockwise if
+/// ccw < 0, and collinear if ccw = 0 because ccw is a determinant that
+/// gives the signed area of the triangle formed by p1, p2 and p3.
 template <typename PointT>
-inline static Orientation orientation(const PointT& p1, const PointT& p2, const PointT& p3) noexcept
+inline Orientation orientation(const PointT& p1, const PointT& p2, const PointT& p3) noexcept
 {
     const auto cross_product = (p2.x - p1.x) * (p3.y - p1.y) - (p2.y - p1.y) * (p3.x - p1.x);
 
@@ -119,57 +123,6 @@ inline static Orientation orientation(const PointT& p1, const PointT& p2, const 
 }
 
 template <typename PointT>
-void Polygonizer::convexHull(const std::vector<PointT>& points, std::vector<std::int32_t>& indices)
-{
-    if (points.size() < 3)
-    {
-        indices.resize(points.size());
-        std::iota(indices.begin(), indices.end(), 0);
-        return;
-    }
-
-    sorted_indices_.resize(points.size());
-    indices.resize(2 * points.size());
-
-    std::iota(sorted_indices_.begin(), sorted_indices_.end(), 0);
-    std::sort(sorted_indices_.begin(),
-              sorted_indices_.end(),
-              [&points](const auto i, const auto j) noexcept -> bool {
-                  return points[i].x < points[j].x ||
-                         (std::fabs(points[i].x - points[j].x) <
-                              std::numeric_limits<decltype(points[i].x)>::epsilon() &&
-                          points[i].y < points[j].y);
-              });
-
-    auto n = static_cast<std::int32_t>(points.size());
-    auto k = static_cast<std::int32_t>(0);
-
-    for (std::int32_t i = 0; i < n; ++i)
-    {
-        while (k >= 2 && orientation(points[indices[k - 2]],
-                                     points[indices[k - 1]],
-                                     points[sorted_indices_[i]]) != Orientation::ANTICLOCKWISE)
-        {
-            --k;
-        }
-        indices[k++] = sorted_indices_[i];
-    }
-
-    for (std::int32_t i = n - 2, t = k + 1; i >= 0; --i)
-    {
-        while (k >= t && orientation(points[indices[k - 2]],
-                                     points[indices[k - 1]],
-                                     points[sorted_indices_[i]]) != Orientation::ANTICLOCKWISE)
-        {
-            --k;
-        }
-        indices[k++] = sorted_indices_[i];
-    }
-
-    indices.resize(k - 1);
-}
-
-template <typename PointT>
 void Polygonizer::boundingBox(const std::vector<PointT>& points, std::vector<std::int32_t>& indices)
 {
 }
@@ -178,6 +131,12 @@ template <typename PointT>
 void Polygonizer::concaveHull(const std::vector<PointT>& points, std::vector<std::int32_t>& indices)
 {
 }
+
+// Explicit template specializations
+extern template void Polygonizer::convexHull(const std::vector<PointXY>& points,
+                                             std::vector<std::int32_t>& indices);
+extern template void Polygonizer::convexHull(const std::vector<PointXYZ>& points,
+                                             std::vector<std::int32_t>& indices);
 
 } // namespace polygonization
 
