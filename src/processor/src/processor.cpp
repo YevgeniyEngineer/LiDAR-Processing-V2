@@ -96,7 +96,8 @@ static void convertPCLToPointCloud2(const pcl::PointCloud<pcl::PointXYZRGB>& clo
     }
 };
 
-static void convertPolygonPointsToMarker(std::uint32_t polygon_index,
+static void convertPolygonPointsToMarker(bool is_bounding_box,
+                                         std::uint32_t polygon_index,
                                          double z_min,
                                          double z_max,
                                          const std::vector<polygonization::PointXY>& points,
@@ -131,9 +132,19 @@ static void convertPolygonPointsToMarker(std::uint32_t polygon_index,
     marker.pose.orientation.w = 1.0;
     marker.scale.x = 0.1f;
     marker.color.a = 1.0f;
-    marker.color.r = 1.0f;
-    marker.color.g = 0.0f;
-    marker.color.b = 1.0f;
+
+    if (is_bounding_box)
+    {
+        marker.color.r = 1.0f;
+        marker.color.g = 0.0f;
+        marker.color.b = 1.0f;
+    }
+    else
+    {
+        marker.color.r = 0.6f;
+        marker.color.g = 0.6f;
+        marker.color.b = 0.6f;
+    }
 
     // Preallocate memory
     const std::size_t num_horizontal_lines = 2 * points.size();
@@ -446,13 +457,77 @@ void Processor::run(const PointCloud2& msg)
                 polygon_points_.push_back(polygonizer_points_[index]);
             }
 
+            std::chrono::steady_clock::duration bounding_box_total_time{0};
+            const std::size_t number_of_vertices = polygon_points_.size();
+
+            // Check if polygon can futher be simplified to a bounding box
+            bool is_bounding_box = false;
+            const auto obstacle_height = z_max - z_min;
+
+            if (polygon_points_.size() > 3 && obstacle_height > 1.0 && obstacle_height < 3.5)
+            {
+                const auto polygon_area = polygonization::polygonArea(polygon_points_);
+                const auto polygon_volume = polygon_area * obstacle_height;
+
+                // Only select reasonably large polygons for simplification
+                if (polygon_area > 2.0 && polygon_area < 15.0 && polygon_volume > 3.0 &&
+                    polygon_volume < 35.0)
+                {
+                    const auto t_bounding_box_start = std::chrono::steady_clock::now();
+                    const polygonization::BoundingBox bounding_box =
+                        polygonizer_.boundingBoxPrincipalComponentAnalysis(polygonizer_points_);
+                    const auto t_bounding_box_stop = std::chrono::steady_clock::now();
+                    bounding_box_total_time += t_bounding_box_stop - t_bounding_box_start;
+
+                    // If generated bounding box is valid
+                    if (bounding_box.is_valid)
+                    {
+                        // Check intersection over union,
+                        // to decide how well bounding box fits the shape
+                        const double intersection_over_union = polygon_area / bounding_box.area;
+
+                        // Check width and length of the bounding box
+                        const auto edge_1_length = polygonization::l_distance(
+                            bounding_box.corners[0], bounding_box.corners[1]);
+                        const auto edge_2_length = polygonization::l_distance(
+                            bounding_box.corners[1], bounding_box.corners[2]);
+
+                        const auto bounding_box_length = std::max(edge_1_length, edge_2_length);
+                        const auto bounding_box_width = std::min(edge_1_length, edge_2_length);
+                        const auto aspect_ratio = bounding_box_length / bounding_box_width;
+
+                        if (intersection_over_union > 0.4 && aspect_ratio < 3.0 &&
+                            bounding_box_length > 1.0 && bounding_box_length < 4.5 &&
+                            bounding_box_width > 1.0 && bounding_box_width < 2.5)
+                        {
+                            // Simplify original polygon points
+                            polygon_points_.assign(bounding_box.corners.cbegin(),
+                                                   bounding_box.corners.cend());
+                            is_bounding_box = true;
+                        }
+                    }
+                }
+            }
+
             const auto t_polygonization_stop = std::chrono::steady_clock::now();
             t_polygonization_total += (t_polygonization_stop - t_polygonization_start);
+
+            const auto bounding_box_total_time_microsec =
+                std::chrono::duration_cast<std::chrono::microseconds>(bounding_box_total_time)
+                    .count();
+
+            // if (bounding_box_total_time_microsec > 10)
+            // {
+            //     std::cerr << "Total time bounding box calculation [micros]: "
+            //               << bounding_box_total_time_microsec << " for " << number_of_vertices
+            //               << " vertices" << std::endl;
+            // }
 
             // Convert to marker
             polygon_msg_cache_.markers.resize(polygon_msg_cache_.markers.size() + 1);
 
-            convertPolygonPointsToMarker(label,
+            convertPolygonPointsToMarker(is_bounding_box,
+                                         label,
                                          z_min,
                                          z_max,
                                          polygon_points_,
