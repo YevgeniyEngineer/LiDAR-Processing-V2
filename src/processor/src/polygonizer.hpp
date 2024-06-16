@@ -30,6 +30,7 @@
 #include <cstdint>
 #include <limits>
 #include <numeric>
+#include <utility>
 #include <vector>
 
 // Eigen
@@ -64,59 +65,6 @@ struct PointXY
     double y;
 };
 
-inline auto l_cross(const PointXY& p1, const PointXY& p2) noexcept -> double
-{
-    return p1.x * p2.y - p1.y * p2.x;
-}
-
-inline auto l_dot(const PointXY& p1, const PointXY& p2) noexcept -> double
-{
-    return p1.x * p2.x + p1.y * p2.y;
-}
-
-inline auto l_subtract(const PointXY& p1, const PointXY& p2) noexcept -> PointXY
-{
-    return {p1.x - p2.x, p1.y - p2.y};
-}
-
-inline auto l_add(const PointXY& p1, const PointXY& p2) noexcept -> PointXY
-{
-    return {p1.x + p2.x, p1.y + p2.y};
-}
-
-inline auto l_distance(const PointXY& a, const PointXY& b) noexcept -> double
-{
-    return std::sqrt((b.x - a.x) * (b.x - a.x) + (b.y - a.y) * (b.y - a.y));
-}
-
-inline auto l_scale(const PointXY& p, double factor) noexcept -> PointXY
-{
-    return {p.x * factor, p.y * factor};
-}
-
-inline auto l_normalize(const PointXY& p) noexcept -> PointXY
-{
-    if (const double length = std::sqrt(p.x * p.x + p.y * p.y); length > 1e-8)
-    {
-        return {p.x / length, p.y / length};
-    }
-    else
-    {
-        return {0.0, 0.0};
-    }
-}
-
-inline auto l_rotate(const PointXY& p, double angle_rad, const PointXY& origin = {0, 0}) noexcept
-    -> PointXY
-{
-    const double cos_angle = std::cos(angle_rad);
-    const double sin_angle = std::sin(angle_rad);
-    const double translated_x = p.x - origin.x;
-    const double translated_y = p.y - origin.y;
-    return {translated_x * cos_angle - translated_y * sin_angle + origin.x,
-            translated_x * sin_angle + translated_y * cos_angle + origin.y};
-}
-
 struct PointXYZ
 {
     double x;
@@ -127,32 +75,48 @@ struct PointXYZ
 struct BoundingBox
 {
     std::array<PointXY, 4> corners;
-    double area;
-    double angle_rad; // Yaw angle
-    bool is_valid;    // If bounding box fitting was successful
+    float area;
+    float angle_rad; // Yaw angle
+    bool is_valid;   // If bounding box fitting was successful
+};
+
+struct AntipodalPair final
+{
+    std::int32_t index_1;
+    std::int32_t index_2;
 };
 
 class Polygonizer final
 {
   public:
-    Polygonizer() : svd_(2, 2, Eigen::ComputeThinV)
+    Polygonizer() : covariance_matrix_(2, 2), svd_(2, 2, Eigen::ComputeThinV)
     {
         sorted_indices_.reserve(config_.max_points);
         rotated_points_.reserve(config_.max_points);
 
         data_matrix_buffer_.reserve(config_.max_points * 2);
         centered_matrix_buffer_.reserve(config_.max_points * 2);
+        rotated_points_buffer_.reserve(config_.max_points * 2);
+
+        antipodal_pairs_.reserve(config_.max_points);
     }
 
     /// @brief Returns a list of points on the convex hull in counter-clockwise order.
     template <typename PointT>
     void convexHull(const std::vector<PointT>& points, std::vector<std::int32_t>& indices);
 
+    /// @brief Shamos algorithm to find altipodal pairs of convex polygon.
+    /// https://en.wikipedia.org/wiki/Rotating_calipers#:~:text=In%20computational%20geometry%2C%20the%20method,diameter%20using%20Rotating%20Caliper%20method
+    /// https://stackoverflow.com/questions/70152394/how-to-understand-shamos-algorithm
+    void findAntipodalPairsOfConvexHull(const std::vector<PointXY>& convex_hull_points,
+                                        std::vector<AntipodalPair>& antipodal_pairs);
+
     /// @brief Construct oriented bounding box using Rotating Calipers algorithm.
-    BoundingBox boundingBoxRotatingCalipers(const std::vector<PointXY>& points);
+    BoundingBox boundingBoxRotatingCalipers(const std::vector<PointXY>& convex_hull_points);
 
     /// @brief Construct oriented bounding box using Principal Component Analysis algorithm.
-    BoundingBox boundingBoxPrincipalComponentAnalysis(const std::vector<PointXY>& points);
+    BoundingBox boundingBoxPrincipalComponentAnalysis(
+        const std::vector<PointXY>& convex_hull_points);
 
     template <typename PointT>
     void concaveHull(const std::vector<PointT>& points, std::vector<std::int32_t>& indices);
@@ -179,9 +143,13 @@ class Polygonizer final
     std::vector<std::int32_t> sorted_indices_;
     std::vector<PointXY> rotated_points_;
 
-    std::vector<float> data_matrix_buffer_;
-    std::vector<float> centered_matrix_buffer_;
-    Eigen::JacobiSVD<Eigen::Matrix2f> svd_;
+    std::vector<double> data_matrix_buffer_;
+    std::vector<double> centered_matrix_buffer_;
+    std::vector<double> rotated_points_buffer_;
+    Eigen::MatrixXd covariance_matrix_;
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd_;
+
+    std::vector<AntipodalPair> antipodal_pairs_;
 };
 
 /// @brief Three points are a counter-clockwise turn if ccw > 0, clockwise if
@@ -236,6 +204,13 @@ inline double distanceSquared(const PointT& p1, const PointT& p2) noexcept
     const double dx = p1.x - p2.x;
     const double dy = p1.y - p2.y;
     return dx * dx + dy * dy;
+}
+
+/// @brief Distance between two points in 2D.
+template <typename PointT>
+inline double distance(const PointT& p1, const PointT& p2) noexcept
+{
+    return std::sqrt(distanceSquared(p1, p2));
 }
 
 /// @brief Area of a rectangle with 4 ordered vertices.

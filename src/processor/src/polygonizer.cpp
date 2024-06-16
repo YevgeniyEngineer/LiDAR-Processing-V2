@@ -23,9 +23,6 @@
 #include "polygonizer.hpp"
 #include "common.hpp"
 
-// Eigen
-#include <Eigen/Dense>
-
 // STL
 #include <cmath>
 #include <iostream>
@@ -93,247 +90,249 @@ void Polygonizer::convexHull(const std::vector<PointT>& points, std::vector<std:
     indices.resize(k - 1);
 }
 
-// BoundingBox Polygonizer::boundingBoxRotatingCalipers(const std::vector<PointXY>& points)
-// {
-//     BoundingBox min_box;
-//     min_box.is_valid = false;
+void Polygonizer::findAntipodalPairsOfConvexHull(const std::vector<PointXY>& convex_hull_points,
+                                                 std::vector<AntipodalPair>& antipodal_pairs)
+{
+    antipodal_pairs.clear();
 
-//     const std::size_t n = points.size();
-//     if (n < 3)
-//     {
-//         return min_box;
-//     }
+    const std::int32_t n = convex_hull_points.size();
 
-//     float min_area = std::numeric_limits<float>::max();
-//     Eigen::MatrixXf projections(n, 2);
+    if (n < 2)
+    {
+        return;
+    }
 
-//     // Precompute the projections on the UV axes
-//     for (std::size_t i = 0; i < n; ++i)
-//     {
-//         const auto j = (i == n - 1) ? 0 : (i + 1);
-//         const PointXY& p0 = points[i];
-//         const PointXY& p1 = points[j];
+    const std::int32_t i0 = n - 1;
+    std::int32_t i = 0;
+    std::int32_t j = 1;
 
-//         // Edge vector
-//         const float edge_x = p1.x - p0.x;
-//         const float edge_y = p1.y - p0.y;
+    const auto next_index = [n](const std::int32_t index) noexcept -> std::int32_t {
+        return (index + 1 == n) ? 0 : (index + 1);
+    };
 
-//         if (edge_x < 1e-3f && edge_y < 1e-3f)
-//         {
-//             continue;
-//         }
+    while (areaOfTriangle(convex_hull_points[i],
+                          convex_hull_points[next_index(i)],
+                          convex_hull_points[next_index(j)]) >
+           areaOfTriangle(
+               convex_hull_points[i], convex_hull_points[next_index(i)], convex_hull_points[j]))
+    {
+        j = next_index(j);
+    }
 
-//         const float edge_length = std::sqrt(edge_x * edge_x + edge_y * edge_y);
-//         const float ux = edge_x / edge_length;
-//         const float uy = edge_y / edge_length;
-//         const float vx = -uy;
-//         const float vy = ux;
+    const std::int32_t j0 = j;
 
-//         // Project points onto the UV axes
-//         for (std::size_t k = 0; k < n; ++k)
-//         {
-//             const PointXY& point = points[k];
-//             projections(k, 0) = point.x * ux + point.y * uy; // U projection
-//             projections(k, 1) = point.x * vx + point.y * vy; // V projection
-//         }
+    // Iterate to find all antipodal pairs
+    while (i != j0)
+    {
+        i = next_index(i);
+        antipodal_pairs.push_back({i, j});
 
-//         // Calculate bounding box in the UV space
-//         const float min_u = projections.col(0).minCoeff();
-//         const float max_u = projections.col(0).maxCoeff();
-//         const float min_v = projections.col(1).minCoeff();
-//         const float max_v = projections.col(1).maxCoeff();
+        while (areaOfTriangle(convex_hull_points[i],
+                              convex_hull_points[next_index(i)],
+                              convex_hull_points[next_index(j)]) >
+               areaOfTriangle(
+                   convex_hull_points[i], convex_hull_points[next_index(i)], convex_hull_points[j]))
+        {
+            j = next_index(j);
 
-//         const float width = max_u - min_u;
-//         const float height = max_v - min_v;
-//         const float area = width * height;
+            if (!(i == j0 && j == i0))
+            {
+                antipodal_pairs.push_back({i, j});
+            }
+            else
+            {
+                return;
+            }
+        }
+        if (areaOfTriangle(convex_hull_points[j],
+                           convex_hull_points[next_index(i)],
+                           convex_hull_points[next_index(j)]) ==
+            areaOfTriangle(
+                convex_hull_points[i], convex_hull_points[next_index(i)], convex_hull_points[j]))
+        {
+            if (!(i == j0 && j == i0))
+            {
+                antipodal_pairs.push_back({i, next_index(j)});
+            }
+            else
+            {
+                antipodal_pairs.push_back({next_index(i), j});
+            }
+        }
+    }
+}
 
-//         if (area < min_area)
-//         {
-//             min_area = area;
-
-//             // min_box.angle_rad = common::atan2Approx(edge_y, edge_x);
-//             min_box.corners = {{{min_u * ux + min_v * vx, min_u * uy + min_v * vy},
-//                                 {max_u * ux + min_v * vx, max_u * uy + min_v * vy},
-//                                 {max_u * ux + max_v * vx, max_u * uy + max_v * vy},
-//                                 {min_u * ux + max_v * vx, min_u * uy + max_v * vy}}};
-//         }
-//     }
-
-//     min_box.area = min_area;
-//     min_box.is_valid = true;
-
-//     return min_box;
-// }
-
-BoundingBox Polygonizer::boundingBoxRotatingCalipers(const std::vector<PointXY>& points)
+BoundingBox Polygonizer::boundingBoxRotatingCalipers(const std::vector<PointXY>& convex_hull_points)
 {
     BoundingBox min_box;
     min_box.is_valid = false;
 
-    const std::size_t n = points.size();
+    const std::size_t n = convex_hull_points.size();
+
     if (n < 3)
     {
         return min_box;
     }
 
-    auto min_area = std::numeric_limits<double>::max();
-    PointXY centroid = {0.0, 0.0};
-    for (const auto& p : points)
+    findAntipodalPairsOfConvexHull(convex_hull_points, antipodal_pairs_);
+
+    min_box.area = std::numeric_limits<double>::max();
+
+    for (const auto [i, j] : antipodal_pairs_)
     {
-        centroid.x += p.x;
-        centroid.y += p.y;
-    }
-    centroid.x /= points.size();
-    centroid.y /= points.size();
+        const std::array<std::int32_t, 2> pair = {i, j};
 
-    BoundingBox box;
-
-    for (std::size_t i = 0; i < n; ++i)
-    {
-        const auto j = (i == n - 1) ? 0 : (i + 1);
-
-        const PointXY& p0 = points[i];
-        const PointXY& p1 = points[j];
-
-        // Edge represents a vector from p0 to p1
-        auto edge_x = p1.x - p0.x;
-        auto edge_y = p1.y - p0.y;
-        const auto edge_length_sqr = edge_x * edge_x + edge_y * edge_y;
-        if (edge_length_sqr <= 1.0e-8)
+        for (const auto index : pair)
         {
-            continue; // Skip degenerate edges
-        }
-        const auto edge_length = std::sqrt(edge_length_sqr);
+            constexpr std::array<std::int32_t, 2> offsets = {-1, 1};
 
-        // Normalize edge vector
-        edge_x /= edge_length;
-        edge_y /= edge_length;
-
-        // Calculate orientation of the edge
-        const auto angle_rad =
-            common::atan2Approx(static_cast<float>(edge_y), static_cast<float>(edge_x));
-
-        // Precalculate rotation angles transformation matrix
-        const auto cos_angle = std::cos(static_cast<float>(angle_rad));
-        const auto sin_angle = std::sin(static_cast<float>(angle_rad));
-
-        // Calculate bounding box corners
-        auto min_x = std::numeric_limits<double>::max();
-        auto min_y = std::numeric_limits<double>::max();
-        auto max_x = std::numeric_limits<double>::lowest();
-        auto max_y = std::numeric_limits<double>::lowest();
-
-        for (const auto& point : points)
-        {
-            // Shift point towards origin
-            const auto translated_x = point.x - centroid.x;
-            const auto translated_y = point.y - centroid.y;
-
-            // Find rotated point aligned with the edge direction
-            const auto rotated_point_x = translated_x * cos_angle - translated_y * sin_angle;
-            const auto rotated_point_y = translated_x * sin_angle + translated_y * cos_angle;
-
-            // Update extrema
-            min_x = std::min(min_x, rotated_point_x);
-            max_x = std::max(max_x, rotated_point_x);
-            min_y = std::min(min_y, rotated_point_y);
-            max_y = std::max(max_y, rotated_point_y);
-        }
-
-        // Calculate oriented bounding box
-        box.area = (max_x - min_x) * (max_y - min_y);
-
-        // Update minimum bounding box if it is better than previous
-        if (box.area < min_area)
-        {
-            box.corners = {{{min_x, min_y}, {max_x, min_y}, {max_x, max_y}, {min_x, max_y}}};
-            box.angle_rad = angle_rad;
-
-            // Rotate each corner of the bounding box
-            for (auto& point : box.corners)
+            for (const auto offset : offsets)
             {
-                // Shift point towards origin
-                const double translated_x = point.x;
-                const double translated_y = point.y;
+                auto neighbor_index = index + offset;
 
-                // Find rotated point aligned with the edge direction
-                point.x = translated_x * cos_angle + translated_y * sin_angle + centroid.x;
-                point.y = -translated_x * sin_angle + translated_y * cos_angle + centroid.y;
+                if (neighbor_index < 0)
+                {
+                    neighbor_index += n;
+                }
+                else if (neighbor_index >= n)
+                {
+                    neighbor_index -= n;
+                }
+
+                const auto& p0 = convex_hull_points[index];
+                const auto& p1 = convex_hull_points[neighbor_index];
+
+                const auto edge_x = p1.x - p0.x;
+                const auto edge_y = p1.y - p0.y;
+                const auto edge_length = std::sqrt(edge_x * edge_x + edge_y * edge_y);
+
+                if (edge_length < 1.0e-6)
+                {
+                    continue;
+                }
+
+                const auto ux = edge_x / edge_length;
+                const auto uy = edge_y / edge_length;
+                const auto vx = -uy;
+                const auto vy = ux;
+
+                auto min_u = std::numeric_limits<decltype(edge_x)>::max();
+                auto max_u = std::numeric_limits<decltype(edge_x)>::lowest();
+                auto min_v = std::numeric_limits<decltype(edge_x)>::max();
+                auto max_v = std::numeric_limits<decltype(edge_x)>::lowest();
+
+                // Project each point into edge's uv space
+                for (const auto& point : convex_hull_points)
+                {
+                    const auto proj_u = point.x * ux + point.y * uy;
+                    const auto proj_v = point.x * vx + point.y * vy;
+
+                    min_u = std::min(min_u, proj_u);
+                    max_u = std::max(max_u, proj_u);
+                    min_v = std::min(min_v, proj_v);
+                    max_v = std::max(max_v, proj_v);
+                }
+
+                const auto width = max_u - min_u;
+                const auto height = max_v - min_v;
+                const auto area = width * height;
+
+                if (area < min_box.area)
+                {
+                    min_box.area = area;
+
+                    const auto min_u_ux = min_u * ux;
+                    const auto max_u_ux = max_u * ux;
+                    const auto min_v_vx = min_v * vx;
+                    const auto max_v_vx = max_v * vx;
+                    const auto min_u_uy = min_u * uy;
+                    const auto max_u_uy = max_u * uy;
+                    const auto min_v_vy = min_v * vy;
+                    const auto max_v_vy = max_v * vy;
+
+                    min_box.corners[0] = {min_u_ux + min_v_vx, min_u_uy + min_v_vy};
+                    min_box.corners[1] = {max_u_ux + min_v_vx, max_u_uy + min_v_vy};
+                    min_box.corners[2] = {max_u_ux + max_v_vx, max_u_uy + max_v_vy};
+                    min_box.corners[3] = {min_u_ux + max_v_vx, min_u_uy + max_v_vy};
+
+                    min_box.angle_rad = common::atan2Approx(edge_y, edge_x);
+                }
             }
-
-            // Update area and bounding box values with the best bounding box
-            min_area = box.area;
-            min_box = box;
         }
     }
 
     min_box.is_valid = true;
+
     return min_box;
 }
 
-BoundingBox Polygonizer::boundingBoxPrincipalComponentAnalysis(const std::vector<PointXY>& points)
+BoundingBox Polygonizer::boundingBoxPrincipalComponentAnalysis(
+    const std::vector<PointXY>& convex_hull_points)
 {
     BoundingBox min_box;
 
-    if (points.size() < 3)
+    if (convex_hull_points.size() < 3)
     {
         min_box.is_valid = false;
         return min_box;
     }
 
-    const std::uint32_t n_points = points.size();
+    const std::uint32_t n_points = convex_hull_points.size();
 
     if (n_points * 2 > centered_matrix_buffer_.size())
     {
         data_matrix_buffer_.resize(n_points * 2);
         centered_matrix_buffer_.resize(n_points * 2);
+        rotated_points_buffer_.resize(n_points * 2);
     }
 
     // Step 0: Prepare matrix buffers
-    Eigen::Map<Eigen::Matrix<float, -1, -1, Eigen::RowMajor>> data_matrix{
+    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> data_matrix{
         data_matrix_buffer_.data(), static_cast<int>(n_points), 2};
 
-    Eigen::Map<Eigen::Matrix<float, -1, -1, Eigen::RowMajor>> centred_matrix{
-        centered_matrix_buffer_.data(), static_cast<int>(n_points), 2};
+    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>
+        centred_matrix{centered_matrix_buffer_.data(), static_cast<int>(n_points), 2};
+
+    Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>
+        rotated_points_matrix{rotated_points_buffer_.data(), static_cast<int>(n_points), 2};
 
     // Step 1: Convert points to Eigen matrix
     for (std::uint32_t i = 0; i < n_points; ++i)
     {
-        data_matrix(i, 0) = points[i].x;
-        data_matrix(i, 1) = points[i].y;
+        data_matrix(i, 0) = convex_hull_points[i].x;
+        data_matrix(i, 1) = convex_hull_points[i].y;
     }
 
     // Step 2: Calculate the mean of the points
-    const Eigen::RowVector2f mean = data_matrix.colwise().mean();
+    const Eigen::RowVector2d mean = data_matrix.colwise().mean();
 
     // Step 3: Center the data
     centred_matrix = data_matrix.rowwise() - mean;
 
     // Step 4: Compute the covariance matrix
-    const Eigen::Matrix2f covariance_matrix =
-        (centred_matrix.transpose() * centred_matrix) / static_cast<float>(n_points - 1);
+    covariance_matrix_.noalias() = centred_matrix.transpose() * centred_matrix;
+    covariance_matrix_ /= (n_points - 1);
 
     // Step 5: Perform eigen decomposition
-    svd_.compute(covariance_matrix, Eigen::ComputeThinV);
+    svd_.compute(covariance_matrix_, Eigen::ComputeThinV);
     if (svd_.info() != Eigen::Success)
     {
         min_box.is_valid = false;
         return min_box;
     }
-
-    const Eigen::Matrix2f principal_components = svd_.matrixV();
+    const Eigen::MatrixXd& principal_components = svd_.matrixV();
 
     // Step 6: Rotate the points to align with principal components
-    const Eigen::MatrixXf rotated_data = centred_matrix * principal_components;
+    rotated_points_matrix.noalias() = centred_matrix * principal_components;
 
     // Step 7: Calculate bounding box in the rotated space
-    const float min_x = rotated_data.col(0).minCoeff();
-    const float max_x = rotated_data.col(0).maxCoeff();
-    const float min_y = rotated_data.col(1).minCoeff();
-    const float max_y = rotated_data.col(1).maxCoeff();
+    const auto min_x = rotated_points_matrix.col(0).minCoeff();
+    const auto max_x = rotated_points_matrix.col(0).maxCoeff();
+    const auto min_y = rotated_points_matrix.col(1).minCoeff();
+    const auto max_y = rotated_points_matrix.col(1).maxCoeff();
 
     // Step 8: Transform bounding box corners back to the original space
-    Eigen::Matrix<float, 4, 2> corners;
+    Eigen::Matrix<double, 4, 2> corners;
     corners << min_x, min_y, max_x, min_y, max_x, max_y, min_x, max_y;
 
     corners = corners * principal_components.transpose();
@@ -356,5 +355,105 @@ template void Polygonizer::convexHull(const std::vector<PointXY>& points,
                                       std::vector<std::int32_t>& indices);
 template void Polygonizer::convexHull(const std::vector<PointXYZ>& points,
                                       std::vector<std::int32_t>& indices);
+
+/*  Keep unoptimized algorithm for historical record */
+
+// BoundingBox Polygonizer::boundingBoxRotatingCalipers(const std::vector<PointXY>&
+// convex_hull_points)
+// {
+//     BoundingBox min_box;
+//     min_box.is_valid = false;
+
+//     const std::size_t n = convex_hull_points.size();
+//     if (n < 3)
+//     {
+//         return min_box;
+//     }
+
+//     min_box.area = std::numeric_limits<double>::max();
+
+//     for (std::size_t i = 0; i < n; ++i)
+//     {
+//         const auto j = (i == n - 1) ? 0 : (i + 1);
+
+//         const auto& p0 = convex_hull_points[i];
+//         const auto& p1 = convex_hull_points[j];
+
+//         // Edge represents a vector from p0 to p1
+//         const auto edge_x = p1.x - p0.x;
+//         const auto edge_y = p1.y - p0.y;
+//         const auto edge_length = std::sqrt(edge_x * edge_x + edge_y * edge_y);
+
+//         if (edge_length < 1.0e-8)
+//         {
+//             continue;
+//         }
+
+//         const auto ux = edge_x / edge_length;
+//         const auto uy = edge_y / edge_length;
+//         const auto vx = -uy;
+//         const auto vy = ux;
+
+//         // Calculate bounding box corners in the UV space
+//         auto min_u = std::numeric_limits<decltype(edge_x)>::max();
+//         auto max_u = std::numeric_limits<decltype(edge_x)>::lowest();
+//         auto min_v = std::numeric_limits<decltype(edge_x)>::max();
+//         auto max_v = std::numeric_limits<decltype(edge_x)>::lowest();
+
+//         for (const auto& point : convex_hull_points)
+//         {
+//             const auto proj_u = point.x * ux + point.y * uy;
+//             const auto proj_v = point.x * vx + point.y * vy;
+
+//             if (proj_u < min_u)
+//             {
+//                 min_u = proj_u;
+//             }
+//             if (proj_u > max_u)
+//             {
+//                 max_u = proj_u;
+//             }
+//             if (proj_v < min_v)
+//             {
+//                 min_v = proj_v;
+//             }
+//             if (proj_v > max_v)
+//             {
+//                 max_v = proj_v;
+//             }
+//         }
+
+//         // Calculate oriented bounding box
+//         const auto width = max_u - min_u;
+//         const auto height = max_v - min_v;
+//         const auto area = width * height;
+
+//         // Update minimum bounding box if it is better than previous
+//         if (area < min_box.area)
+//         {
+//             min_box.area = area;
+
+//             const auto min_u_ux = min_u * ux;
+//             const auto max_u_ux = max_u * ux;
+//             const auto min_v_vx = min_v * vx;
+//             const auto max_v_vx = max_v * vx;
+//             const auto min_u_uy = min_u * uy;
+//             const auto max_u_uy = max_u * uy;
+//             const auto min_v_vy = min_v * vy;
+//             const auto max_v_vy = max_v * vy;
+
+//             min_box.corners[0] = {min_u_ux + min_v_vx, min_u_uy + min_v_vy};
+//             min_box.corners[1] = {max_u_ux + min_v_vx, max_u_uy + min_v_vy};
+//             min_box.corners[2] = {max_u_ux + max_v_vx, max_u_uy + max_v_vy};
+//             min_box.corners[3] = {min_u_ux + max_v_vx, min_u_uy + max_v_vy};
+
+//             min_box.angle_rad = std::atan2(edge_y, edge_x);
+//         }
+//     }
+
+//     min_box.is_valid = true;
+
+//     return min_box;
+// }
 
 } // namespace polygonization

@@ -478,8 +478,13 @@ void Processor::run(const PointCloud2& msg)
                     polygon_volume < 35.0)
                 {
                     const auto t_bounding_box_start = std::chrono::steady_clock::now();
+
+                    // const polygonization::BoundingBox bounding_box =
+                    //     polygonizer_.boundingBoxPrincipalComponentAnalysis(polygonizer_points_);
+
                     const polygonization::BoundingBox bounding_box =
                         polygonizer_.boundingBoxRotatingCalipers(polygonizer_points_);
+
                     const auto t_bounding_box_stop = std::chrono::steady_clock::now();
                     bounding_box_total_time += t_bounding_box_stop - t_bounding_box_start;
 
@@ -491,9 +496,9 @@ void Processor::run(const PointCloud2& msg)
                         const double intersection_over_union = polygon_area / bounding_box.area;
 
                         // Check width and length of the bounding box
-                        const auto edge_1_length = polygonization::l_distance(
+                        const auto edge_1_length = polygonization::distance(
                             bounding_box.corners[0], bounding_box.corners[1]);
-                        const auto edge_2_length = polygonization::l_distance(
+                        const auto edge_2_length = polygonization::distance(
                             bounding_box.corners[1], bounding_box.corners[2]);
 
                         const auto bounding_box_length = std::max(edge_1_length, edge_2_length);
@@ -502,7 +507,7 @@ void Processor::run(const PointCloud2& msg)
 
                         if (intersection_over_union > 0.4 && aspect_ratio < 3.0 &&
                             bounding_box_length > 1.0 && bounding_box_length < 4.5 &&
-                            bounding_box_width > 1.0 && bounding_box_width < 2.5)
+                            bounding_box_width > 0.8 && bounding_box_width < 2.5)
                         {
                             // Simplify original polygon points
                             polygon_points_.assign(bounding_box.corners.cbegin(),
@@ -520,12 +525,12 @@ void Processor::run(const PointCloud2& msg)
                 std::chrono::duration_cast<std::chrono::microseconds>(bounding_box_total_time)
                     .count();
 
-            if (bounding_box_total_time_microsec > 10)
-            {
-                std::cerr << "Total time bounding box calculation [micros]: "
-                          << bounding_box_total_time_microsec << " for " << number_of_vertices
-                          << " vertices" << std::endl;
-            }
+            // if (bounding_box_total_time_microsec > 10)
+            // {
+            //     std::cerr << "Total time bounding box calculation [micros]: "
+            //               << bounding_box_total_time_microsec << " for " << number_of_vertices
+            //               << " vertices" << std::endl;
+            // }
 
             // Convert to marker
             polygon_msg_cache_.markers.resize(polygon_msg_cache_.markers.size() + 1);

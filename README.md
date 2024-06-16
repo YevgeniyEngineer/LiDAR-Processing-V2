@@ -96,6 +96,21 @@ The simplified obstacle contours can be used for:
 - Collision detection
 - Dynamic path planning
 
+## Code Profiling Procedure
+
+To enable code profiling, add the following lines in `CMakeLists.txt`:
+
+```bash
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pg")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pg")
+```
+
+To generate the profiler analysis information:
+
+```bash
+gprof ./install/processor/lib/processor/processor ./gmon.out > analysis.txt
+```
+
 ## Enable Required Extensions in VSCode
 
 ```bash
