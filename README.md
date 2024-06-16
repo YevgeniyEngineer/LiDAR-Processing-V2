@@ -2,6 +2,8 @@
 
 A LiDAR processing pipeline based on ROS2 Humble node system, improvement to <https://github.com/YevgeniyEngineer/LiDAR-Processing>.
 
+See execution times captured with `gprof` in [analysis.txt](./analysis.txt).
+
 ## List of Implemented Algorithms and Data Structures
 
 - KDTree
