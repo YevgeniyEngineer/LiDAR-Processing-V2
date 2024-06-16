@@ -462,20 +462,155 @@ void Processor::run(const PointCloud2& msg)
 
             // Check if polygon can futher be simplified to a bounding box
             bool is_bounding_box = false;
-            const auto obstacle_height = z_max - z_min;
+            const auto bounding_box_height = z_max - z_min;
 
             // TODO: Implement a vehicle template to compare bounding box against
 
+            struct VehicleDimensions
+            {
+                double min_length;
+                double max_length;
+                double min_width;
+                double max_width;
+                double min_height;
+                double max_height;
+            };
+
+            struct VehicleBounds
+            {
+                double min_volume;
+                double max_volume;
+                double min_area;
+                double max_area;
+            };
+
+            // Vehicle tolerances
+            static constexpr double length_tolerance_m = 0.8;
+            static constexpr double width_tolerance_m = 0.5;
+            static constexpr double height_tolerance_m = 0.5;
+
+            // Typical dimensions for different vehicle types
+            static constexpr std::array<VehicleDimensions, 5> base_vehicle_dimensions = {{
+                {4.3, 4.6, 1.6, 1.9, 1.4, 1.5}, // Compact Cars
+                {4.6, 5.0, 1.6, 1.9, 1.4, 1.5}, // Sedans
+                {4.6, 5.2, 1.7, 2.1, 1.7, 1.8}, // SUVs
+                {5.2, 5.8, 1.9, 2.2, 1.8, 2.0}, // Trucks
+                {4.9, 5.2, 1.7, 2.1, 1.7, 1.8}  // Minivans
+            }};
+
+            // Allowed intersection over union between convex hull and bounding box
+            static constexpr double min_intersection_over_union = 0.4;
+
+            static constexpr std::array<VehicleDimensions, 5> adjusted_vehicle_dimensions = []() {
+                std::array<VehicleDimensions, 5> adjusted{};
+                for (std::size_t i = 0; i < base_vehicle_dimensions.size(); ++i)
+                {
+                    adjusted[i] = {base_vehicle_dimensions[i].min_length - length_tolerance_m,
+                                   base_vehicle_dimensions[i].max_length + length_tolerance_m,
+                                   base_vehicle_dimensions[i].min_width - width_tolerance_m,
+                                   base_vehicle_dimensions[i].max_width + width_tolerance_m,
+                                   base_vehicle_dimensions[i].min_height - height_tolerance_m,
+                                   base_vehicle_dimensions[i].max_height + height_tolerance_m};
+                }
+                return adjusted;
+            }();
+
+            static constexpr std::array<VehicleBounds, 5> vehicle_bounds = []() {
+                std::array<VehicleBounds, 5> bounds{};
+                for (std::size_t i = 0; i < adjusted_vehicle_dimensions.size(); ++i)
+                {
+                    const auto& dims = adjusted_vehicle_dimensions[i];
+                    bounds[i] = {dims.min_length * dims.min_width * dims.min_height,
+                                 dims.max_length * dims.max_width * dims.max_height,
+                                 dims.min_length * dims.min_width,
+                                 dims.max_length * dims.max_width};
+                }
+                return bounds;
+            }();
+
+            static constexpr double min_height_threshold = []() {
+                double min_height = std::numeric_limits<double>::max();
+                for (const auto& vehicle : adjusted_vehicle_dimensions)
+                {
+                    if (vehicle.min_height < min_height)
+                    {
+                        min_height = vehicle.min_height;
+                    }
+                }
+                return min_height;
+            }();
+
+            static constexpr double max_height_threshold = []() {
+                double max_height = std::numeric_limits<double>::lowest();
+                for (const auto& vehicle : adjusted_vehicle_dimensions)
+                {
+                    if (vehicle.max_height > max_height)
+                    {
+                        max_height = vehicle.max_height;
+                    }
+                }
+                return max_height;
+            }();
+
+            static constexpr double absolute_min_volume = []() {
+                double min_volume = std::numeric_limits<double>::max();
+                for (const auto& bounds : vehicle_bounds)
+                {
+                    if (bounds.min_volume < min_volume)
+                    {
+                        min_volume = bounds.min_volume;
+                    }
+                }
+                return min_volume;
+            }();
+
+            static constexpr double absolute_max_volume = []() {
+                double max_volume = std::numeric_limits<double>::lowest();
+                for (const auto& bounds : vehicle_bounds)
+                {
+                    if (bounds.max_volume > max_volume)
+                    {
+                        max_volume = bounds.max_volume;
+                    }
+                }
+                return max_volume;
+            }();
+
+            static constexpr double absolute_min_area = []() {
+                double min_area = std::numeric_limits<double>::max();
+                for (const auto& bounds : vehicle_bounds)
+                {
+                    if (bounds.min_area < min_area)
+                    {
+                        min_area = bounds.min_area;
+                    }
+                }
+                return min_area;
+            }();
+
+            static constexpr double absolute_max_area = []() {
+                double max_area = std::numeric_limits<double>::lowest();
+                for (const auto& bounds : vehicle_bounds)
+                {
+                    if (bounds.max_area > max_area)
+                    {
+                        max_area = bounds.max_area;
+                    }
+                }
+                return max_area;
+            }();
+
             // Should have a valid hull, cluster should not be small, height should be reasonable
             if (polygon_points_.size() >= 3 && polygonizer_points_.size() > 150 &&
-                obstacle_height > 1.0 && obstacle_height < 3.0)
+                bounding_box_height > min_height_threshold &&
+                bounding_box_height < max_height_threshold)
             {
                 const auto polygon_area = polygonization::polygonArea(polygon_points_);
-                const auto polygon_volume = polygon_area * obstacle_height;
+                const auto polygon_volume = polygon_area * bounding_box_height;
 
                 // Only select reasonably large polygons for simplification
-                if (polygon_area > 2.0 && polygon_area < 15.0 && polygon_volume > 3.0 &&
-                    polygon_volume < 35.0)
+                if (polygon_area > absolute_min_area && polygon_area < absolute_max_area &&
+                    polygon_volume > absolute_min_volume && polygon_volume < absolute_max_volume)
                 {
                     const auto t_bounding_box_start = std::chrono::steady_clock::now();
 
@@ -495,24 +630,42 @@ void Processor::run(const PointCloud2& msg)
                         // to decide how well bounding box fits the shape
                         const double intersection_over_union = polygon_area / bounding_box.area;
 
-                        // Check width and length of the bounding box
-                        const auto edge_1_length = polygonization::distance(
-                            bounding_box.corners[0], bounding_box.corners[1]);
-                        const auto edge_2_length = polygonization::distance(
-                            bounding_box.corners[1], bounding_box.corners[2]);
-
-                        const auto bounding_box_length = std::max(edge_1_length, edge_2_length);
-                        const auto bounding_box_width = std::min(edge_1_length, edge_2_length);
-                        const auto aspect_ratio = bounding_box_length / bounding_box_width;
-
-                        if (intersection_over_union > 0.4 && aspect_ratio < 3.0 &&
-                            bounding_box_length > 1.0 && bounding_box_length < 4.5 &&
-                            bounding_box_width > 0.8 && bounding_box_width < 2.5)
+                        if (intersection_over_union > min_intersection_over_union)
                         {
-                            // Simplify original polygon points
-                            polygon_points_.assign(bounding_box.corners.cbegin(),
-                                                   bounding_box.corners.cend());
-                            is_bounding_box = true;
+                            // Check width and length of the bounding box
+                            const auto edge_1_length = polygonization::distance(
+                                bounding_box.corners[0], bounding_box.corners[1]);
+                            const auto edge_2_length = polygonization::distance(
+                                bounding_box.corners[1], bounding_box.corners[2]);
+
+                            const auto bounding_box_length = std::max(edge_1_length, edge_2_length);
+                            const auto bounding_box_width = std::min(edge_1_length, edge_2_length);
+
+                            for (std::size_t i = 0; i < adjusted_vehicle_dimensions.size(); ++i)
+                            {
+                                const auto& vehicle = adjusted_vehicle_dimensions[i];
+                                const auto& bounds = vehicle_bounds[i];
+
+                                if ( // Check dimensions
+                                    bounding_box_length > vehicle.min_length &&
+                                    bounding_box_length < vehicle.max_length &&
+                                    bounding_box_width > vehicle.min_width &&
+                                    bounding_box_width < vehicle.max_width &&
+                                    bounding_box_height > vehicle.min_height &&
+                                    bounding_box_height < vehicle.max_height &&
+                                    // Check volume and area
+                                    polygon_volume > bounds.min_volume &&
+                                    polygon_volume < bounds.max_volume &&
+                                    polygon_area > bounds.min_area &&
+                                    polygon_area < bounds.max_area)
+                                {
+                                    // Simplify original polygon points
+                                    polygon_points_.assign(bounding_box.corners.cbegin(),
+                                                           bounding_box.corners.cend());
+                                    is_bounding_box = true;
+                                    break;
+                                }
+                            }
                         }
                     }
                 }

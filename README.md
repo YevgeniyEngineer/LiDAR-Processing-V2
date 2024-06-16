@@ -86,7 +86,7 @@ Obstacle clusters are further simplified by calculating the outer contour (polyg
 There are three main types of simple polygons considered:
 
 - Convex hull (Andrew's Monotone Chain) [Implemented]
-- Oriented bounding box (Rotating Calipers and Principal Component Analysis) [Implemented]
+- Oriented bounding box (Rotating Calipers with Shamos acceleration and Principal Component Analysis) [Implemented]
 - Concave hull (X-Shape Concave Hull) [Not implemented]
 
 The simplified obstacle contours can be used for:
@@ -95,6 +95,11 @@ The simplified obstacle contours can be used for:
 - Obstacle tracking
 - Collision detection
 - Dynamic path planning
+
+I attempted to extract vehicles from the scene with reasonable success using classical processing techniques, without relying on neural networks.
+However, it seems there are limitations on how well vehicles can be extracted from the scene.
+
+![classification_of_vehicles](https://github.com/YevgeniyEngineer/LiDAR-Processing-V2/blob/main/images/vehicle_classification.png)
 
 ## Code Profiling Procedure
 
