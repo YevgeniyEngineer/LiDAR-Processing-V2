@@ -60,7 +60,7 @@ struct SphericalPoint
 
 struct Configuration
 {
-    float voxel_grid_range_resolution_m = 0.5F;
+    float voxel_grid_range_resolution_m = 0.3F;
     float voxel_grid_azimuth_resolution_deg = 1.0F;
     float voxel_grid_elevation_resolution_deg = 2.0F;
 
