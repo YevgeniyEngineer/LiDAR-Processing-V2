@@ -12,6 +12,7 @@ A LiDAR processing pipeline based on ROS2 Humble node system, improvement to <ht
 - Shamos Algorithm for finding antipodal vertex pairs of convex polygon
 - Bounding Box fitting using Rotating Calipers and Shamos acceleration
 - Bounding Box fitting using Principal Component Analysis
+- Rudimental vehicle classification based on shape matching
 
 The clustering algorithm uses [unordered_dense](https://github.com/martinus/unordered_dense/tree/main?tab=readme-ov-file#4-segmented_map-and-segmented_set) library to speed up calculations and reduce memory usage.
 
