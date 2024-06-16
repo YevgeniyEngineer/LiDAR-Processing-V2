@@ -2,6 +2,17 @@
 
 A LiDAR processing pipeline based on ROS2 Humble node system, improvement to <https://github.com/YevgeniyEngineer/LiDAR-Processing>.
 
+## List of Implemented Algorithms and Data Structures
+
+- KDTree
+- Dynamic Radius Outlier Removal (DROR) filter
+- Segmentation based on Jump Process Convolution and Ring-Shaped Elevation Conjunction Map
+- Curved Voxel Clustering
+- Andrew's Monotone Chain Convex Hull
+- Shamos Algorithm for finding antipodal vertex pairs of convex polygon
+- Bounding Box fitting using Rotating Calipers and Shamos acceleration
+- Bounding Box fitting using Principal Component Analysis
+
 The clustering algorithm uses [unordered_dense](https://github.com/martinus/unordered_dense/tree/main?tab=readme-ov-file#4-segmented_map-and-segmented_set) library to speed up calculations and reduce memory usage.
 
 To update submodule, `git submodule update --init --recursive`.
