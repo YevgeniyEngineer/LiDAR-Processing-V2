@@ -96,7 +96,7 @@ The simplified obstacle contours can be used for:
 - Collision detection
 - Dynamic path planning
 
-I attempted to extract vehicles from the scene with reasonable a success using classical processing techniques, without relying on neural networks.
+I attempted to extract vehicles from the scene with a reasonable success using classical processing techniques, without relying on neural networks.
 However, it seems there are limitations on how well vehicles can be extracted from the scene.
 
 ![classification_of_vehicles](https://github.com/YevgeniyEngineer/LiDAR-Processing-V2/blob/main/images/vehicle_classification.png)
