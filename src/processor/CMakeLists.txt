@@ -9,6 +9,10 @@ include(CTest) # This enables the BUILD_TESTING option
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Enable profiling
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pg")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pg")
+
 # Find required packages
 find_package(Eigen3 3.4 REQUIRED NO_MODULE)
 find_package(OpenCV REQUIRED)
@@ -24,6 +28,7 @@ add_subdirectory(./src/unordered_dense)
 
 # Add executable
 add_executable(${PROJECT_NAME}
+    src/common.cpp
     src/noise_remover.cpp
     src/segmenter.cpp
     src/clusterer.cpp

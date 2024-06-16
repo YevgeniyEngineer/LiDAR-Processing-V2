@@ -479,7 +479,7 @@ void Processor::run(const PointCloud2& msg)
                 {
                     const auto t_bounding_box_start = std::chrono::steady_clock::now();
                     const polygonization::BoundingBox bounding_box =
-                        polygonizer_.boundingBoxPrincipalComponentAnalysis(polygonizer_points_);
+                        polygonizer_.boundingBoxRotatingCalipers(polygonizer_points_);
                     const auto t_bounding_box_stop = std::chrono::steady_clock::now();
                     bounding_box_total_time += t_bounding_box_stop - t_bounding_box_start;
 
@@ -520,12 +520,12 @@ void Processor::run(const PointCloud2& msg)
                 std::chrono::duration_cast<std::chrono::microseconds>(bounding_box_total_time)
                     .count();
 
-            // if (bounding_box_total_time_microsec > 10)
-            // {
-            //     std::cerr << "Total time bounding box calculation [micros]: "
-            //               << bounding_box_total_time_microsec << " for " << number_of_vertices
-            //               << " vertices" << std::endl;
-            // }
+            if (bounding_box_total_time_microsec > 10)
+            {
+                std::cerr << "Total time bounding box calculation [micros]: "
+                          << bounding_box_total_time_microsec << " for " << number_of_vertices
+                          << " vertices" << std::endl;
+            }
 
             // Convert to marker
             polygon_msg_cache_.markers.resize(polygon_msg_cache_.markers.size() + 1);

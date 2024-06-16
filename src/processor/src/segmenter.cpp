@@ -21,46 +21,13 @@
  */
 
 #include "segmenter.hpp"
+#include "common.hpp"
 
+// STL
 #include <random>
 
 namespace segmentation
 {
-// Taken from
-// https://stackoverflow.com/questions/46210708/atan2-approximation-with-11bits-in-mantissa-on-x86with-sse2-and-armwith-vfpv4
-// maximum relative error about 3.6e-5
-static inline float atan2Approx(const float y, const float x) noexcept
-{
-    const float ax = std::fabs(x);
-    const float ay = std::fabs(y);
-    const float mx = std::max(ay, ax);
-    const float mn = std::min(ay, ax);
-    const float a = mn / mx;
-    /* Minimax polynomial approximation to atan(a) on [0,1] */
-    const float s = a * a;
-    const float c = s * a;
-    const float q = s * s;
-    float r = 0.024840285F * q + 0.18681418F;
-    const float t = -0.094097948F * q - 0.33213072F;
-    r = r * s + t;
-    r = r * c + a;
-    /* Map to full circle */
-    if (ay > ax)
-    {
-        r = 1.57079637F - r;
-    }
-    if (x < 0)
-    {
-        r = 3.14159274F - r;
-    }
-    if (y < 0)
-    {
-        r = -r;
-    }
-
-    return r;
-}
-
 Segmenter::Segmenter()
     : config_{}, image_{cv::Mat::zeros(IMAGE_HEIGHT, IMAGE_WIDTH, CV_8UC3)},
       kernel_{cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5))}
@@ -186,7 +153,7 @@ void Segmenter::constructPolarGrid(const pcl::PointCloud<PointT>& cloud)
             continue;
         }
 
-        float azimuth_rad = atan2Approx(point.y, point.x);
+        float azimuth_rad = common::atan2Approx(point.y, point.x);
         azimuth_rad = (azimuth_rad < 0) ? (azimuth_rad + TWO_M_PIf) : azimuth_rad;
         const auto azimuth_index =
             std::min(static_cast<std::int32_t>(azimuth_rad / grid_slice_resolution_rad_),

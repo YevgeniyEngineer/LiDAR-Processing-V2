@@ -21,6 +21,10 @@
  */
 
 #include "polygonizer.hpp"
+#include "common.hpp"
+
+// Eigen
+#include <Eigen/Dense>
 
 // STL
 #include <cmath>
@@ -89,93 +93,175 @@ void Polygonizer::convexHull(const std::vector<PointT>& points, std::vector<std:
     indices.resize(k - 1);
 }
 
+// BoundingBox Polygonizer::boundingBoxRotatingCalipers(const std::vector<PointXY>& points)
+// {
+//     BoundingBox min_box;
+//     min_box.is_valid = false;
+
+//     const std::size_t n = points.size();
+//     if (n < 3)
+//     {
+//         return min_box;
+//     }
+
+//     float min_area = std::numeric_limits<float>::max();
+//     Eigen::MatrixXf projections(n, 2);
+
+//     // Precompute the projections on the UV axes
+//     for (std::size_t i = 0; i < n; ++i)
+//     {
+//         const auto j = (i == n - 1) ? 0 : (i + 1);
+//         const PointXY& p0 = points[i];
+//         const PointXY& p1 = points[j];
+
+//         // Edge vector
+//         const float edge_x = p1.x - p0.x;
+//         const float edge_y = p1.y - p0.y;
+
+//         if (edge_x < 1e-3f && edge_y < 1e-3f)
+//         {
+//             continue;
+//         }
+
+//         const float edge_length = std::sqrt(edge_x * edge_x + edge_y * edge_y);
+//         const float ux = edge_x / edge_length;
+//         const float uy = edge_y / edge_length;
+//         const float vx = -uy;
+//         const float vy = ux;
+
+//         // Project points onto the UV axes
+//         for (std::size_t k = 0; k < n; ++k)
+//         {
+//             const PointXY& point = points[k];
+//             projections(k, 0) = point.x * ux + point.y * uy; // U projection
+//             projections(k, 1) = point.x * vx + point.y * vy; // V projection
+//         }
+
+//         // Calculate bounding box in the UV space
+//         const float min_u = projections.col(0).minCoeff();
+//         const float max_u = projections.col(0).maxCoeff();
+//         const float min_v = projections.col(1).minCoeff();
+//         const float max_v = projections.col(1).maxCoeff();
+
+//         const float width = max_u - min_u;
+//         const float height = max_v - min_v;
+//         const float area = width * height;
+
+//         if (area < min_area)
+//         {
+//             min_area = area;
+
+//             // min_box.angle_rad = common::atan2Approx(edge_y, edge_x);
+//             min_box.corners = {{{min_u * ux + min_v * vx, min_u * uy + min_v * vy},
+//                                 {max_u * ux + min_v * vx, max_u * uy + min_v * vy},
+//                                 {max_u * ux + max_v * vx, max_u * uy + max_v * vy},
+//                                 {min_u * ux + max_v * vx, min_u * uy + max_v * vy}}};
+//         }
+//     }
+
+//     min_box.area = min_area;
+//     min_box.is_valid = true;
+
+//     return min_box;
+// }
+
 BoundingBox Polygonizer::boundingBoxRotatingCalipers(const std::vector<PointXY>& points)
 {
     BoundingBox min_box;
+    min_box.is_valid = false;
 
-    if (points.size() < 3)
+    const std::size_t n = points.size();
+    if (n < 3)
     {
-        min_box.is_valid = false;
         return min_box;
     }
 
-    const std::size_t n = points.size();
     auto min_area = std::numeric_limits<double>::max();
-
-    rotated_points_.reserve(points.size());
-
-    // Find centroid
-    PointXY centroid;
-    for (const auto& point : points)
+    PointXY centroid = {0.0, 0.0};
+    for (const auto& p : points)
     {
-        centroid.x += point.x;
-        centroid.y += point.y;
+        centroid.x += p.x;
+        centroid.y += p.y;
     }
-    centroid.x /= n;
-    centroid.y /= n;
+    centroid.x /= points.size();
+    centroid.y /= points.size();
+
+    BoundingBox box;
 
     for (std::size_t i = 0; i < n; ++i)
     {
-        const PointXY& p0 = points[i];
-        const PointXY& p1 = points[(i + 1) % n];
+        const auto j = (i == n - 1) ? 0 : (i + 1);
 
-        const PointXY edge = l_subtract(p1, p0);
-        const double length = std::sqrt(edge.x * edge.x + edge.y * edge.y);
-        if (length <= 1e-8)
+        const PointXY& p0 = points[i];
+        const PointXY& p1 = points[j];
+
+        // Edge represents a vector from p0 to p1
+        auto edge_x = p1.x - p0.x;
+        auto edge_y = p1.y - p0.y;
+        const auto edge_length_sqr = edge_x * edge_x + edge_y * edge_y;
+        if (edge_length_sqr <= 1.0e-8)
         {
             continue; // Skip degenerate edges
         }
+        const auto edge_length = std::sqrt(edge_length_sqr);
 
-        const PointXY edge_norm = {edge.x / length, edge.y / length};
-        const double angle_rad = std::atan2(edge_norm.y, edge_norm.x);
+        // Normalize edge vector
+        edge_x /= edge_length;
+        edge_y /= edge_length;
 
-        // Rotate points
-        rotated_points_.clear();
+        // Calculate orientation of the edge
+        const auto angle_rad =
+            common::atan2Approx(static_cast<float>(edge_y), static_cast<float>(edge_x));
+
+        // Precalculate rotation angles transformation matrix
+        const auto cos_angle = std::cos(static_cast<float>(angle_rad));
+        const auto sin_angle = std::sin(static_cast<float>(angle_rad));
+
+        // Calculate bounding box corners
+        auto min_x = std::numeric_limits<double>::max();
+        auto min_y = std::numeric_limits<double>::max();
+        auto max_x = std::numeric_limits<double>::lowest();
+        auto max_y = std::numeric_limits<double>::lowest();
+
         for (const auto& point : points)
         {
-            rotated_points_.push_back(l_rotate(point, -angle_rad, centroid));
+            // Shift point towards origin
+            const auto translated_x = point.x - centroid.x;
+            const auto translated_y = point.y - centroid.y;
+
+            // Find rotated point aligned with the edge direction
+            const auto rotated_point_x = translated_x * cos_angle - translated_y * sin_angle;
+            const auto rotated_point_y = translated_x * sin_angle + translated_y * cos_angle;
+
+            // Update extrema
+            min_x = std::min(min_x, rotated_point_x);
+            max_x = std::max(max_x, rotated_point_x);
+            min_y = std::min(min_y, rotated_point_y);
+            max_y = std::max(max_y, rotated_point_y);
         }
 
-        // Calculate bounding box
-        double min_x = std::numeric_limits<double>::max();
-        double min_y = std::numeric_limits<double>::max();
-        double max_x = std::numeric_limits<double>::lowest();
-        double max_y = std::numeric_limits<double>::lowest();
-
-        for (const auto& point : rotated_points_)
-        {
-            if (point.x < min_x)
-            {
-                min_x = point.x;
-            }
-            if (point.x > max_x)
-            {
-                max_x = point.x;
-            }
-            if (point.y < min_y)
-            {
-                min_y = point.y;
-            }
-            if (point.y > max_y)
-            {
-                max_y = point.y;
-            }
-        }
-
-        BoundingBox box;
-        box.corners = {{{min_x, min_y}, {max_x, min_y}, {max_x, max_y}, {min_x, max_y}}};
+        // Calculate oriented bounding box
         box.area = (max_x - min_x) * (max_y - min_y);
-        box.angle_rad = angle_rad;
 
-        // Update minimum bounding box
+        // Update minimum bounding box if it is better than previous
         if (box.area < min_area)
         {
-            // Rotate bounding box corners back to the original orientation
-            for (auto& corner : box.corners)
+            box.corners = {{{min_x, min_y}, {max_x, min_y}, {max_x, max_y}, {min_x, max_y}}};
+            box.angle_rad = angle_rad;
+
+            // Rotate each corner of the bounding box
+            for (auto& point : box.corners)
             {
-                corner = l_rotate(corner, angle_rad, centroid);
+                // Shift point towards origin
+                const double translated_x = point.x;
+                const double translated_y = point.y;
+
+                // Find rotated point aligned with the edge direction
+                point.x = translated_x * cos_angle + translated_y * sin_angle + centroid.x;
+                point.y = -translated_x * sin_angle + translated_y * cos_angle + centroid.y;
             }
 
+            // Update area and bounding box values with the best bounding box
             min_area = box.area;
             min_box = box;
         }
