@@ -224,7 +224,7 @@ Processor::Processor()
     input_cloud_subscriber_ =
         this->create_subscription<PointCloud2>(input_cloud_topic_,
                                                rclcpp::QoS(2).reliable().durability_volatile(),
-                                               [](const PointCloud2& msg) -> void {
+                                               []([[maybe_unused]] const PointCloud2& msg) -> void {
                                                    // Callback does nothing
                                                });
 
@@ -458,7 +458,7 @@ void Processor::run(const PointCloud2& msg)
             }
 
             std::chrono::steady_clock::duration bounding_box_total_time{0};
-            const std::size_t number_of_vertices = polygon_points_.size();
+            [[maybe_unused]] const std::size_t number_of_vertices = polygon_points_.size();
 
             // Check if polygon can futher be simplified to a bounding box
             bool is_bounding_box = false;
@@ -674,7 +674,7 @@ void Processor::run(const PointCloud2& msg)
             const auto t_polygonization_stop = std::chrono::steady_clock::now();
             t_polygonization_total += (t_polygonization_stop - t_polygonization_start);
 
-            const auto bounding_box_total_time_microsec =
+            [[maybe_unused]] const auto bounding_box_total_time_microsec =
                 std::chrono::duration_cast<std::chrono::microseconds>(bounding_box_total_time)
                     .count();
 

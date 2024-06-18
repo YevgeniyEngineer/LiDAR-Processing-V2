@@ -13,17 +13,50 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pg")
 # set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pg")
 
+# See: https://gcc.gnu.org/onlinedocs/gcc/Instrumentation-Options.html
+
+# Define common compiler flags
+set(COMMON_FLAGS
+    "-Wall"                         # Enable all common warnings
+    "-Wextra"                       # Enable extra warnings
+    "-Werror"                       # Treat warnings as errors
+)
+
+# Define Debug compiler flags
+set(DEBUG_FLAGS
+    "-g"                            # Generate debug information
+    "-O0"                           # No optimization
+)
+
+# Define Release compiler flags
+set(RELEASE_FLAGS
+    "-O3"                           # High-level optimizations
+    "-flto"                         # Link Time Optimization
+    "-Wformat"                      # Enable format warnings
+    "-Wformat-security"             # Enable format security warnings
+    # "-funroll-loops"                # Enable loop unrolling
+    # "-ftree-vectorize"              # Enable automatic vectorization
+    # "-fstrict-aliasing"             # Enable strict aliasing optimizations
+    # "-ffunction-sections"           # Enable function sections for better optimization
+    # "-fdata-sections"               # Enable data sections for better optimization
+    # "-finline-functions"            # Enable function inlining
+    # "-march=native"                 # Optimize for the native architecture
+    # "-fstack-protector-strong"      # Stack protection to prevent stack overflow attacks
+    # "-D_FORTIFY_SOURCE=2"           # Additional buffer overflow checks
+    # "-fstack-clash-protection"      # Stack clash protection
+)
+
 # Find required packages
 find_package(Eigen3 3.4 REQUIRED NO_MODULE)
 find_package(OpenCV REQUIRED)
 find_package(PCL 1.7.2 REQUIRED)
-
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 
+# Include submodules
 add_subdirectory(./src/unordered_dense)
 
 # Add executable
@@ -35,6 +68,11 @@ add_executable(${PROJECT_NAME}
     src/polygonizer.cpp
     src/processor.cpp
 )
+
+# Set compiler flags
+target_compile_options(${PROJECT_NAME} PRIVATE ${COMMON_FLAGS})
+target_compile_options(${PROJECT_NAME} PRIVATE $<$<CONFIG:DEBUG>:${DEBUG_FLAGS}>)
+target_compile_options(${PROJECT_NAME} PRIVATE $<$<CONFIG:RELEASE>:${RELEASE_FLAGS}>)
 
 # Include directories for the target
 target_include_directories(${PROJECT_NAME}

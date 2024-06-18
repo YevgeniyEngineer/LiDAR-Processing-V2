@@ -167,7 +167,7 @@ BoundingBox Polygonizer::boundingBoxRotatingCalipers(const std::vector<PointXY>&
     BoundingBox min_box;
     min_box.is_valid = false;
 
-    const std::size_t n = convex_hull_points.size();
+    const std::int32_t n = convex_hull_points.size();
 
     if (n < 3)
     {
@@ -224,11 +224,9 @@ BoundingBox Polygonizer::boundingBoxRotatingCalipers(const std::vector<PointXY>&
 
                 const auto ux = edge_x / edge_length;
                 const auto uy = edge_y / edge_length;
-                const auto vx = -uy;
-                const auto vy = ux;
 
                 // Rotate points
-                for (std::size_t k = 0; k < n; ++k)
+                for (std::int32_t k = 0; k < n; ++k)
                 {
                     const auto& pt = convex_hull_points[k];
                     const double translated_x = pt.x - centroid.x;

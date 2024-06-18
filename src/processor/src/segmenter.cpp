@@ -606,7 +606,7 @@ void Segmenter::JCP(const pcl::PointCloud<PointT>& cloud)
             float weight_obstacle = 0.0F;
             float weight_ground = 0.0F;
 
-            for (std::size_t i = 0; i < weight_matrix_.size(); ++i)
+            for (std::int32_t i = 0; i < weight_matrix_.size(); ++i)
             {
                 if (kernel_label_mask_[i] == Label::GROUND)
                 {

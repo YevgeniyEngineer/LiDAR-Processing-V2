@@ -37,8 +37,6 @@ NoiseRemover::NoiseRemover() : kdtree_(false)
 
 void NoiseRemover::filter(const std::vector<PointT>& points, std::vector<NoiseRemoverLabel>& labels)
 {
-    static constexpr float DEG_TO_RAD = static_cast<float>(M_PI / 180.0);
-
     labels.assign(points.size(), NoiseRemoverLabel::VALID);
 
     kdtree_.rebuild(points);

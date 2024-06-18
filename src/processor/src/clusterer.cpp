@@ -165,7 +165,7 @@ void Clusterer::clusterImpl(std::vector<ClusterLabel>& labels)
         }
 
         // Propagation of label to neighbours of neighbours
-        propagateLabel(common_voxel_label, {range_index, azimuth_index, elevation_index}, labels);
+        propagateLabel(common_voxel_label, {range_index, azimuth_index, elevation_index});
     }
 
     for (std::uint32_t point_index = 0; point_index < spherical_cloud_.size(); ++point_index)
@@ -174,9 +174,7 @@ void Clusterer::clusterImpl(std::vector<ClusterLabel>& labels)
     }
 }
 
-void Clusterer::propagateLabel(ClusterLabel label,
-                               const VoxelKey& voxel_key,
-                               std::vector<ClusterLabel>& labels)
+void Clusterer::propagateLabel(ClusterLabel label, const VoxelKey& voxel_key)
 {
     voxel_queue_.push(voxel_key);
     visited_voxels_.clear();

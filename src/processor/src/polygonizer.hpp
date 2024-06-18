@@ -231,7 +231,8 @@ inline double areaOfTriangle(const PointT& p1, const PointT& p2, const PointT& p
 }
 
 template <typename PointT>
-void Polygonizer::concaveHull(const std::vector<PointT>& points, std::vector<std::int32_t>& indices)
+void Polygonizer::concaveHull([[maybe_unused]] const std::vector<PointT>& points,
+                              [[maybe_unused]] std::vector<std::int32_t>& indices)
 {
 }
 
