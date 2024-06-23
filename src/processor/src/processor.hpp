@@ -61,6 +61,140 @@
 
 namespace processing
 {
+struct VehicleDimensions
+{
+    double min_length;
+    double max_length;
+    double min_width;
+    double max_width;
+    double min_height;
+    double max_height;
+};
+
+struct VehicleBounds
+{
+    double min_volume;
+    double max_volume;
+    double min_area;
+    double max_area;
+};
+
+// Vehicle tolerances
+inline constexpr double length_tolerance_m = 0.8;
+inline constexpr double width_tolerance_m = 0.5;
+inline constexpr double height_tolerance_m = 0.5;
+
+// Typical dimensions for different vehicle types
+inline constexpr std::array<VehicleDimensions, 5> base_vehicle_dimensions = {{
+    {4.3, 4.6, 1.6, 1.9, 1.4, 1.5}, // Compact Cars
+    {4.6, 5.0, 1.6, 1.9, 1.4, 1.5}, // Sedans
+    {4.6, 5.2, 1.7, 2.1, 1.7, 1.8}, // SUVs
+    {5.2, 5.8, 1.9, 2.2, 1.8, 2.0}, // Trucks
+    {4.9, 5.2, 1.7, 2.1, 1.7, 1.8}  // Minivans
+}};
+
+// Allowed intersection over union between convex hull and bounding box
+[[maybe_unused]] inline constexpr double min_intersection_over_union = 0.4;
+
+inline constexpr std::array<VehicleDimensions, 5> adjusted_vehicle_dimensions = []() {
+    std::array<VehicleDimensions, 5> adjusted{};
+    for (std::size_t i = 0; i < base_vehicle_dimensions.size(); ++i)
+    {
+        adjusted[i] = {base_vehicle_dimensions[i].min_length - length_tolerance_m,
+                       base_vehicle_dimensions[i].max_length + length_tolerance_m,
+                       base_vehicle_dimensions[i].min_width - width_tolerance_m,
+                       base_vehicle_dimensions[i].max_width + width_tolerance_m,
+                       base_vehicle_dimensions[i].min_height - height_tolerance_m,
+                       base_vehicle_dimensions[i].max_height + height_tolerance_m};
+    }
+    return adjusted;
+}();
+
+inline constexpr std::array<VehicleBounds, 5> vehicle_bounds = []() {
+    std::array<VehicleBounds, 5> bounds{};
+    for (std::size_t i = 0; i < adjusted_vehicle_dimensions.size(); ++i)
+    {
+        const auto& dims = adjusted_vehicle_dimensions[i];
+        bounds[i] = {dims.min_length * dims.min_width * dims.min_height,
+                     dims.max_length * dims.max_width * dims.max_height,
+                     dims.min_length * dims.min_width,
+                     dims.max_length * dims.max_width};
+    }
+    return bounds;
+}();
+
+inline constexpr double min_height_threshold = []() {
+    double min_height = std::numeric_limits<double>::max();
+    for (const auto& vehicle : adjusted_vehicle_dimensions)
+    {
+        if (vehicle.min_height < min_height)
+        {
+            min_height = vehicle.min_height;
+        }
+    }
+    return min_height;
+}();
+
+inline constexpr double max_height_threshold = []() {
+    double max_height = std::numeric_limits<double>::lowest();
+    for (const auto& vehicle : adjusted_vehicle_dimensions)
+    {
+        if (vehicle.max_height > max_height)
+        {
+            max_height = vehicle.max_height;
+        }
+    }
+    return max_height;
+}();
+
+inline constexpr double absolute_min_volume = []() {
+    double min_volume = std::numeric_limits<double>::max();
+    for (const auto& bounds : vehicle_bounds)
+    {
+        if (bounds.min_volume < min_volume)
+        {
+            min_volume = bounds.min_volume;
+        }
+    }
+    return min_volume;
+}();
+
+inline constexpr double absolute_max_volume = []() {
+    double max_volume = std::numeric_limits<double>::lowest();
+    for (const auto& bounds : vehicle_bounds)
+    {
+        if (bounds.max_volume > max_volume)
+        {
+            max_volume = bounds.max_volume;
+        }
+    }
+    return max_volume;
+}();
+
+[[maybe_unused]] inline constexpr double absolute_min_area = []() {
+    double min_area = std::numeric_limits<double>::max();
+    for (const auto& bounds : vehicle_bounds)
+    {
+        if (bounds.min_area < min_area)
+        {
+            min_area = bounds.min_area;
+        }
+    }
+    return min_area;
+}();
+
+[[maybe_unused]] inline constexpr double absolute_max_area = []() {
+    double max_area = std::numeric_limits<double>::lowest();
+    for (const auto& bounds : vehicle_bounds)
+    {
+        if (bounds.max_area > max_area)
+        {
+            max_area = bounds.max_area;
+        }
+    }
+    return max_area;
+}();
+
 class Processor final : public rclcpp::Node
 {
   public:

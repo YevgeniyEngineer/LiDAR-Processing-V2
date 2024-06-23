@@ -14,15 +14,19 @@
         "ROS_DOMAIN_ID": "0"
     },
     "runArgs": [
-        "--gpus",
-        "all",
-        "--runtime=nvidia",
+        // "--gpus",
+        // "all",
+        // "--runtime=nvidia",
         "--net",
         "host",
         "--privileged",
         "--env=DISPLAY=:1",
         "--volume=/tmp/.X11-unix:/tmp/.X11-unix:rw"
     ],
+    "hostRequirements": {
+        "gpu": "optional"
+    },
+    "shutdownAction": "stopContainer",
     "remoteUser": "devuser",
     "workspaceFolder": "/home/devuser/workspace/LiDAR-Processing-V2",
     "mounts": [

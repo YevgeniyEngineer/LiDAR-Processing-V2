@@ -71,7 +71,7 @@ ARG USER_GID=$USER_UID
 # Create user with specified home directory
 RUN groupadd --gid $USER_GID $USERNAME || echo "Group $USERNAME already exists"
 RUN useradd --uid $USER_UID --gid $USER_GID --create-home --home-dir /home/$USERNAME $USERNAME || echo "User $USERNAME already exists"
-RUN echo "$USERNAME ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/$USERNAME 
+RUN echo "$USERNAME ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/$USERNAME
 RUN chmod 0440 /etc/sudoers.d/$USERNAME
 
 # Setup ROS2 environment in the bashrc for interactive bash shells
@@ -79,6 +79,9 @@ RUN echo "source /opt/ros/humble/setup.bash" >> /home/$USERNAME/.bashrc
 
 # Setup GUI forwarding with the correct DISPLAY setting
 RUN echo "export DISPLAY=:1" >> /home/$USERNAME/.bashrc
+
+# Switch to the non-root user
+USER $USERNAME
 
 # Command to run on container start
 CMD ["/bin/bash"]

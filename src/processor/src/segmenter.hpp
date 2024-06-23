@@ -146,8 +146,8 @@ class Segmenter
     // Values acceptable for Velodyne HDL-64E (64 - ring LiDAR)
     static constexpr float ELEVATION_UP_DEG = +2.0F;
     static constexpr float ELEVATION_DOWN_DEG = -24.8F;
-    static constexpr auto IMAGE_WIDTH = 2048;
-    static constexpr auto IMAGE_HEIGHT = 64;
+    static constexpr std::int32_t IMAGE_WIDTH = 2048;
+    static constexpr std::int32_t IMAGE_HEIGHT = 64;
 
     // Colour labels
     inline static const auto CV_OBSTACLE = cv::Vec3b(0, 0, 255);
