@@ -20,15 +20,16 @@
  * SOFTWARE.
  */
 
-#ifndef CONTAINERS__STACK_HPP
-#define CONTAINERS__STACK_HPP
+#ifndef LIDAR_PROCESSING_LIB__STACK_HPP
+#define LIDAR_PROCESSING_LIB__STACK_HPP
 
+// STL
 #include <cstdint>
 #include <stdexcept>
 #include <utility>
 #include <vector>
 
-namespace containers
+namespace lidar_processing_lib
 {
 template <typename T>
 class Stack final
@@ -151,6 +152,6 @@ inline const T& Stack<T>::top() const
     return buffer_.back();
 }
 
-} // namespace containers
+} // namespace lidar_processing_lib
 
-#endif // CONTAINERS__STACK_HPP
+#endif // LIDAR_PROCESSING_LIB__STACK_HPP

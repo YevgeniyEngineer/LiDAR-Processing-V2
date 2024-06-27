@@ -105,5 +105,5 @@
     "C_Cpp.autoAddFileAssociations": false,
     "C_Cpp.codeAnalysis.runAutomatically": false,
     "C_Cpp.default.enableConfigurationSquiggles": false,
-    "cmake.sourceDirectory": "/home/yevgeniy/workspace/LiDAR-Processing-V2/src/ros2_nodes/processor"
+    "cmake.sourceDirectory": "/home/devuser/workspace/LiDAR-Processing-V2"
 }

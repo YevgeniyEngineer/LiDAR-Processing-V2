@@ -28,7 +28,7 @@
 #include <iostream>
 #include <limits>
 
-namespace polygonization
+namespace lidar_processing_lib
 {
 template <typename PointT>
 void Polygonizer::convexHull(const std::vector<PointT>& points, std::vector<std::int32_t>& indices)
@@ -267,7 +267,7 @@ BoundingBox Polygonizer::boundingBoxRotatingCalipers(const std::vector<PointXY>&
                     min_box.corners[3] = {min_x * ux - max_y * uy + centroid.x,
                                           min_x * uy + max_y * ux + centroid.y};
 
-                    min_box.angle_rad = common::atan2Approx(uy, ux);
+                    min_box.angle_rad = lidar_processing_lib::atan2Approx(uy, ux);
                     min_box.is_valid = true;
                 }
             }
@@ -467,4 +467,4 @@ template void Polygonizer::convexHull(const std::vector<PointXYZ>& points,
 //     return min_box;
 // }
 
-} // namespace polygonization
+} // namespace lidar_processing_lib

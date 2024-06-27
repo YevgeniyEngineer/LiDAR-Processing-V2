@@ -22,7 +22,7 @@
 
 #include "clusterer.hpp"
 
-namespace clustering
+namespace lidar_processing_lib
 {
 Clusterer::Clusterer()
 {
@@ -287,4 +287,4 @@ template void Clusterer::cartesianToSpherical(
 template void Clusterer::cartesianToSpherical(
     const pcl::PointCloud<pcl::PointXYZRGB>& cartesian_cloud,
     std::vector<SphericalPoint>& spherical_cloud);
-} // namespace clustering
+} // namespace lidar_processing_lib

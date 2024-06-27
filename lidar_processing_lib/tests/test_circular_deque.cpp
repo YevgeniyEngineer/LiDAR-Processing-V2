@@ -1,8 +1,8 @@
-#include "../src/circular_deque.hpp"
+#include <lidar_processing_lib/circular_deque.hpp>
 
 #include <gtest/gtest.h>
 
-using namespace containers;
+using namespace lidar_processing_lib;
 
 TEST(CircularDequeTest, BasicOperations)
 {

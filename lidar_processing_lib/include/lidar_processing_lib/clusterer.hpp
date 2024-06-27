@@ -20,14 +20,18 @@
  * SOFTWARE.
  */
 
-#ifndef CLUSTERER_HPP
-#define CLUSTERER_HPP
-
-// External
-#include "ankerl/unordered_dense.h"
+#ifndef LIDAR_PROCESSING_LIB__CLUSTERER_HPP
+#define LIDAR_PROCESSING_LIB__CLUSTERER_HPP
 
 // Internal
 #include "circular_queue.hpp"
+
+// External
+#include <ankerl/unordered_dense.h>
+
+// PCL
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
 
 // STL
 #include <algorithm>
@@ -42,13 +46,8 @@
 #include <unordered_set>
 #include <utility>
 
-// PCL
-#include <pcl/point_cloud.h>
-#include <pcl/point_types.h>
-
-namespace clustering
+namespace lidar_processing_lib
 {
-
 using ClusterLabel = std::int32_t;
 
 struct SphericalPoint
@@ -114,7 +113,7 @@ class Clusterer
     ankerl::unordered_dense::segmented_map<std::int32_t, ClusterLabel> voxel_labels_;
     ankerl::unordered_dense::segmented_set<std::int32_t> visited_voxels_;
 
-    containers::CircularQueue<VoxelKey, 150'000> voxel_queue_;
+    lidar_processing_lib::CircularQueue<VoxelKey, 150'000> voxel_queue_;
 
     std::vector<std::uint32_t> cluster_labels_counts_;
     std::vector<ClusterLabel> cluster_labels_cache_;
@@ -186,6 +185,6 @@ extern template void Clusterer::cartesianToSpherical(
 extern template void Clusterer::cartesianToSpherical(
     const pcl::PointCloud<pcl::PointXYZRGB>& cartesian_cloud,
     std::vector<SphericalPoint>& spherical_cloud);
-} // namespace clustering
+} // namespace lidar_processing_lib
 
-#endif // CLUSTERER_HPP
+#endif // LIDAR_PROCESSING_LIB__CLUSTERER_HPP

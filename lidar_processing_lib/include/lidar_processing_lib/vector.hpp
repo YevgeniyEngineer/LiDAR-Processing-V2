@@ -20,9 +20,10 @@
  * SOFTWARE.
  */
 
-#ifndef CONTAINERS__VECTOR_HPP
-#define CONTAINERS__VECTOR_HPP
+#ifndef LIDAR_PROCESSING_LIB__VECTOR_HPP
+#define LIDAR_PROCESSING_LIB__VECTOR_HPP
 
+// STL
 #include <algorithm>
 #include <cstddef>
 #include <cstdlib>
@@ -33,7 +34,7 @@
 #include <utility>
 #include <vector>
 
-namespace containers
+namespace lidar_processing_lib
 {
 template <typename T, typename Allocator = std::allocator<T>>
 class Vector final
@@ -823,6 +824,6 @@ void swap(Vector<T, Allocator>& first, Vector<T, Allocator>& second) noexcept(
     first.swap(second);
 }
 
-} // namespace containers
+} // namespace lidar_processing_lib
 
-#endif // CONTAINERS__VECTOR_HPP
+#endif // LIDAR_PROCESSING_LIB__VECTOR_HPP

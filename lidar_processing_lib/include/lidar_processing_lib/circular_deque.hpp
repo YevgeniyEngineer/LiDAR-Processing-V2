@@ -20,14 +20,15 @@
  * SOFTWARE.
  */
 
-#ifndef CONTAINERS__CIRCULAR_DEQUE_HPP
-#define CONTAINERS__CIRCULAR_DEQUE_HPP
+#ifndef LIDAR_PROCESSING_LIB__CIRCULAR_DEQUE_HPP
+#define LIDAR_PROCESSING_LIB__CIRCULAR_DEQUE_HPP
 
+// STL
 #include <cstdint>
 #include <memory>
 #include <stdexcept>
 
-namespace containers
+namespace lidar_processing_lib
 {
 template <typename T, std::int32_t MaxSize>
 class CircularDeque final
@@ -252,6 +253,6 @@ inline const T& CircularDeque<T, MaxSize>::back() const
     return data_[rear_];
 }
 
-} // namespace containers
+} // namespace lidar_processing_lib
 
-#endif // CONTAINERS__CIRCULAR_DEQUE_HPP
+#endif // LIDAR_PROCESSING_LIB__CIRCULAR_DEQUE_HPP

@@ -20,15 +20,16 @@
  * SOFTWARE.
  */
 
-#ifndef CONTAINERS__QUEUE_HPP
-#define CONTAINERS__QUEUE_HPP
+#ifndef LIDAR_PROCESSING_LIB__QUEUE_HPP
+#define LIDAR_PROCESSING_LIB__QUEUE_HPP
 
+// STL
 #include <cstddef>
 #include <memory>
 #include <stdexcept>
 #include <utility>
 
-namespace containers
+namespace lidar_processing_lib
 {
 template <typename T>
 class Queue final
@@ -233,6 +234,6 @@ void Queue<T>::clear() noexcept
         static_cast<void>(try_pop());
     }
 }
-} // namespace containers
+} // namespace lidar_processing_lib
 
-#endif // CONTAINERS__QUEUE_HPP
+#endif // LIDAR_PROCESSING_LIB__QUEUE_HPP

@@ -20,9 +20,10 @@
  * SOFTWARE.
  */
 
-#ifndef CONTAINERS_BUFFER_HPP
-#define CONTAINERS_BUFFER_HPP
+#ifndef LIDAR_PROCESSING_LIB__BUFFER_HPP
+#define LIDAR_PROCESSING_LIB__BUFFER_HPP
 
+// STL
 #include <algorithm>
 #include <array>
 #include <memory>
@@ -31,7 +32,7 @@
 #include <stdexcept>
 #include <type_traits>
 
-namespace containers
+namespace lidar_processing_lib
 {
 /*
 Initialization: The loans_ and buffer_ arrays are initialized
@@ -192,5 +193,5 @@ class Buffer final
     std::array<T, N> buffer_;
     std::array<bool, N> in_use_;
 };
-} // namespace containers
-#endif // CONTAINERS_BUFFER_HPP
+} // namespace lidar_processing_lib
+#endif // LIDAR_PROCESSING_LIB__BUFFER_HPP

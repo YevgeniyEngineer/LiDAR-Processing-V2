@@ -20,11 +20,18 @@
  * SOFTWARE.
  */
 
-#ifndef SEGMENTER_HPP
-#define SEGMENTER_HPP
+#ifndef LIDAR_PROCESSING_LIB__SEGMENTER_HPP
+#define LIDAR_PROCESSING_LIB__SEGMENTER_HPP
 
 // Internal
 #include "circular_queue.hpp"
+
+// PCL
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+
+// OpenCV
+#include <opencv2/opencv.hpp>
 
 // STL
 #include <algorithm>
@@ -40,13 +47,6 @@
 #include <queue>
 #include <type_traits>
 #include <vector>
-
-// PCL
-#include <pcl/point_cloud.h>
-#include <pcl/point_types.h>
-
-// OpenCV
-#include <opencv2/opencv.hpp>
 
 namespace pcl
 {
@@ -77,7 +77,7 @@ class HasRing
     static constexpr bool value = decltype(test<PointT>(0))::value;
 };
 
-namespace segmentation
+namespace lidar_processing_lib
 {
 enum class Label : std::uint32_t
 {
@@ -86,7 +86,7 @@ enum class Label : std::uint32_t
     OBSTACLE
 };
 
-struct Point
+struct SegmenterPoint
 {
     float x;
     float y;
@@ -97,7 +97,7 @@ struct Point
     std::int32_t cloud_index;
 };
 
-struct Configuration
+struct SegmenterConfiguration
 {
     float grid_radial_spacing_m = 2.0F;
     float grid_slice_resolution_deg = 1.0F;
@@ -114,7 +114,7 @@ struct Configuration
     bool display_recm_with_low_confidence_points = false;
 };
 
-inline std::ostream& operator<<(std::ostream& os, const Configuration& config)
+inline std::ostream& operator<<(std::ostream& os, const SegmenterConfiguration& config)
 {
     os << "grid_radial_spacing_m: " << config.grid_radial_spacing_m << "\n"
        << "grid_slice_resolution_deg: " << config.grid_slice_resolution_deg << "\n"
@@ -162,9 +162,9 @@ class Segmenter
     Segmenter();
     ~Segmenter() = default;
 
-    void config(const Configuration& config);
+    void config(const SegmenterConfiguration& config);
 
-    inline const Configuration& config() const noexcept
+    inline const SegmenterConfiguration& config() const noexcept
     {
         return config_;
     }
@@ -184,7 +184,7 @@ class Segmenter
         std::int32_t width_index;
     };
 
-    Configuration config_;
+    SegmenterConfiguration config_;
 
     float grid_slice_resolution_rad_;
     std::int32_t grid_number_of_radial_rings_;
@@ -196,7 +196,7 @@ class Segmenter
     // slice 2 -> each cell
     // ...
     // slice N -> each cell
-    std::vector<std::vector<Point>> polar_grid_;
+    std::vector<std::vector<SegmenterPoint>> polar_grid_;
 
     std::vector<float> elevation_map_;
     std::vector<std::int32_t> cloud_mapping_indices_;
@@ -217,7 +217,7 @@ class Segmenter
 
     cv::Mat kernel_;
     std::vector<cv::Mat> image_channels_;
-    containers::CircularQueue<Index, IMAGE_HEIGHT * IMAGE_WIDTH> index_queue_;
+    lidar_processing_lib::CircularQueue<Index, IMAGE_HEIGHT * IMAGE_WIDTH> index_queue_;
 
     Eigen::Vector<float, 24> unnormalized_weight_matrix_;
     Eigen::Vector<float, 24> weight_matrix_;
@@ -285,6 +285,6 @@ extern template void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZ>& cloud)
 extern template void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZI>& cloud);
 extern template void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZIR>& cloud);
 
-} // namespace segmentation
+} // namespace lidar_processing_lib
 
-#endif // SEGMENTER_HPP
+#endif // LIDAR_PROCESSING_LIB__SEGMENTER_HPP

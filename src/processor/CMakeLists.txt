@@ -13,40 +13,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pg")
 # set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pg")
 
-# See: https://gcc.gnu.org/onlinedocs/gcc/Instrumentation-Options.html
-
-# Define common compiler flags
-set(COMMON_FLAGS
-    "-Wall"                         # Enable all common warnings
-    "-Wextra"                       # Enable extra warnings
-    "-Werror"                       # Treat warnings as errors
-)
-
-# Define Debug compiler flags
-set(DEBUG_FLAGS
-    "-g"                            # Generate debug information
-    "-O0"                           # No optimization
-)
-
-# Define Release compiler flags
-set(RELEASE_FLAGS
-    "-O3"                           # High-level optimizations
-    "-flto"                         # Link Time Optimization
-    "-Wformat"                      # Enable format warnings
-    "-Wformat-security"             # Enable format security warnings
-    # "-funroll-loops"                # Enable loop unrolling
-    # "-ftree-vectorize"              # Enable automatic vectorization
-    # "-fstrict-aliasing"             # Enable strict aliasing optimizations
-    # "-ffunction-sections"           # Enable function sections for better optimization
-    # "-fdata-sections"               # Enable data sections for better optimization
-    # "-finline-functions"            # Enable function inlining
-    # "-march=native"                 # Optimize for the native architecture
-    # "-fstack-protector-strong"      # Stack protection to prevent stack overflow attacks
-    # "-D_FORTIFY_SOURCE=2"           # Additional buffer overflow checks
-    # "-fstack-clash-protection"      # Stack clash protection
-)
-
 # Find required packages
+find_package(lidar_processing_lib REQUIRED)
 find_package(Eigen3 3.4 REQUIRED NO_MODULE)
 find_package(OpenCV REQUIRED)
 find_package(PCL 1.7.2 REQUIRED)
@@ -56,23 +24,18 @@ find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 
-# Include submodules
-add_subdirectory(./src/unordered_dense)
-
 # Add executable
 add_executable(${PROJECT_NAME}
-    src/common.cpp
-    src/noise_remover.cpp
-    src/segmenter.cpp
-    src/clusterer.cpp
-    src/polygonizer.cpp
     src/processor.cpp
 )
 
 # Set compiler flags
-target_compile_options(${PROJECT_NAME} PRIVATE ${COMMON_FLAGS})
-target_compile_options(${PROJECT_NAME} PRIVATE $<$<CONFIG:DEBUG>:${DEBUG_FLAGS}>)
-target_compile_options(${PROJECT_NAME} PRIVATE $<$<CONFIG:RELEASE>:${RELEASE_FLAGS}>)
+target_compile_options(${PROJECT_NAME}
+    PRIVATE
+        "-Wall"    # Enable all common warnings
+        "-Wextra"  # Enable extra warnings
+        "-Werror"  # Treat warnings as errors
+)
 
 # Include directories for the target
 target_include_directories(${PROJECT_NAME}
@@ -83,24 +46,26 @@ target_include_directories(${PROJECT_NAME}
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
+# Link libraries
+target_link_libraries(${PROJECT_NAME}
+    lidar_processing_lib
+)
+
+# Add PCL and rclcpp libraries to the linker for the target
+target_link_libraries(${PROJECT_NAME}
+    lidar_processing_lib
+    Eigen3::Eigen
+    ${PCL_LIBRARIES}
+    ${OpenCV_LIBS}
+    ${rclcpp_LIBRARIES}
+)
+
 # Define dependencies for the target
 ament_target_dependencies(${PROJECT_NAME}
     rclcpp
     sensor_msgs
     geometry_msgs
     visualization_msgs
-    Eigen3
-    OpenCV
-    PCL
-)
-
-# Add PCL and rclcpp libraries to the linker for the target
-target_link_libraries(${PROJECT_NAME}
-    Eigen3::Eigen
-    ${PCL_LIBRARIES}
-    ${OpenCV_LIBS}
-    ${rclcpp_LIBRARIES}
-    unordered_dense
 )
 
 # Install the executable (ROS2 convention)
@@ -117,25 +82,5 @@ install(DIRECTORY config
 install(DIRECTORY launch
     DESTINATION share/${PROJECT_NAME}
 )
-
-# Unit testing
-if (BUILD_TESTING)
-    find_package(ament_lint_auto REQUIRED)
-    find_package(ament_cmake_gtest REQUIRED)
-
-    # Define the test executable and the source files for the test
-    ament_add_gtest(test_containers
-        tests/test_circular_deque.cpp
-    )
-
-    # Link the test executable
-    target_include_directories(test_containers
-        PRIVATE
-            ${CMAKE_CURRENT_SOURCE_DIR}/src
-    )
-
-    # Automatically find and add linters to the test dependencies
-    ament_lint_auto_find_test_dependencies()
-endif()
 
 ament_package()

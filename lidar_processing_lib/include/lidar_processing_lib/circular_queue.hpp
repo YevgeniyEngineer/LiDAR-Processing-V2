@@ -20,15 +20,16 @@
  * SOFTWARE.
  */
 
-#ifndef CONTAINERS__CIRCULAR_QUEUE_HPP
-#define CONTAINERS__CIRCULAR_QUEUE_HPP
+#ifndef LIDAR_PROCESSING_LIB__CIRCULAR_QUEUE_HPP
+#define LIDAR_PROCESSING_LIB__CIRCULAR_QUEUE_HPP
 
+// STL
 #include <cstdint>
 #include <iostream>
 #include <memory>
 #include <type_traits>
 
-namespace containers
+namespace lidar_processing_lib
 {
 template <typename T, std::size_t MaxSize>
 class CircularQueue
@@ -129,6 +130,6 @@ class CircularQueue
         return true;
     }
 };
-} // namespace containers
+} // namespace lidar_processing_lib
 
-#endif // CONTAINERS__CIRCULAR_QUEUE_HPP
+#endif // LIDAR_PROCESSING_LIB__CIRCULAR_QUEUE_HPP

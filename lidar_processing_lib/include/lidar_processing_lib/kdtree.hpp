@@ -20,9 +20,10 @@
  * SOFTWARE.
  */
 
-#ifndef KDTREE_HPP
-#define KDTREE_HPP
+#ifndef LIDAR_PROCESSING_LIB__KDTREE_HPP
+#define LIDAR_PROCESSING_LIB__KDTREE_HPP
 
+// Internal
 #include "priority_queue.hpp"
 #include "stack.hpp"
 
@@ -34,7 +35,7 @@
 #include <utility>
 #include <vector>
 
-namespace spatial_index
+namespace lidar_processing_lib
 {
 template <typename T, std::uint8_t Dim>
 using Point = std::array<T, Dim>;
@@ -112,10 +113,10 @@ class KDTree final
 
     Node* root_{nullptr};
     std::vector<Node> nodes_;
-    containers::Stack<RebuildStack> rebuild_stack_;
-    containers::Stack<KNearestStack> k_nearest_stack_;
-    containers::Stack<RadiusSearchStack> radius_search_stack_;
-    containers::PriorityQueue<Neighbour, Compare> min_heap_;
+    lidar_processing_lib::Stack<RebuildStack> rebuild_stack_;
+    lidar_processing_lib::Stack<KNearestStack> k_nearest_stack_;
+    lidar_processing_lib::Stack<RadiusSearchStack> radius_search_stack_;
+    lidar_processing_lib::PriorityQueue<Neighbour, Compare> min_heap_;
 
     template <std::uint8_t N = 0>
     constexpr T dist_sqr_impl(const PointT& a, const PointT& b) noexcept;
@@ -395,6 +396,6 @@ inline void KDTree<T, Dim>::radius_search_k_nearest(const PointT& target,
     }
 }
 
-} // namespace spatial_index
+} // namespace lidar_processing_lib
 
-#endif // KDTREE_HPP
+#endif // LIDAR_PROCESSING_LIB__KDTREE_HPP

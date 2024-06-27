@@ -26,7 +26,7 @@
 // STL
 #include <random>
 
-namespace segmentation
+namespace lidar_processing_lib
 {
 Segmenter::Segmenter()
     : config_{}, image_{cv::Mat::zeros(IMAGE_HEIGHT, IMAGE_WIDTH, CV_8UC3)},
@@ -61,7 +61,7 @@ Segmenter::Segmenter()
     std::cerr << config_ << std::endl;
 }
 
-void Segmenter::config(const Configuration& config)
+void Segmenter::config(const SegmenterConfiguration& config)
 {
     config_ = config;
 
@@ -153,7 +153,7 @@ void Segmenter::constructPolarGrid(const pcl::PointCloud<PointT>& cloud)
             continue;
         }
 
-        float azimuth_rad = common::atan2Approx(point.y, point.x);
+        float azimuth_rad = lidar_processing_lib::atan2Approx(point.y, point.x);
         azimuth_rad = (azimuth_rad < 0) ? (azimuth_rad + TWO_M_PIf) : azimuth_rad;
         const auto azimuth_index =
             std::min(static_cast<std::int32_t>(azimuth_rad / grid_slice_resolution_rad_),
@@ -677,4 +677,4 @@ template void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZ>& cloud);
 template void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZI>& cloud);
 template void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZIR>& cloud);
 
-} // namespace segmentation
+} // namespace lidar_processing_lib

@@ -27,7 +27,7 @@
 #include <cmath>
 #include <iostream>
 
-namespace noise_removal
+namespace lidar_processing_lib
 {
 NoiseRemover::NoiseRemover() : kdtree_(false)
 {
@@ -66,4 +66,4 @@ void NoiseRemover::filter(const std::vector<PointT>& points, std::vector<NoiseRe
         }
     }
 }
-} // namespace noise_removal
+} // namespace lidar_processing_lib

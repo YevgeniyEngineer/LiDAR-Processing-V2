@@ -20,8 +20,11 @@
  * SOFTWARE.
  */
 
-#ifndef POLYGONIZER_HPP
-#define POLYGONIZER_HPP
+#ifndef LIDAR_PROCESSING_LIB__POLYGONIZER_HPP
+#define LIDAR_PROCESSING_LIB__POLYGONIZER_HPP
+
+// Eigen
+#include <Eigen/Dense>
 
 // STL
 #include <algorithm>
@@ -33,10 +36,7 @@
 #include <utility>
 #include <vector>
 
-// Eigen
-#include <Eigen/Dense>
-
-namespace polygonization
+namespace lidar_processing_lib
 {
 enum class Orientation : std::uint8_t
 {
@@ -51,7 +51,7 @@ enum class PolygonContour : std::uint8_t
     ENCLOSED = 1
 };
 
-struct Configuration
+struct PolygonizerConfiguration
 {
     Orientation orientation = Orientation::ANTICLOCKWISE;
     PolygonContour contour = PolygonContour::OPEN;
@@ -121,7 +121,7 @@ class Polygonizer final
     template <typename PointT>
     void concaveHull(const std::vector<PointT>& points, std::vector<std::int32_t>& indices);
 
-    void config(const Configuration& config)
+    void config(const PolygonizerConfiguration& config)
     {
         config_ = config;
 
@@ -132,13 +132,13 @@ class Polygonizer final
         centered_matrix_buffer_.reserve(config_.max_points * 2);
     }
 
-    const Configuration& config() const noexcept
+    const PolygonizerConfiguration& config() const noexcept
     {
         return config_;
     }
 
   private:
-    Configuration config_;
+    PolygonizerConfiguration config_;
 
     std::vector<std::int32_t> sorted_indices_;
     std::vector<PointXY> rotated_points_;
@@ -242,6 +242,6 @@ extern template void Polygonizer::convexHull(const std::vector<PointXY>& points,
 extern template void Polygonizer::convexHull(const std::vector<PointXYZ>& points,
                                              std::vector<std::int32_t>& indices);
 
-} // namespace polygonization
+} // namespace lidar_processing_lib
 
-#endif // POLYGONIZER_HPP
+#endif // LIDAR_PROCESSING_LIB__POLYGONIZER_HPP

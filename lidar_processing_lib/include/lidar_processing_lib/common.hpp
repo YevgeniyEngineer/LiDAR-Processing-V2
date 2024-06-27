@@ -20,11 +20,17 @@
  * SOFTWARE.
  */
 
-#include "common.hpp"
+#ifndef LIDAR_PROCESSING_LIB__COMMON_HPP
+#define LIDAR_PROCESSING_LIB__COMMON_HPP
 
-namespace common
+// STL
+#include <cmath>
+
+namespace lidar_processing_lib
 {
-float atan2Approx(const float y, const float x) noexcept
+/// @brief Approximate arctan2 function with a maximum relative error ~3.6e-5
+/// https://stackoverflow.com/questions/46210708/atan2-approximation-with-11bits-in-mantissa-on-x86with-sse2-and-armwith-vfpv4
+inline constexpr float atan2Approx(const float y, const float x) noexcept
 {
     const float ax = std::fabs(x);
     const float ay = std::fabs(y);
@@ -54,4 +60,7 @@ float atan2Approx(const float y, const float x) noexcept
     }
     return r;
 }
-} // namespace common
+
+} // namespace lidar_processing_lib
+
+#endif // LIDAR_PROCESSING_LIB__COMMON_HPP

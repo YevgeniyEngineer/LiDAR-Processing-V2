@@ -20,6 +20,9 @@
  * SOFTWARE.
  */
 
+#ifndef LIDAR_PROCESSING_LIB__NOISE_REMOVER_HPP
+#define LIDAR_PROCESSING_LIB__NOISE_REMOVER_HPP
+
 // Spatial index
 #include "kdtree.hpp"
 
@@ -27,7 +30,7 @@
 #include <cstdint>
 #include <vector>
 
-namespace noise_removal
+namespace lidar_processing_lib
 {
 enum class NoiseRemoverLabel : std::uint8_t
 {
@@ -35,7 +38,7 @@ enum class NoiseRemoverLabel : std::uint8_t
     NOISE = 1
 };
 
-struct Configuration
+struct NoiseRemoverConfiguration
 {
     // Search radius will be scaled by this number
     // For example, at 1 meters, if radius_multiplier_m_per_m = 0.02,
@@ -53,8 +56,8 @@ struct Configuration
 class NoiseRemover final
 {
   public:
-    using PointT = spatial_index::KDTree<float, 3>::PointT;
-    using NeighbourT = spatial_index::KDTree<float, 3>::Neighbour;
+    using PointT = lidar_processing_lib::KDTree<float, 3>::PointT;
+    using NeighbourT = lidar_processing_lib::KDTree<float, 3>::Neighbour;
 
     NoiseRemover();
 
@@ -66,20 +69,22 @@ class NoiseRemover final
         neighbours_.reserve(max_pts);
     }
 
-    void config(const Configuration& config)
+    void config(const NoiseRemoverConfiguration& config)
     {
         config_ = config;
     }
 
-    const Configuration& config() const noexcept
+    const NoiseRemoverConfiguration& config() const noexcept
     {
         return config_;
     }
 
   private:
-    Configuration config_;
+    NoiseRemoverConfiguration config_;
 
-    spatial_index::KDTree<float, 3> kdtree_;
+    lidar_processing_lib::KDTree<float, 3> kdtree_;
     std::vector<NeighbourT> neighbours_;
 };
-} // namespace noise_removal
+} // namespace lidar_processing_lib
+
+#endif // LIDAR_PROCESSING_LIB__NOISE_REMOVER_HPP

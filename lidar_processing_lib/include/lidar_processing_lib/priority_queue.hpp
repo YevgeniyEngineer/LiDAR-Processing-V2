@@ -20,8 +20,8 @@
  * SOFTWARE.
  */
 
-#ifndef CONTAINERS__PRIORITY_QUEUE_HPP
-#define CONTAINERS__PRIORITY_QUEUE_HPP
+#ifndef LIDAR_PROCESSING_LIB__PRIORITY_QUEUE_HPP
+#define LIDAR_PROCESSING_LIB__PRIORITY_QUEUE_HPP
 
 // STL
 #include <algorithm>
@@ -29,7 +29,7 @@
 #include <stdexcept>
 #include <vector>
 
-namespace containers
+namespace lidar_processing_lib
 {
 template <typename T, typename Comparator = std::less<T>>
 class PriorityQueue final
@@ -144,6 +144,6 @@ inline const T& PriorityQueue<T, Comparator>::top() const
     return buffer_.front();
 }
 
-} // namespace containers
+} // namespace lidar_processing_lib
 
-#endif // CONTAINERS__PRIORITY_QUEUE_HPP
+#endif // LIDAR_PROCESSING_LIB__PRIORITY_QUEUE_HPP

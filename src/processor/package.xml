@@ -13,15 +13,18 @@
     <build_depend>opencv</build_depend>
     <build_depend>pcl</build_depend>
     <build_depend>eigen3_cmake_module</build_depend>
+    <build_depend>lidar_processing_lib</build_depend>
 
     <!-- Dependencies needed for linking and runtime -->
     <build_export_depend>opencv</build_export_depend>
     <build_export_depend>pcl</build_export_depend>
     <build_export_depend>eigen3_cmake_module</build_export_depend>
+    <build_export_depend>lidar_processing_lib</build_export_depend>
 
     <!-- Runtime dependencies -->
     <exec_depend>opencv</exec_depend>
     <exec_depend>pcl</exec_depend>
+    <exec_depend>lidar_processing_lib</exec_depend>
 
     <!-- ROS2 dependencies -->
     <depend>rclcpp</depend>
