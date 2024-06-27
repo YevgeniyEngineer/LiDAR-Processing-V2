@@ -4,6 +4,11 @@ A LiDAR processing pipeline based on ROS2 Humble node system, improvement to <ht
 
 See execution times captured with `gprof` in [analysis.txt](./analysis.txt).
 
+```bash
+git submodule init
+git submodule update --init --recursive
+```
+
 ## List of Implemented Algorithms and Data Structures
 
 - KDTree
