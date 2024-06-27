@@ -23,24 +23,14 @@
 #ifndef PROCESSOR_HPP
 #define PROCESSOR_HPP
 
-// Noise Remover
-#include "noise_remover.hpp"
+// LiDAR processing libraries
+#include <lidar_processing_lib/clusterer.hpp>
+#include <lidar_processing_lib/noise_remover.hpp>
+#include <lidar_processing_lib/polygonizer.hpp>
+#include <lidar_processing_lib/segmenter.hpp>
 
-// Segmenter
-#include "segmenter.hpp"
-
-// Clusterer
-#include "clusterer.hpp"
-
-// Polygonizer
-#include "polygonizer.hpp"
-
-// STL
-#include <cmath>
-#include <cstdint>
-#include <cstdlib>
-#include <string>
-#include <vector>
+// OpenCV
+#include <opencv2/opencv.hpp>
 
 // PCL
 #include <pcl/point_cloud.h>
@@ -56,8 +46,12 @@
 #include <sensor_msgs/msg/point_field.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 
-// OpenCV
-#include <opencv2/opencv.hpp>
+// STL
+#include <cmath>
+#include <cstdint>
+#include <cstdlib>
+#include <string>
+#include <vector>
 
 namespace processing
 {
@@ -240,26 +234,26 @@ class Processor final : public rclcpp::Node
 
     pcl::PointCloud<pcl::PointXYZIR> input_cloud_;
 
-    noise_removal::NoiseRemover noise_remover_;
-    std::vector<noise_removal::NoiseRemover::PointT> noise_remover_points_;
-    std::vector<noise_removal::NoiseRemoverLabel> noise_remover_labels_;
+    lidar_processing_lib::NoiseRemover noise_remover_;
+    std::vector<lidar_processing_lib::NoiseRemover::PointT> noise_remover_points_;
+    std::vector<lidar_processing_lib::NoiseRemoverLabel> noise_remover_labels_;
     pcl::PointCloud<pcl::PointXYZIR> denoised_input_cloud_;
 
-    segmentation::Segmenter segmenter_;
-    std::vector<segmentation::Label> segmentation_labels_;
+    lidar_processing_lib::Segmenter segmenter_;
+    std::vector<lidar_processing_lib::Label> segmentation_labels_;
     pcl::PointCloud<pcl::PointXYZRGB> ground_cloud_;
     pcl::PointCloud<pcl::PointXYZRGB> obstacle_cloud_;
     pcl::PointCloud<pcl::PointXYZRGB> unsegmented_cloud_;
 
-    clustering::Clusterer clusterer_;
-    std::vector<clustering::ClusterLabel> clustering_labels_;
+    lidar_processing_lib::Clusterer clusterer_;
+    std::vector<lidar_processing_lib::ClusterLabel> clustering_labels_;
     pcl::PointCloud<pcl::PointXYZRGB> clustered_cloud_;
 
-    polygonization::Polygonizer polygonizer_;
+    lidar_processing_lib::Polygonizer polygonizer_;
 
     std::vector<std::int32_t> polygonizer_indices_;
-    std::vector<polygonization::PointXY> polygonizer_points_;
-    std::vector<polygonization::PointXY> polygon_points_;
+    std::vector<lidar_processing_lib::PointXY> polygonizer_points_;
+    std::vector<lidar_processing_lib::PointXY> polygon_points_;
 };
 
 } // namespace processing

@@ -100,7 +100,7 @@ static void convertPolygonPointsToMarker(bool is_bounding_box,
                                          std::uint32_t polygon_index,
                                          double z_min,
                                          double z_max,
-                                         const std::vector<polygonization::PointXY>& points,
+                                         const std::vector<lidar_processing_lib::PointXY>& points,
                                          const std::string& frame_id,
                                          const builtin_interfaces::msg::Time& stamp,
                                          visualization_msgs::msg::Marker& marker)
@@ -251,10 +251,11 @@ Processor::Processor()
     ground_cloud_.points.reserve(MAX_PTS);
     obstacle_cloud_.points.reserve(MAX_PTS);
     unsegmented_cloud_.points.reserve(MAX_PTS);
-    image_cache_ = cv::Mat::zeros(
-        segmentation::Segmenter::IMAGE_HEIGHT, segmentation::Segmenter::IMAGE_WIDTH, CV_8UC3);
-    image_msg_cache_.data.reserve(3 * segmentation::Segmenter::IMAGE_HEIGHT *
-                                  segmentation::Segmenter::IMAGE_WIDTH);
+    image_cache_ = cv::Mat::zeros(lidar_processing_lib::Segmenter::IMAGE_HEIGHT,
+                                  lidar_processing_lib::Segmenter::IMAGE_WIDTH,
+                                  CV_8UC3);
+    image_msg_cache_.data.reserve(3 * lidar_processing_lib::Segmenter::IMAGE_HEIGHT *
+                                  lidar_processing_lib::Segmenter::IMAGE_WIDTH);
     cloud_msg_cache_.data.reserve(MAX_PTS);
 
     polygonizer_indices_.reserve(MAX_PTS);
@@ -355,11 +356,11 @@ void Processor::run(const PointCloud2& msg)
         const auto& p = input_cloud_.points[i];
         const auto label = segmentation_labels_[i];
 
-        if (label == segmentation::Label::GROUND)
+        if (label == lidar_processing_lib::Label::GROUND)
         {
             ground_cloud_.emplace_back(p.x, p.y, p.z, 124, 252, 0);
         }
-        else if (label == segmentation::Label::OBSTACLE)
+        else if (label == lidar_processing_lib::Label::OBSTACLE)
         {
             obstacle_cloud_.emplace_back(p.x, p.y, p.z, 200, 0, 0);
         }
@@ -401,7 +402,7 @@ void Processor::run(const PointCloud2& msg)
         std::max_element(clustering_labels_.cbegin(), clustering_labels_.cend());
 
     if (max_label_it != clustering_labels_.cend() &&
-        *max_label_it != clustering::Clusterer::INVALID_LABEL)
+        *max_label_it != lidar_processing_lib::Clusterer::INVALID_LABEL)
     {
         const auto max_label = *max_label_it;
         RCLCPP_INFO(this->get_logger(), "Extracted %d clusters", max_label);
@@ -473,7 +474,7 @@ void Processor::run(const PointCloud2& msg)
                     bounding_box_height > min_height_threshold &&
                     bounding_box_height < max_height_threshold)
                 {
-                    const auto polygon_area = polygonization::polygonArea(polygon_points_);
+                    const auto polygon_area = lidar_processing_lib::polygonArea(polygon_points_);
                     const auto polygon_volume = polygon_area * bounding_box_height;
 
                     // Only select reasonably large polygons for simplification
@@ -485,10 +486,10 @@ void Processor::run(const PointCloud2& msg)
                     {
                         const auto t_bounding_box_start = std::chrono::steady_clock::now();
 
-                        // const polygonization::BoundingBox bounding_box =
+                        // const lidar_processing_lib::BoundingBox bounding_box =
                         //     polygonizer_.boundingBoxPrincipalComponentAnalysis(polygonizer_points_);
 
-                        const polygonization::BoundingBox bounding_box =
+                        const lidar_processing_lib::BoundingBox bounding_box =
                             polygonizer_.boundingBoxRotatingCalipers(polygonizer_points_);
 
                         const auto t_bounding_box_stop = std::chrono::steady_clock::now();
@@ -505,9 +506,9 @@ void Processor::run(const PointCloud2& msg)
                             if (intersection_over_union > min_intersection_over_union)
                             {
                                 // Check width and length of the bounding box
-                                const auto edge_1_length = polygonization::distance(
+                                const auto edge_1_length = lidar_processing_lib::distance(
                                     bounding_box.corners[0], bounding_box.corners[1]);
-                                const auto edge_2_length = polygonization::distance(
+                                const auto edge_2_length = lidar_processing_lib::distance(
                                     bounding_box.corners[1], bounding_box.corners[2]);
 
                                 const auto bounding_box_length =
