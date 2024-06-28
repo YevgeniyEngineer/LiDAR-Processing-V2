@@ -26,6 +26,7 @@
 // LiDAR processing libraries
 #include <lidar_processing_lib/clusterer.hpp>
 #include <lidar_processing_lib/noise_remover.hpp>
+#include <lidar_processing_lib/point_types.hpp>
 #include <lidar_processing_lib/polygonizer.hpp>
 #include <lidar_processing_lib/segmenter.hpp>
 
@@ -51,6 +52,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <string>
+#include <variant>
 #include <vector>
 
 namespace processing
@@ -200,6 +202,10 @@ class Processor final : public rclcpp::Node
     using PointCloud2 = sensor_msgs::msg::PointCloud2;
     using MarkerArray = visualization_msgs::msg::MarkerArray;
     using Image = sensor_msgs::msg::Image;
+    using PointCloudVariant = std::variant<pcl::PointCloud<pcl::PointXYZ>,
+                                           pcl::PointCloud<pcl::PointXYZI>,
+                                           pcl::PointCloud<pcl::PointXYZR>,
+                                           pcl::PointCloud<pcl::PointXYZIR>>;
 
     Processor();
 
@@ -232,7 +238,7 @@ class Processor final : public rclcpp::Node
     rclcpp::Publisher<PointCloud2>::SharedPtr clustered_cloud_publisher_;
     rclcpp::Publisher<MarkerArray>::SharedPtr obstacle_outlines_publisher_;
 
-    pcl::PointCloud<pcl::PointXYZIR> input_cloud_;
+    PointCloudVariant input_cloud_variant_;
 
     lidar_processing_lib::NoiseRemover noise_remover_;
     std::vector<lidar_processing_lib::NoiseRemover::PointT> noise_remover_points_;

@@ -666,15 +666,19 @@ template void Segmenter::segment(const pcl::PointCloud<pcl::PointXYZ>& cloud,
                                  std::vector<Label>& labels);
 template void Segmenter::segment(const pcl::PointCloud<pcl::PointXYZI>& cloud,
                                  std::vector<Label>& labels);
+template void Segmenter::segment(const pcl::PointCloud<pcl::PointXYZR>& cloud,
+                                 std::vector<Label>& labels);
 template void Segmenter::segment(const pcl::PointCloud<pcl::PointXYZIR>& cloud,
                                  std::vector<Label>& labels);
 
 template void Segmenter::constructPolarGrid(const pcl::PointCloud<pcl::PointXYZ>& cloud);
 template void Segmenter::constructPolarGrid(const pcl::PointCloud<pcl::PointXYZI>& cloud);
+template void Segmenter::constructPolarGrid(const pcl::PointCloud<pcl::PointXYZR>& cloud);
 template void Segmenter::constructPolarGrid(const pcl::PointCloud<pcl::PointXYZIR>& cloud);
 
 template void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZ>& cloud);
 template void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZI>& cloud);
+template void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZR>& cloud);
 template void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZIR>& cloud);
 
 } // namespace lidar_processing_lib

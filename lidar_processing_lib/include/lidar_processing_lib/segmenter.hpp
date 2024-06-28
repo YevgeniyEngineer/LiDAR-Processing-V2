@@ -25,6 +25,7 @@
 
 // Internal
 #include "circular_queue.hpp"
+#include "point_types.hpp"
 
 // PCL
 #include <pcl/point_cloud.h>
@@ -47,21 +48,6 @@
 #include <queue>
 #include <type_traits>
 #include <vector>
-
-namespace pcl
-{
-struct EIGEN_ALIGN16 PointXYZIR
-{
-    PCL_ADD_POINT4D;                // This adds the XYZ coordinates and padding
-    float intensity;                // Intensity of reflection
-    std::uint16_t ring;             // Laser ring index
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW // Ensure proper alignment
-};                                  // Force SSE alignment
-} // namespace pcl
-
-POINT_CLOUD_REGISTER_POINT_STRUCT(
-    pcl::PointXYZIR,
-    (float, x, x)(float, y, y)(float, z, z)(float, intensity, intensity)(std::uint16_t, ring, ring))
 
 // Trait to detect if 'ring' is a member of PointT
 template <typename PointT>
@@ -274,15 +260,19 @@ extern template void Segmenter::segment(const pcl::PointCloud<pcl::PointXYZ>& cl
                                         std::vector<Label>& labels);
 extern template void Segmenter::segment(const pcl::PointCloud<pcl::PointXYZI>& cloud,
                                         std::vector<Label>& labels);
+extern template void Segmenter::segment(const pcl::PointCloud<pcl::PointXYZR>& cloud,
+                                        std::vector<Label>& labels);
 extern template void Segmenter::segment(const pcl::PointCloud<pcl::PointXYZIR>& cloud,
                                         std::vector<Label>& labels);
 
 extern template void Segmenter::constructPolarGrid(const pcl::PointCloud<pcl::PointXYZ>& cloud);
 extern template void Segmenter::constructPolarGrid(const pcl::PointCloud<pcl::PointXYZI>& cloud);
+extern template void Segmenter::constructPolarGrid(const pcl::PointCloud<pcl::PointXYZR>& cloud);
 extern template void Segmenter::constructPolarGrid(const pcl::PointCloud<pcl::PointXYZIR>& cloud);
 
 extern template void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZ>& cloud);
 extern template void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZI>& cloud);
+extern template void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZR>& cloud);
 extern template void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZIR>& cloud);
 
 } // namespace lidar_processing_lib
