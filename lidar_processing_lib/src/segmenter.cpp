@@ -103,10 +103,10 @@ void Segmenter::segment(const pcl::PointCloud<PointT>& cloud, std::vector<Label>
 template <typename PointT>
 void Segmenter::constructPolarGrid(const pcl::PointCloud<PointT>& cloud)
 {
-    const float ELEVATION_UP_RAD = config_.elevation_up_deg * DEG_TO_RAD;
-    const float ELEVATION_DOWN_RAD = config_.elevation_down_deg * DEG_TO_RAD;
-    const float VERTICAL_FIELD_OF_VIEW_RAD = ELEVATION_UP_RAD - ELEVATION_DOWN_RAD;
-    const float RADIANS_PER_VERTICAL_PIXEL = VERTICAL_FIELD_OF_VIEW_RAD / config_.image_height;
+    const float elevation_up_rad = config_.elevation_up_deg * DEG_TO_RAD;
+    const float elevation_down_rad = config_.elevation_down_deg * DEG_TO_RAD;
+    const float vertical_field_of_view_rad = elevation_up_rad - elevation_down_rad;
+    const float radian_per_vertical_pixel = vertical_field_of_view_rad / config_.image_height;
 
     for (auto& cell : polar_grid_)
     {
@@ -151,11 +151,30 @@ void Segmenter::constructPolarGrid(const pcl::PointCloud<PointT>& cloud)
 
         if constexpr (HasRing<PointT>::value)
         {
-            height_index = point.ring;
-
-            if (height_index >= config_.image_height)
+            // Calculate height index dynamically, rather than using ring index from the input cloud
+            if (config_.assume_unorganized_cloud)
             {
-                continue;
+                const float elevation_rad = std::atan(point.z / distance_m);
+
+                const auto height_index_signed = static_cast<std::int32_t>(
+                    (elevation_rad - elevation_down_rad) / radian_per_vertical_pixel);
+
+                if (height_index_signed < 0 || height_index_signed >= config_.image_height)
+                {
+                    continue;
+                }
+
+                height_index = static_cast<std::uint16_t>(height_index_signed);
+            }
+            // Use ring index assigned to this point
+            else
+            {
+                height_index = point.ring;
+
+                if (height_index >= config_.image_height)
+                {
+                    continue;
+                }
             }
         }
         else
@@ -163,7 +182,7 @@ void Segmenter::constructPolarGrid(const pcl::PointCloud<PointT>& cloud)
             const float elevation_rad = std::atan(point.z / distance_m);
 
             const auto height_index_signed = static_cast<std::int32_t>(
-                (elevation_rad - ELEVATION_DOWN_RAD) / RADIANS_PER_VERTICAL_PIXEL);
+                (elevation_rad - elevation_down_rad) / radian_per_vertical_pixel);
 
             if (height_index_signed < 0 || height_index_signed >= config_.image_height)
             {
