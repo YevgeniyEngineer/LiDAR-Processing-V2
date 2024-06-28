@@ -26,6 +26,7 @@
 // Internal
 #include "circular_queue.hpp"
 #include "point_types.hpp"
+#include "queue.hpp"
 
 // PCL
 #include <pcl/point_cloud.h>
@@ -85,6 +86,15 @@ struct SegmenterPoint
 
 struct SegmenterConfiguration
 {
+    // sensor configurations
+    // Values acceptable for Velodyne HDL-64E (64 - ring LiDAR)
+    float elevation_up_deg = 2.0F;
+    float elevation_down_deg = -24.8F;
+    std::int32_t image_width = 2048;
+    std::int32_t image_height = 64;
+
+    // segmentation algorithm parameters
+    bool assume_unorganized_cloud = false;
     float grid_radial_spacing_m = 2.0F;
     float grid_slice_resolution_deg = 1.0F;
     float ground_height_threshold_m = 0.2F;
@@ -97,6 +107,7 @@ struct SegmenterConfiguration
     float z_min_m = -3.0F;
     float z_max_m = 4.0F;
 
+    // visualize intermediate results with OpenCV?
     bool display_recm_with_low_confidence_points = false;
 };
 
@@ -128,12 +139,6 @@ class Segmenter
     static constexpr float INVALID_Z = std::numeric_limits<float>::max();
     static constexpr float INVALID_DEPTH_M = std::numeric_limits<float>::max();
     static constexpr std::int32_t INVALID_INDEX = -1;
-
-    // Values acceptable for Velodyne HDL-64E (64 - ring LiDAR)
-    static constexpr float ELEVATION_UP_DEG = +2.0F;
-    static constexpr float ELEVATION_DOWN_DEG = -24.8F;
-    static constexpr std::int32_t IMAGE_WIDTH = 2048;
-    static constexpr std::int32_t IMAGE_HEIGHT = 64;
 
     // Colour labels
     inline static const auto CV_OBSTACLE = cv::Vec3b(0, 0, 255);
@@ -203,7 +208,7 @@ class Segmenter
 
     cv::Mat kernel_;
     std::vector<cv::Mat> image_channels_;
-    lidar_processing_lib::CircularQueue<Index, IMAGE_HEIGHT * IMAGE_WIDTH> index_queue_;
+    lidar_processing_lib::Queue<Index> index_queue_;
 
     Eigen::Vector<float, 24> unnormalized_weight_matrix_;
     Eigen::Vector<float, 24> weight_matrix_;

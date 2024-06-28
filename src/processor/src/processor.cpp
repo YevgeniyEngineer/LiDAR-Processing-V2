@@ -352,6 +352,32 @@ Processor::Processor()
     this->declare_parameter<std::string>("clustered_cloud_topic");
     this->declare_parameter<std::string>("obstacle_outlines_topic");
 
+    this->declare_parameter<double>("segmentation_configuration.elevation_up_deg");
+    this->declare_parameter<double>("segmentation_configuration.elevation_down_deg");
+    this->declare_parameter<std::int32_t>("segmentation_configuration.image_width");
+    this->declare_parameter<std::int32_t>("segmentation_configuration.image_height");
+
+    this->declare_parameter<bool>("segmentation_configuration.assume_unorganized_cloud");
+    this->declare_parameter<double>("segmentation_configuration.grid_radial_spacing_m");
+    this->declare_parameter<double>("segmentation_configuration.grid_slice_resolution_deg");
+    this->declare_parameter<double>("segmentation_configuration.ground_height_threshold_m");
+    this->declare_parameter<double>("segmentation_configuration.road_maximum_slope_m_per_m");
+    this->declare_parameter<double>("segmentation_configuration.min_distance_m");
+    this->declare_parameter<double>("segmentation_configuration.max_distance_m");
+    this->declare_parameter<double>("segmentation_configuration.sensor_height_m");
+    this->declare_parameter<double>("segmentation_configuration.kernel_threshold_distance_m");
+    this->declare_parameter<double>("segmentation_configuration.amplification_factor");
+    this->declare_parameter<double>("segmentation_configuration.z_min_m");
+    this->declare_parameter<double>("segmentation_configuration.z_max_m");
+
+    this->declare_parameter<bool>(
+        "segmentation_configuration.display_recm_with_low_confidence_points");
+
+    this->declare_parameter<double>("clustering_configuration.voxel_grid_range_resolution_m");
+    this->declare_parameter<double>("clustering_configuration.voxel_grid_azimuth_resolution_deg");
+    this->declare_parameter<double>("clustering_configuration.voxel_grid_elevation_resolution_deg");
+    this->declare_parameter<std::int32_t>("clustering_configuration.min_cluster_size");
+
     input_cloud_topic_ = this->get_parameter("input_cloud_topic").as_string();
     ground_cloud_topic_ = this->get_parameter("ground_cloud_topic").as_string();
     obstacle_cloud_topic_ = this->get_parameter("obstacle_cloud_topic").as_string();
@@ -359,6 +385,63 @@ Processor::Processor()
     segmented_image_topic_ = this->get_parameter("segmented_image_topic").as_string();
     clustered_cloud_topic_ = this->get_parameter("clustered_cloud_topic").as_string();
     obstacle_outlines_topic_ = this->get_parameter("obstacle_outlines_topic").as_string();
+
+    lidar_processing_lib::SegmenterConfiguration segmentation_configuration;
+
+    segmentation_configuration.elevation_up_deg =
+        this->get_parameter("segmentation_configuration.elevation_up_deg").as_double();
+    segmentation_configuration.elevation_down_deg =
+        this->get_parameter("segmentation_configuration.elevation_down_deg").as_double();
+    segmentation_configuration.image_width =
+        this->get_parameter("segmentation_configuration.image_width").as_int();
+    segmentation_configuration.image_height =
+        this->get_parameter("segmentation_configuration.image_height").as_int();
+
+    segmentation_configuration.assume_unorganized_cloud =
+        this->get_parameter("segmentation_configuration.assume_unorganized_cloud").as_bool();
+    segmentation_configuration.grid_radial_spacing_m =
+        this->get_parameter("segmentation_configuration.grid_radial_spacing_m").as_double();
+    segmentation_configuration.grid_slice_resolution_deg =
+        this->get_parameter("segmentation_configuration.grid_slice_resolution_deg").as_double();
+    segmentation_configuration.ground_height_threshold_m =
+        this->get_parameter("segmentation_configuration.ground_height_threshold_m").as_double();
+    segmentation_configuration.road_maximum_slope_m_per_m =
+        this->get_parameter("segmentation_configuration.road_maximum_slope_m_per_m").as_double();
+    segmentation_configuration.min_distance_m =
+        this->get_parameter("segmentation_configuration.min_distance_m").as_double();
+    segmentation_configuration.max_distance_m =
+        this->get_parameter("segmentation_configuration.max_distance_m").as_double();
+    segmentation_configuration.sensor_height_m =
+        this->get_parameter("segmentation_configuration.sensor_height_m").as_double();
+    segmentation_configuration.kernel_threshold_distance_m =
+        this->get_parameter("segmentation_configuration.kernel_threshold_distance_m").as_double();
+    segmentation_configuration.amplification_factor =
+        this->get_parameter("segmentation_configuration.amplification_factor").as_double();
+    segmentation_configuration.z_min_m =
+        this->get_parameter("segmentation_configuration.z_min_m").as_double();
+    segmentation_configuration.z_max_m =
+        this->get_parameter("segmentation_configuration.z_max_m").as_double();
+
+    segmentation_configuration.display_recm_with_low_confidence_points =
+        this->get_parameter("segmentation_configuration.display_recm_with_low_confidence_points")
+            .as_bool();
+
+    segmenter_.config(segmentation_configuration);
+
+    lidar_processing_lib::ClustererConfiguration clustering_configuration;
+
+    clustering_configuration.voxel_grid_range_resolution_m =
+        this->get_parameter("clustering_configuration.voxel_grid_range_resolution_m").as_double();
+    clustering_configuration.voxel_grid_azimuth_resolution_deg =
+        this->get_parameter("clustering_configuration.voxel_grid_azimuth_resolution_deg")
+            .as_double();
+    clustering_configuration.voxel_grid_elevation_resolution_deg =
+        this->get_parameter("clustering_configuration.voxel_grid_elevation_resolution_deg")
+            .as_double();
+    clustering_configuration.min_cluster_size =
+        this->get_parameter("clustering_configuration.min_cluster_size").as_int();
+
+    clusterer_.config(clustering_configuration);
 
     input_cloud_subscriber_ =
         this->create_subscription<PointCloud2>(input_cloud_topic_,
@@ -389,11 +472,10 @@ Processor::Processor()
     ground_cloud_.points.reserve(MAX_PTS);
     obstacle_cloud_.points.reserve(MAX_PTS);
     unsegmented_cloud_.points.reserve(MAX_PTS);
-    image_cache_ = cv::Mat::zeros(lidar_processing_lib::Segmenter::IMAGE_HEIGHT,
-                                  lidar_processing_lib::Segmenter::IMAGE_WIDTH,
-                                  CV_8UC3);
-    image_msg_cache_.data.reserve(3 * lidar_processing_lib::Segmenter::IMAGE_HEIGHT *
-                                  lidar_processing_lib::Segmenter::IMAGE_WIDTH);
+    image_cache_ = cv::Mat::zeros(
+        segmentation_configuration.image_height, segmentation_configuration.image_width, CV_8UC3);
+    image_msg_cache_.data.reserve(3 * segmentation_configuration.image_height *
+                                  segmentation_configuration.image_width);
     cloud_msg_cache_.data.reserve(MAX_PTS);
 
     polygonizer_indices_.reserve(MAX_PTS);

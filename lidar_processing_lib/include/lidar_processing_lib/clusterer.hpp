@@ -57,7 +57,7 @@ struct SphericalPoint
     float elevation_rad; // Convention: 0 -> pi
 };
 
-struct Configuration
+struct ClustererConfiguration
 {
     float voxel_grid_range_resolution_m = 0.4F;
     float voxel_grid_azimuth_resolution_deg = 1.0F;
@@ -74,6 +74,20 @@ class Clusterer
     static constexpr std::int32_t INVALID_LABEL = -1;
 
     Clusterer();
+
+    void config(const ClustererConfiguration& config)
+    {
+        config_ = config;
+        voxel_grid_range_resolution_m_ = config_.voxel_grid_range_resolution_m;
+        voxel_grid_azimuth_resolution_rad_ = config_.voxel_grid_azimuth_resolution_deg * DEG_TO_RAD;
+        voxel_grid_elevation_resolution_rad_ =
+            config_.voxel_grid_elevation_resolution_deg * DEG_TO_RAD;
+    }
+
+    const ClustererConfiguration& config() const noexcept
+    {
+        return config_;
+    }
 
     template <typename PointT>
     void cluster(const pcl::PointCloud<PointT>& cloud, std::vector<ClusterLabel>& labels);
@@ -96,7 +110,7 @@ class Clusterer
         std::int32_t elevation_index;
     };
 
-    Configuration config_;
+    ClustererConfiguration config_;
 
     float voxel_grid_range_resolution_m_;
     float voxel_grid_azimuth_resolution_rad_;
