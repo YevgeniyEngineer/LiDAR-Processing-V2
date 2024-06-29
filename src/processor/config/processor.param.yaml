@@ -7,3 +7,29 @@ processor:
     segmented_image_topic: /jcp_image
     clustered_cloud_topic: /clustered_pointcloud
     obstacle_outlines_topic: /obstacle_outlines
+    segmentation_configuration:
+      # sensor configurations
+      elevation_up_deg: 2.0
+      elevation_down_deg: -24.8
+      image_width: 2048
+      image_height: 64
+      # segmentation algorithm parameters
+      assume_unorganized_cloud: false
+      grid_radial_spacing_m: 2.0
+      grid_slice_resolution_deg: 1.0
+      ground_height_threshold_m: 0.2
+      road_maximum_slope_m_per_m: 0.15
+      min_distance_m: 2.0
+      max_distance_m: 100.0
+      sensor_height_m: 1.73
+      kernel_threshold_distance_m: 1.0
+      amplification_factor: 5.0
+      z_min_m: -3.0
+      z_max_m: 4.0
+      # visualize intermediate results with OpenCV?
+      display_recm_with_low_confidence_points: false
+    clustering_configuration:
+      voxel_grid_range_resolution_m: 0.4
+      voxel_grid_azimuth_resolution_deg: 1.0
+      voxel_grid_elevation_resolution_deg: 1.5
+      min_cluster_size: 3

@@ -23,6 +23,9 @@
 // Internal
 #include "processor.hpp"
 
+// Libraries
+#include <lidar_processing_lib/stack_vector.hpp>
+
 // STL
 #include <chrono>
 #include <cstring>
@@ -36,6 +39,145 @@
 
 namespace processing
 {
+template <typename PointT>
+void convert(const sensor_msgs::msg::PointCloud2& msg, pcl::PointCloud<PointT>& cloud);
+
+// Specialization for pcl::PointXYZ
+template <>
+void convert<pcl::PointXYZ>(const sensor_msgs::msg::PointCloud2& msg,
+                            pcl::PointCloud<pcl::PointXYZ>& cloud)
+{
+    cloud.clear();
+    cloud.header.frame_id = msg.header.frame_id;
+    cloud.width = msg.width;
+    cloud.height = msg.height;
+    cloud.header.stamp = static_cast<std::uint64_t>(
+        std::round(msg.header.stamp.sec * 1.0e9 + msg.header.stamp.nanosec) / 1.0e3);
+    cloud.is_dense = msg.is_dense;
+    cloud.points.resize(msg.height * msg.width);
+
+    const auto point_step = msg.point_step;
+    const auto row_step = msg.row_step;
+
+    for (std::uint32_t row = 0; row < msg.height; ++row)
+    {
+        const auto base_row_offset = row * row_step;
+        for (std::uint32_t col = 0; col < msg.width; ++col)
+        {
+            auto& point = cloud.points[row * msg.width + col];
+            const auto offset = base_row_offset + col * point_step;
+
+            point.x = *reinterpret_cast<const float*>(&msg.data[offset + msg.fields[0].offset]);
+            point.y = *reinterpret_cast<const float*>(&msg.data[offset + msg.fields[1].offset]);
+            point.z = *reinterpret_cast<const float*>(&msg.data[offset + msg.fields[2].offset]);
+        }
+    }
+}
+
+// Specialization for pcl::PointXYZI
+template <>
+void convert<pcl::PointXYZI>(const sensor_msgs::msg::PointCloud2& msg,
+                             pcl::PointCloud<pcl::PointXYZI>& cloud)
+{
+    cloud.clear();
+    cloud.header.frame_id = msg.header.frame_id;
+    cloud.width = msg.width;
+    cloud.height = msg.height;
+    cloud.header.stamp = static_cast<std::uint64_t>(
+        std::round(msg.header.stamp.sec * 1.0e9 + msg.header.stamp.nanosec) / 1.0e3);
+    cloud.is_dense = msg.is_dense;
+    cloud.points.resize(msg.height * msg.width);
+
+    const auto point_step = msg.point_step;
+    const auto row_step = msg.row_step;
+
+    for (std::uint32_t row = 0; row < msg.height; ++row)
+    {
+        const auto base_row_offset = row * row_step;
+        for (std::uint32_t col = 0; col < msg.width; ++col)
+        {
+            auto& point = cloud.points[row * msg.width + col];
+            const auto offset = base_row_offset + col * point_step;
+
+            point.x = *reinterpret_cast<const float*>(&msg.data[offset + msg.fields[0].offset]);
+            point.y = *reinterpret_cast<const float*>(&msg.data[offset + msg.fields[1].offset]);
+            point.z = *reinterpret_cast<const float*>(&msg.data[offset + msg.fields[2].offset]);
+            point.intensity =
+                *reinterpret_cast<const float*>(&msg.data[offset + msg.fields[3].offset]);
+        }
+    }
+}
+
+// Specialization for pcl::PointXYZR
+template <>
+void convert<pcl::PointXYZR>(const sensor_msgs::msg::PointCloud2& msg,
+                             pcl::PointCloud<pcl::PointXYZR>& cloud)
+{
+    cloud.clear();
+    cloud.header.frame_id = msg.header.frame_id;
+    cloud.width = msg.width;
+    cloud.height = msg.height;
+    cloud.header.stamp = static_cast<std::uint64_t>(
+        std::round(msg.header.stamp.sec * 1.0e9 + msg.header.stamp.nanosec) / 1.0e3);
+    cloud.is_dense = msg.is_dense;
+    cloud.points.resize(msg.height * msg.width);
+
+    const auto point_step = msg.point_step;
+    const auto row_step = msg.row_step;
+
+    for (std::uint32_t row = 0; row < msg.height; ++row)
+    {
+        const auto base_row_offset = row * row_step;
+        for (std::uint32_t col = 0; col < msg.width; ++col)
+        {
+            auto& point = cloud.points[row * msg.width + col];
+            const auto offset = base_row_offset + col * point_step;
+
+            point.x = *reinterpret_cast<const float*>(&msg.data[offset + msg.fields[0].offset]);
+            point.y = *reinterpret_cast<const float*>(&msg.data[offset + msg.fields[1].offset]);
+            point.z = *reinterpret_cast<const float*>(&msg.data[offset + msg.fields[2].offset]);
+            point.ring =
+                *reinterpret_cast<const std::uint16_t*>(&msg.data[offset + msg.fields[3].offset]);
+        }
+    }
+}
+
+// Specialization for pcl::PointXYZIR
+template <>
+void convert<pcl::PointXYZIR>(const sensor_msgs::msg::PointCloud2& msg,
+                              pcl::PointCloud<pcl::PointXYZIR>& cloud)
+{
+    cloud.clear();
+    cloud.header.frame_id = msg.header.frame_id;
+    cloud.width = msg.width;
+    cloud.height = msg.height;
+    cloud.header.stamp = static_cast<std::uint64_t>(
+        std::round(msg.header.stamp.sec * 1.0e9 + msg.header.stamp.nanosec) / 1.0e3);
+    cloud.is_dense = msg.is_dense;
+    cloud.points.resize(msg.height * msg.width);
+
+    const auto point_step = msg.point_step;
+    const auto row_step = msg.row_step;
+
+    for (std::uint32_t row = 0; row < msg.height; ++row)
+    {
+        const auto base_row_offset = row * row_step;
+        for (std::uint32_t col = 0; col < msg.width; ++col)
+        {
+            auto& point = cloud.points[row * msg.width + col];
+            const auto offset = base_row_offset + col * point_step;
+
+            point.x = *reinterpret_cast<const float*>(&msg.data[offset + msg.fields[0].offset]);
+            point.y = *reinterpret_cast<const float*>(&msg.data[offset + msg.fields[1].offset]);
+            point.z = *reinterpret_cast<const float*>(&msg.data[offset + msg.fields[2].offset]);
+            point.intensity =
+                *reinterpret_cast<const float*>(&msg.data[offset + msg.fields[3].offset]);
+            point.ring =
+                *reinterpret_cast<const std::uint16_t*>(&msg.data[offset + msg.fields[4].offset]);
+        }
+    }
+}
+
 static void convertImageToRosMessage(const cv::Mat& cv_image,
                                      std::int32_t seconds,
                                      std::uint32_t nanoseconds,
@@ -213,6 +355,32 @@ Processor::Processor()
     this->declare_parameter<std::string>("clustered_cloud_topic");
     this->declare_parameter<std::string>("obstacle_outlines_topic");
 
+    this->declare_parameter<double>("segmentation_configuration.elevation_up_deg");
+    this->declare_parameter<double>("segmentation_configuration.elevation_down_deg");
+    this->declare_parameter<std::int32_t>("segmentation_configuration.image_width");
+    this->declare_parameter<std::int32_t>("segmentation_configuration.image_height");
+
+    this->declare_parameter<bool>("segmentation_configuration.assume_unorganized_cloud");
+    this->declare_parameter<double>("segmentation_configuration.grid_radial_spacing_m");
+    this->declare_parameter<double>("segmentation_configuration.grid_slice_resolution_deg");
+    this->declare_parameter<double>("segmentation_configuration.ground_height_threshold_m");
+    this->declare_parameter<double>("segmentation_configuration.road_maximum_slope_m_per_m");
+    this->declare_parameter<double>("segmentation_configuration.min_distance_m");
+    this->declare_parameter<double>("segmentation_configuration.max_distance_m");
+    this->declare_parameter<double>("segmentation_configuration.sensor_height_m");
+    this->declare_parameter<double>("segmentation_configuration.kernel_threshold_distance_m");
+    this->declare_parameter<double>("segmentation_configuration.amplification_factor");
+    this->declare_parameter<double>("segmentation_configuration.z_min_m");
+    this->declare_parameter<double>("segmentation_configuration.z_max_m");
+
+    this->declare_parameter<bool>(
+        "segmentation_configuration.display_recm_with_low_confidence_points");
+
+    this->declare_parameter<double>("clustering_configuration.voxel_grid_range_resolution_m");
+    this->declare_parameter<double>("clustering_configuration.voxel_grid_azimuth_resolution_deg");
+    this->declare_parameter<double>("clustering_configuration.voxel_grid_elevation_resolution_deg");
+    this->declare_parameter<std::int32_t>("clustering_configuration.min_cluster_size");
+
     input_cloud_topic_ = this->get_parameter("input_cloud_topic").as_string();
     ground_cloud_topic_ = this->get_parameter("ground_cloud_topic").as_string();
     obstacle_cloud_topic_ = this->get_parameter("obstacle_cloud_topic").as_string();
@@ -220,6 +388,63 @@ Processor::Processor()
     segmented_image_topic_ = this->get_parameter("segmented_image_topic").as_string();
     clustered_cloud_topic_ = this->get_parameter("clustered_cloud_topic").as_string();
     obstacle_outlines_topic_ = this->get_parameter("obstacle_outlines_topic").as_string();
+
+    lidar_processing_lib::SegmenterConfiguration segmentation_configuration;
+
+    segmentation_configuration.elevation_up_deg =
+        this->get_parameter("segmentation_configuration.elevation_up_deg").as_double();
+    segmentation_configuration.elevation_down_deg =
+        this->get_parameter("segmentation_configuration.elevation_down_deg").as_double();
+    segmentation_configuration.image_width =
+        this->get_parameter("segmentation_configuration.image_width").as_int();
+    segmentation_configuration.image_height =
+        this->get_parameter("segmentation_configuration.image_height").as_int();
+
+    segmentation_configuration.assume_unorganized_cloud =
+        this->get_parameter("segmentation_configuration.assume_unorganized_cloud").as_bool();
+    segmentation_configuration.grid_radial_spacing_m =
+        this->get_parameter("segmentation_configuration.grid_radial_spacing_m").as_double();
+    segmentation_configuration.grid_slice_resolution_deg =
+        this->get_parameter("segmentation_configuration.grid_slice_resolution_deg").as_double();
+    segmentation_configuration.ground_height_threshold_m =
+        this->get_parameter("segmentation_configuration.ground_height_threshold_m").as_double();
+    segmentation_configuration.road_maximum_slope_m_per_m =
+        this->get_parameter("segmentation_configuration.road_maximum_slope_m_per_m").as_double();
+    segmentation_configuration.min_distance_m =
+        this->get_parameter("segmentation_configuration.min_distance_m").as_double();
+    segmentation_configuration.max_distance_m =
+        this->get_parameter("segmentation_configuration.max_distance_m").as_double();
+    segmentation_configuration.sensor_height_m =
+        this->get_parameter("segmentation_configuration.sensor_height_m").as_double();
+    segmentation_configuration.kernel_threshold_distance_m =
+        this->get_parameter("segmentation_configuration.kernel_threshold_distance_m").as_double();
+    segmentation_configuration.amplification_factor =
+        this->get_parameter("segmentation_configuration.amplification_factor").as_double();
+    segmentation_configuration.z_min_m =
+        this->get_parameter("segmentation_configuration.z_min_m").as_double();
+    segmentation_configuration.z_max_m =
+        this->get_parameter("segmentation_configuration.z_max_m").as_double();
+
+    segmentation_configuration.display_recm_with_low_confidence_points =
+        this->get_parameter("segmentation_configuration.display_recm_with_low_confidence_points")
+            .as_bool();
+
+    segmenter_.config(segmentation_configuration);
+
+    lidar_processing_lib::ClustererConfiguration clustering_configuration;
+
+    clustering_configuration.voxel_grid_range_resolution_m =
+        this->get_parameter("clustering_configuration.voxel_grid_range_resolution_m").as_double();
+    clustering_configuration.voxel_grid_azimuth_resolution_deg =
+        this->get_parameter("clustering_configuration.voxel_grid_azimuth_resolution_deg")
+            .as_double();
+    clustering_configuration.voxel_grid_elevation_resolution_deg =
+        this->get_parameter("clustering_configuration.voxel_grid_elevation_resolution_deg")
+            .as_double();
+    clustering_configuration.min_cluster_size =
+        this->get_parameter("clustering_configuration.min_cluster_size").as_int();
+
+    clusterer_.config(clustering_configuration);
 
     input_cloud_subscriber_ =
         this->create_subscription<PointCloud2>(input_cloud_topic_,
@@ -247,15 +472,13 @@ Processor::Processor()
     noise_remover_labels_.reserve(MAX_PTS);
     denoised_input_cloud_.reserve(MAX_PTS);
 
-    input_cloud_.points.reserve(MAX_PTS);
     ground_cloud_.points.reserve(MAX_PTS);
     obstacle_cloud_.points.reserve(MAX_PTS);
     unsegmented_cloud_.points.reserve(MAX_PTS);
-    image_cache_ = cv::Mat::zeros(lidar_processing_lib::Segmenter::IMAGE_HEIGHT,
-                                  lidar_processing_lib::Segmenter::IMAGE_WIDTH,
-                                  CV_8UC3);
-    image_msg_cache_.data.reserve(3 * lidar_processing_lib::Segmenter::IMAGE_HEIGHT *
-                                  lidar_processing_lib::Segmenter::IMAGE_WIDTH);
+    image_cache_ = cv::Mat::zeros(
+        segmentation_configuration.image_height, segmentation_configuration.image_width, CV_8UC3);
+    image_msg_cache_.data.reserve(3 * segmentation_configuration.image_height *
+                                  segmentation_configuration.image_width);
     cloud_msg_cache_.data.reserve(MAX_PTS);
 
     polygonizer_indices_.reserve(MAX_PTS);
@@ -268,119 +491,107 @@ Processor::Processor()
 
 void Processor::run(const PointCloud2& msg)
 {
-    // Convert point cloud from sensor_msgs::msg::PointCloud2 to pcl::PointCloud<pcl::PointXYZIR>
-    input_cloud_.clear();
-    input_cloud_.header.frame_id = msg.header.frame_id;
-    input_cloud_.width = msg.width;
-    input_cloud_.height = msg.height;
-    input_cloud_.header.stamp = static_cast<std::uint64_t>(
-        std::round(msg.header.stamp.sec * 1.0e9 + msg.header.stamp.nanosec) / 1.0e3);
+    lidar_processing_lib::StackVector<std::string, 20> field_names;
 
-    input_cloud_.points.resize(msg.height * msg.width);
-    const auto point_step = msg.point_step;
-    const auto row_step = msg.row_step;
-
-    for (std::uint32_t row = 0; row < msg.height; ++row)
+    for (const auto& field : msg.fields)
     {
-        const auto base_row_offset = row * row_step;
-        for (std::uint32_t col = 0; col < msg.width; ++col)
-        {
-            auto& point = input_cloud_.points[row * msg.width + col];
-            const auto offset = base_row_offset + col * point_step;
-
-            point.x = *reinterpret_cast<const float*>(&msg.data[offset + msg.fields[0].offset]);
-            point.y = *reinterpret_cast<const float*>(&msg.data[offset + msg.fields[1].offset]);
-            point.z = *reinterpret_cast<const float*>(&msg.data[offset + msg.fields[2].offset]);
-            point.intensity =
-                *reinterpret_cast<const float*>(&msg.data[offset + msg.fields[3].offset]);
-            point.ring =
-                *reinterpret_cast<const std::uint16_t*>(&msg.data[offset + msg.fields[4].offset]);
-        }
+        field_names.push_back(field.name);
     }
 
-    // // Noise removal
-    // {
-    //     const auto t_noise_removal_start = std::chrono::steady_clock::now();
-
-    //     noise_remover_points_.reserve(input_cloud_.points.size());
-    //     noise_remover_points_.clear();
-
-    //     for (const auto& point : input_cloud_.points)
-    //     {
-    //         noise_remover_points_.push_back({point.x, point.y, point.z});
-    //     }
-
-    //     noise_remover_.filter(noise_remover_points_, noise_remover_labels_);
-
-    //     denoised_input_cloud_.reserve(input_cloud_.points.size());
-    //     denoised_input_cloud_.clear();
-
-    //     for (std::uint32_t point_index = 0; point_index < noise_remover_points_.size();
-    //          ++point_index)
-    //     {
-    //         if (noise_remover_labels_[point_index] == noise_removal::NoiseRemoverLabel::VALID)
-    //         {
-    //             denoised_input_cloud_.points.push_back(input_cloud_.points[point_index]);
-    //         }
-    //     }
-
-    //     denoised_input_cloud_.height = 1;
-    //     denoised_input_cloud_.width = denoised_input_cloud_.points.size();
-    //     denoised_input_cloud_.header = input_cloud_.header;
-    //     denoised_input_cloud_.is_dense = input_cloud_.is_dense;
-
-    //     const auto t_noise_removal_stop = std::chrono::steady_clock::now();
-    //     const auto t_noise_removal_elapsed =
-    //     std::chrono::duration_cast<std::chrono::milliseconds>(
-    //                                              t_noise_removal_stop - t_noise_removal_start)
-    //                                              .count();
-
-    //     RCLCPP_INFO(this->get_logger(), "Noise removal time [ms]: %ld", t_noise_removal_elapsed);
-    //     RCLCPP_INFO(this->get_logger(),
-    //                 "Size before filtering: %lu | after filtering: %lu | num removed points:
-    //                 %lu", input_cloud_.size(), denoised_input_cloud_.size(), input_cloud_.size()
-    //                 - denoised_input_cloud_.size());
-    // }
+    if (field_names == std::initializer_list<std::string>{"x", "y", "z"})
+    {
+        using CloudType = pcl::PointCloud<pcl::PointXYZ>;
+        if (!std::holds_alternative<CloudType>(input_cloud_variant_))
+        {
+            input_cloud_variant_.emplace<CloudType>();
+        }
+        auto& cloud = std::get<CloudType>(input_cloud_variant_);
+        cloud.reserve(MAX_PTS);
+        convert(msg, cloud);
+    }
+    else if (field_names == std::initializer_list<std::string>{"x", "y", "z", "intensity"})
+    {
+        using CloudType = pcl::PointCloud<pcl::PointXYZI>;
+        if (!std::holds_alternative<CloudType>(input_cloud_variant_))
+        {
+            input_cloud_variant_.emplace<CloudType>();
+        }
+        auto& cloud = std::get<CloudType>(input_cloud_variant_);
+        cloud.reserve(MAX_PTS);
+        convert(msg, cloud);
+    }
+    else if (field_names == std::initializer_list<std::string>{"x", "y", "z", "ring"})
+    {
+        using CloudType = pcl::PointCloud<pcl::PointXYZR>;
+        if (!std::holds_alternative<CloudType>(input_cloud_variant_))
+        {
+            input_cloud_variant_.emplace<CloudType>();
+        }
+        auto& cloud = std::get<CloudType>(input_cloud_variant_);
+        cloud.reserve(MAX_PTS);
+        convert(msg, cloud);
+    }
+    else if (field_names == std::initializer_list<std::string>{"x", "y", "z", "intensity", "ring"})
+    {
+        using CloudType = pcl::PointCloud<pcl::PointXYZIR>;
+        if (!std::holds_alternative<CloudType>(input_cloud_variant_))
+        {
+            input_cloud_variant_.emplace<CloudType>();
+        }
+        auto& cloud = std::get<CloudType>(input_cloud_variant_);
+        cloud.reserve(MAX_PTS);
+        convert(msg, cloud);
+    }
+    else
+    {
+        throw std::runtime_error{"Unsupported point format. Acceptable formats: pcl::PointXYZ, "
+                                 "pcl::PointXYZI, pcl::PointXYZR, pcl::PointXYZIR"};
+    }
 
     // Ground segmentation
-    const auto t_segmentation_start = std::chrono::steady_clock::now();
+    std::visit(
+        [this](const auto& cloud) -> void {
+            const auto t_segmentation_start = std::chrono::steady_clock::now();
 
-    segmenter_.segment(input_cloud_, segmentation_labels_);
+            segmenter_.segment(cloud, segmentation_labels_);
 
-    ground_cloud_.clear();
-    obstacle_cloud_.clear();
-    unsegmented_cloud_.clear();
+            ground_cloud_.clear();
+            obstacle_cloud_.clear();
+            unsegmented_cloud_.clear();
 
-    for (std::uint32_t i = 0; i < input_cloud_.points.size(); ++i)
-    {
-        const auto& p = input_cloud_.points[i];
-        const auto label = segmentation_labels_[i];
+            for (std::uint32_t i = 0; i < cloud.size(); ++i)
+            {
+                const auto& p = cloud[i];
+                const auto label = segmentation_labels_[i];
 
-        if (label == lidar_processing_lib::Label::GROUND)
-        {
-            ground_cloud_.emplace_back(p.x, p.y, p.z, 124, 252, 0);
-        }
-        else if (label == lidar_processing_lib::Label::OBSTACLE)
-        {
-            obstacle_cloud_.emplace_back(p.x, p.y, p.z, 200, 0, 0);
-        }
-        else
-        {
-            unsegmented_cloud_.emplace_back(p.x, p.y, p.z, 255, 255, 0);
-        }
-    }
+                if (label == lidar_processing_lib::Label::GROUND)
+                {
+                    ground_cloud_.emplace_back(p.x, p.y, p.z, 124, 252, 0);
+                }
+                else if (label == lidar_processing_lib::Label::OBSTACLE)
+                {
+                    obstacle_cloud_.emplace_back(p.x, p.y, p.z, 200, 0, 0);
+                }
+                else
+                {
+                    unsegmented_cloud_.emplace_back(p.x, p.y, p.z, 255, 255, 0);
+                }
+            }
 
-    const auto t_segmentation_stop = std::chrono::steady_clock::now();
-    const auto t_segmentation_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-                                            t_segmentation_stop - t_segmentation_start)
-                                            .count();
+            const auto t_segmentation_stop = std::chrono::steady_clock::now();
+            const auto t_segmentation_elapsed =
+                std::chrono::duration_cast<std::chrono::milliseconds>(t_segmentation_stop -
+                                                                      t_segmentation_start)
+                    .count();
 
-    RCLCPP_INFO(this->get_logger(), "Segmentation time [ms]: %ld", t_segmentation_elapsed);
-    RCLCPP_INFO(this->get_logger(),
-                "Extracted %lu ground and %lu obstacle points from %lu-point cloud",
-                ground_cloud_.size(),
-                obstacle_cloud_.size(),
-                input_cloud_.size());
+            RCLCPP_INFO(this->get_logger(), "Segmentation time [ms]: %ld", t_segmentation_elapsed);
+            RCLCPP_INFO(this->get_logger(),
+                        "Extracted %lu ground and %lu obstacle points from %lu-point cloud",
+                        ground_cloud_.size(),
+                        obstacle_cloud_.size(),
+                        cloud.size());
+        },
+        input_cloud_variant_);
 
     // Obstacle clustering
     const auto t_clustering_start = std::chrono::steady_clock::now();

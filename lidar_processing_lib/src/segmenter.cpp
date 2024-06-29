@@ -29,36 +29,10 @@
 namespace lidar_processing_lib
 {
 Segmenter::Segmenter()
-    : config_{}, image_{cv::Mat::zeros(IMAGE_HEIGHT, IMAGE_WIDTH, CV_8UC3)},
-      kernel_{cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5))}
+    : config_{}, kernel_{cv::getStructuringElement(cv::MORPH_RECT, cv::Size(5, 5))}
 {
-    grid_slice_resolution_rad_ = config_.grid_slice_resolution_deg * DEG_TO_RAD;
-    grid_number_of_radial_rings_ =
-        static_cast<std::int32_t>(config_.max_distance_m / config_.grid_radial_spacing_m);
-    grid_number_of_azimuth_slices_ =
-        static_cast<std::int32_t>(TWO_M_PIf / grid_slice_resolution_rad_);
-
-    polar_grid_.resize(grid_number_of_radial_rings_ * grid_number_of_azimuth_slices_);
-    for (auto& cell : polar_grid_)
-    {
-        cell.reserve(400); // TODO: How to determine this number?
-    }
-    cell_z_values_.reserve(1000); // TODO: How to determine this number?
-
-    elevation_map_.resize(grid_number_of_azimuth_slices_ * grid_number_of_radial_rings_, INVALID_Z);
-
-    cloud_mapping_indices_.resize(IMAGE_HEIGHT * IMAGE_WIDTH, INVALID_INDEX);
-    depth_image_.resize(IMAGE_HEIGHT * IMAGE_WIDTH, INVALID_DEPTH_M);
-
-    ransac_points_.reserve(MAX_CLOUD_SIZE);
-
-    image_channels_.resize(3);
-    for (auto& channel : image_channels_)
-    {
-        channel.create(IMAGE_HEIGHT, IMAGE_WIDTH, image_.depth());
-    }
-
-    std::cerr << config_ << std::endl;
+    image_ = cv::Mat::zeros(config_.image_height, config_.image_width, CV_8UC3);
+    config(config_);
 }
 
 void Segmenter::config(const SegmenterConfiguration& config)
@@ -76,8 +50,22 @@ void Segmenter::config(const SegmenterConfiguration& config)
     {
         cell.reserve(400); // TODO: How to determine this number?
     }
+    cell_z_values_.reserve(1000); // TODO: How to determine this number?
 
     elevation_map_.assign(grid_number_of_azimuth_slices_ * grid_number_of_radial_rings_, INVALID_Z);
+
+    cloud_mapping_indices_.resize(config.image_height * config_.image_width, INVALID_INDEX);
+    depth_image_.resize(config_.image_height * config_.image_width, INVALID_DEPTH_M);
+    index_queue_.reserve(config_.image_height * config_.image_width);
+    image_ = cv::Mat::zeros(config_.image_height, config_.image_width, CV_8UC3);
+
+    ransac_points_.reserve(MAX_CLOUD_SIZE);
+
+    image_channels_.resize(3);
+    for (auto& channel : image_channels_)
+    {
+        channel.create(config_.image_height, config_.image_width, image_.depth());
+    }
 
     std::cerr << config_ << std::endl;
 }
@@ -115,10 +103,10 @@ void Segmenter::segment(const pcl::PointCloud<PointT>& cloud, std::vector<Label>
 template <typename PointT>
 void Segmenter::constructPolarGrid(const pcl::PointCloud<PointT>& cloud)
 {
-    static constexpr float ELEVATION_UP_RAD = ELEVATION_UP_DEG * DEG_TO_RAD;
-    static constexpr float ELEVATION_DOWN_RAD = ELEVATION_DOWN_DEG * DEG_TO_RAD;
-    static constexpr float VERTICAL_FIELD_OF_VIEW_RAD = ELEVATION_UP_RAD - ELEVATION_DOWN_RAD;
-    static constexpr float RADIANS_PER_VERTICAL_PIXEL = VERTICAL_FIELD_OF_VIEW_RAD / IMAGE_HEIGHT;
+    const float elevation_up_rad = config_.elevation_up_deg * DEG_TO_RAD;
+    const float elevation_down_rad = config_.elevation_down_deg * DEG_TO_RAD;
+    const float vertical_field_of_view_rad = elevation_up_rad - elevation_down_rad;
+    const float radian_per_vertical_pixel = vertical_field_of_view_rad / config_.image_height;
 
     for (auto& cell : polar_grid_)
     {
@@ -163,11 +151,30 @@ void Segmenter::constructPolarGrid(const pcl::PointCloud<PointT>& cloud)
 
         if constexpr (HasRing<PointT>::value)
         {
-            height_index = point.ring;
-
-            if (height_index >= IMAGE_HEIGHT)
+            // Calculate height index dynamically, rather than using ring index from the input cloud
+            if (config_.assume_unorganized_cloud)
             {
-                continue;
+                const float elevation_rad = std::atan(point.z / distance_m);
+
+                const auto height_index_signed = static_cast<std::int32_t>(
+                    (elevation_rad - elevation_down_rad) / radian_per_vertical_pixel);
+
+                if (height_index_signed < 0 || height_index_signed >= config_.image_height)
+                {
+                    continue;
+                }
+
+                height_index = static_cast<std::uint16_t>(height_index_signed);
+            }
+            // Use ring index assigned to this point
+            else
+            {
+                height_index = point.ring;
+
+                if (height_index >= config_.image_height)
+                {
+                    continue;
+                }
             }
         }
         else
@@ -175,9 +182,9 @@ void Segmenter::constructPolarGrid(const pcl::PointCloud<PointT>& cloud)
             const float elevation_rad = std::atan(point.z / distance_m);
 
             const auto height_index_signed = static_cast<std::int32_t>(
-                (elevation_rad - ELEVATION_DOWN_RAD) / RADIANS_PER_VERTICAL_PIXEL);
+                (elevation_rad - elevation_down_rad) / radian_per_vertical_pixel);
 
-            if (height_index_signed < 0 || height_index_signed >= IMAGE_HEIGHT)
+            if (height_index_signed < 0 || height_index_signed >= config_.image_height)
             {
                 continue;
             }
@@ -186,7 +193,7 @@ void Segmenter::constructPolarGrid(const pcl::PointCloud<PointT>& cloud)
         }
 
         const auto width_index =
-            static_cast<std::uint16_t>((IMAGE_WIDTH - 1) * azimuth_rad / TWO_M_PIf);
+            static_cast<std::uint16_t>((config_.image_width - 1) * azimuth_rad / TWO_M_PIf);
 
         const auto cell_index =
             static_cast<std::uint32_t>(azimuth_index * grid_number_of_radial_rings_ + radial_index);
@@ -287,7 +294,7 @@ void Segmenter::RECM()
         {
             const std::int32_t height_index = point.height_index;
             const std::int32_t width_index = point.width_index;
-            const std::int32_t image_index = height_index * IMAGE_WIDTH + width_index;
+            const std::int32_t image_index = height_index * config_.image_width + width_index;
 
             const auto depth_squarred = (point.x * point.x) + (point.y * point.y);
 
@@ -481,11 +488,11 @@ void Segmenter::JCP(const pcl::PointCloud<PointT>& cloud)
                kernel_); // dilate the red channel
     cv::merge(image_channels_, image_);
 
-    for (std::int32_t height_index = 0; height_index < IMAGE_HEIGHT; ++height_index)
+    for (std::int32_t height_index = 0; height_index < config_.image_height; ++height_index)
     {
-        const std::int32_t height_index_with_offset = height_index * IMAGE_WIDTH;
+        const std::int32_t height_index_with_offset = height_index * config_.image_width;
 
-        for (std::int32_t width_index = 0; width_index < IMAGE_WIDTH; ++width_index)
+        for (std::int32_t width_index = 0; width_index < config_.image_width; ++width_index)
         {
             auto& image_pixel = image_.at<cv::Vec3b>(height_index, width_index);
 
@@ -529,7 +536,7 @@ void Segmenter::JCP(const pcl::PointCloud<PointT>& cloud)
     {
         const auto [height_index, width_index] = index_queue_.front();
         index_queue_.pop();
-        const std::int32_t image_index = height_index * IMAGE_WIDTH + width_index;
+        const std::int32_t image_index = height_index * config_.image_width + width_index;
         const auto point_index = cloud_mapping_indices_[image_index];
         const auto& core_point = cloud.points[point_index];
 
@@ -542,14 +549,14 @@ void Segmenter::JCP(const pcl::PointCloud<PointT>& cloud)
             const std::int32_t neighbour_height_index = height_index + height_offset;
             const std::int32_t neighbour_width_index = width_index + width_offset;
 
-            if (neighbour_height_index < 0 || neighbour_height_index >= IMAGE_HEIGHT ||
-                neighbour_width_index < 0 || neighbour_width_index >= IMAGE_WIDTH)
+            if (neighbour_height_index < 0 || neighbour_height_index >= config_.image_height ||
+                neighbour_width_index < 0 || neighbour_width_index >= config_.image_width)
             {
                 continue;
             }
 
             const std::int32_t neighbour_image_index =
-                neighbour_height_index * IMAGE_WIDTH + neighbour_width_index;
+                neighbour_height_index * config_.image_width + neighbour_width_index;
             const std::int32_t neighbour_point_index =
                 cloud_mapping_indices_[neighbour_image_index];
 
@@ -632,11 +639,11 @@ void Segmenter::JCP(const pcl::PointCloud<PointT>& cloud)
 
 void Segmenter::populateLabels(std::vector<Label>& labels)
 {
-    for (std::int32_t height_index = 0; height_index < IMAGE_HEIGHT; ++height_index)
+    for (std::int32_t height_index = 0; height_index < config_.image_height; ++height_index)
     {
-        const std::int32_t height_index_with_offset = height_index * IMAGE_WIDTH;
+        const std::int32_t height_index_with_offset = height_index * config_.image_width;
 
-        for (std::int32_t width_index = 0; width_index < IMAGE_WIDTH; ++width_index)
+        for (std::int32_t width_index = 0; width_index < config_.image_width; ++width_index)
         {
             const std::int32_t image_index = height_index_with_offset + width_index;
 
@@ -666,15 +673,19 @@ template void Segmenter::segment(const pcl::PointCloud<pcl::PointXYZ>& cloud,
                                  std::vector<Label>& labels);
 template void Segmenter::segment(const pcl::PointCloud<pcl::PointXYZI>& cloud,
                                  std::vector<Label>& labels);
+template void Segmenter::segment(const pcl::PointCloud<pcl::PointXYZR>& cloud,
+                                 std::vector<Label>& labels);
 template void Segmenter::segment(const pcl::PointCloud<pcl::PointXYZIR>& cloud,
                                  std::vector<Label>& labels);
 
 template void Segmenter::constructPolarGrid(const pcl::PointCloud<pcl::PointXYZ>& cloud);
 template void Segmenter::constructPolarGrid(const pcl::PointCloud<pcl::PointXYZI>& cloud);
+template void Segmenter::constructPolarGrid(const pcl::PointCloud<pcl::PointXYZR>& cloud);
 template void Segmenter::constructPolarGrid(const pcl::PointCloud<pcl::PointXYZIR>& cloud);
 
 template void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZ>& cloud);
 template void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZI>& cloud);
+template void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZR>& cloud);
 template void Segmenter::JCP(const pcl::PointCloud<pcl::PointXYZIR>& cloud);
 
 } // namespace lidar_processing_lib

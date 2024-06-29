@@ -9,6 +9,7 @@ unset GTK_PATH
 # For ROS line buffering
 export RCUTILS_LOGGING_USE_STDOUT=1  # Enable logging to stdout
 export RCUTILS_LOGGING_BUFFERED_STREAM=1  # Enable buffering
+export QT_X11_NO_MITSHM=1 # Disable the use of MIT-SHM (shared memory extension)
 
 # ROS setup script
 ROS_SETUP_SCRIPT="/opt/ros/humble/setup.bash"
