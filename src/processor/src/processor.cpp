@@ -23,6 +23,9 @@
 // Internal
 #include "processor.hpp"
 
+// Libraries
+#include <lidar_processing_lib/stack_vector.hpp>
+
 // STL
 #include <chrono>
 #include <cstring>
@@ -488,15 +491,14 @@ Processor::Processor()
 
 void Processor::run(const PointCloud2& msg)
 {
-    static std::vector<std::string> field_names;
-    field_names.reserve(msg.fields.size());
-    field_names.clear();
+    lidar_processing_lib::StackVector<std::string, 20> field_names;
+
     for (const auto& field : msg.fields)
     {
         field_names.push_back(field.name);
     }
 
-    if (field_names == std::vector<std::string>{"x", "y", "z"})
+    if (field_names == std::initializer_list<std::string>{"x", "y", "z"})
     {
         using CloudType = pcl::PointCloud<pcl::PointXYZ>;
         if (!std::holds_alternative<CloudType>(input_cloud_variant_))
@@ -507,7 +509,7 @@ void Processor::run(const PointCloud2& msg)
         cloud.reserve(MAX_PTS);
         convert(msg, cloud);
     }
-    else if (field_names == std::vector<std::string>{"x", "y", "z", "intensity"})
+    else if (field_names == std::initializer_list<std::string>{"x", "y", "z", "intensity"})
     {
         using CloudType = pcl::PointCloud<pcl::PointXYZI>;
         if (!std::holds_alternative<CloudType>(input_cloud_variant_))
@@ -518,7 +520,7 @@ void Processor::run(const PointCloud2& msg)
         cloud.reserve(MAX_PTS);
         convert(msg, cloud);
     }
-    else if (field_names == std::vector<std::string>{"x", "y", "z", "ring"})
+    else if (field_names == std::initializer_list<std::string>{"x", "y", "z", "ring"})
     {
         using CloudType = pcl::PointCloud<pcl::PointXYZR>;
         if (!std::holds_alternative<CloudType>(input_cloud_variant_))
@@ -529,7 +531,7 @@ void Processor::run(const PointCloud2& msg)
         cloud.reserve(MAX_PTS);
         convert(msg, cloud);
     }
-    else if (field_names == std::vector<std::string>{"x", "y", "z", "intensity", "ring"})
+    else if (field_names == std::initializer_list<std::string>{"x", "y", "z", "intensity", "ring"})
     {
         using CloudType = pcl::PointCloud<pcl::PointXYZIR>;
         if (!std::holds_alternative<CloudType>(input_cloud_variant_))
