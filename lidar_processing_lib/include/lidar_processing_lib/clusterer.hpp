@@ -25,6 +25,7 @@
 
 // Internal
 #include "circular_queue.hpp"
+#include "union_find.hpp"
 
 // External
 #include <ankerl/unordered_dense.h>
@@ -73,6 +74,8 @@ class Clusterer
     static constexpr float DEG_TO_RAD = static_cast<float>(M_PI / 180.0);
     static constexpr std::int32_t INVALID_LABEL = -1;
 
+    using VoxelIndex = std::int32_t;
+
     Clusterer();
 
     void config(const ClustererConfiguration& config)
@@ -103,11 +106,23 @@ class Clusterer
         {0, 1, 0},    {1, -1, 0},  {1, 0, 0},   {1, 1, 0},   {-1, -1, 1}, {-1, 0, 1}, {-1, 1, 1},
         {0, -1, 1},   {0, 0, 1},   {0, 1, 1},   {1, -1, 1},  {1, 0, 1},   {1, 1, 1}};
 
-    struct VoxelKey
+    static constexpr std::int32_t INDEX_OFFSETS_WITHOUT_SELF[26][3] = {
+        {-1, -1, -1}, {-1, 0, -1}, {-1, 1, -1}, {0, -1, -1}, {0, 0, -1}, {0, 1, -1}, {1, -1, -1},
+        {1, 0, -1},   {1, 1, -1},  {-1, -1, 0}, {-1, 0, 0},  {-1, 1, 0}, {0, -1, 0}, {0, 1, 0},
+        {1, -1, 0},   {1, 0, 0},   {1, 1, 0},   {-1, -1, 1}, {-1, 0, 1}, {-1, 1, 1}, {0, -1, 1},
+        {0, 0, 1},    {0, 1, 1},   {1, -1, 1},  {1, 0, 1},   {1, 1, 1}};
+
+    struct VoxelKey final
     {
         std::int32_t range_index;
         std::int32_t azimuth_index;
         std::int32_t elevation_index;
+
+        inline bool operator==(const VoxelKey& other) const noexcept
+        {
+            return (range_index == other.range_index) && (azimuth_index == other.azimuth_index) &&
+                   (elevation_index == other.elevation_index);
+        }
     };
 
     ClustererConfiguration config_;
@@ -121,50 +136,18 @@ class Clusterer
     std::int32_t num_elevation_;
 
     std::vector<SphericalPoint> spherical_cloud_;
-    std::vector<std::int32_t> voxel_indices_;
+    std::vector<VoxelIndex> point_to_voxel_indices_;
     std::vector<VoxelKey> voxel_keys_;
 
-    ankerl::unordered_dense::segmented_map<std::int32_t, ClusterLabel> voxel_labels_;
-    ankerl::unordered_dense::segmented_set<std::int32_t> visited_voxels_;
+    ankerl::unordered_dense::segmented_map<VoxelIndex, ClusterLabel> voxel_index_labels_map_;
+    ankerl::unordered_dense::segmented_set<VoxelIndex> visited_voxels_;
 
-    lidar_processing_lib::CircularQueue<VoxelKey, 150'000> voxel_queue_;
+    lidar_processing_lib::CircularQueue<VoxelKey, 150'000> voxel_key_queue_;
 
     std::vector<std::uint32_t> cluster_labels_counts_;
     std::vector<ClusterLabel> cluster_labels_cache_;
 
-    inline std::int32_t flatVoxelIndex(std::int32_t range_index,
-                                       std::int32_t azimuth_index,
-                                       std::int32_t elevation_index) const noexcept
-    {
-        return static_cast<std::int32_t>(
-            num_range_ * (num_azimuth_ * elevation_index + azimuth_index) + range_index);
-    }
-
-    inline std::int32_t rangeToIndex(float range_m) const noexcept
-    {
-        return static_cast<std::int32_t>(range_m / voxel_grid_range_resolution_m_);
-    }
-
-    inline std::int32_t azimuthToIndex(float azimuth_rad) const noexcept
-    {
-        return static_cast<std::int32_t>(azimuth_rad / voxel_grid_azimuth_resolution_rad_);
-    }
-
-    inline std::int32_t elevationToIndex(float elevation_rad) const noexcept
-    {
-        return static_cast<std::int32_t>(elevation_rad / voxel_grid_elevation_resolution_rad_);
-    }
-
-    inline std::int32_t flatVoxelIndex(const SphericalPoint& point) const noexcept
-    {
-        const std::int32_t range_index = rangeToIndex(point.range_m);
-        const std::int32_t azimuth_index = azimuthToIndex(point.azimuth_rad);
-        const std::int32_t elevation_index = elevationToIndex(point.elevation_rad);
-        const std::int32_t voxel_index =
-            flatVoxelIndex(range_index, azimuth_index, elevation_index);
-
-        return voxel_index;
-    }
+    UnionFind union_find_;
 
     template <typename PointT>
     void cartesianToSpherical(const pcl::PointCloud<PointT>& cartesian_cloud,
@@ -172,9 +155,9 @@ class Clusterer
 
     void buildHashTable();
 
-    void clusterImpl(std::vector<ClusterLabel>& labels);
+    void curvedVoxelClusteringImpl(std::vector<ClusterLabel>& labels);
 
-    void propagateLabel(ClusterLabel label, const VoxelKey& voxel_index);
+    void propagateLabelToNeighbouringVoxels(ClusterLabel label, const VoxelKey& core_voxel_key);
 
     void removeSmallClusters(std::vector<ClusterLabel>& labels);
 };
