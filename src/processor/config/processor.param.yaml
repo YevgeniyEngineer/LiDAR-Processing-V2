@@ -18,7 +18,7 @@ processor:
       grid_radial_spacing_m: 2.0
       grid_slice_resolution_deg: 1.0
       ground_height_threshold_m: 0.2
-      road_maximum_slope_m_per_m: 0.15
+      road_maximum_slope_m_per_m: 0.2
       min_distance_m: 2.0
       max_distance_m: 100.0
       sensor_height_m: 1.73
@@ -31,5 +31,5 @@ processor:
     clustering_configuration:
       voxel_grid_range_resolution_m: 0.4
       voxel_grid_azimuth_resolution_deg: 1.0
-      voxel_grid_elevation_resolution_deg: 2.0
+      voxel_grid_elevation_resolution_deg: 2.5
       min_cluster_size: 3
