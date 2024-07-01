@@ -32,21 +32,19 @@
 
 namespace lidar_processing_lib
 {
-Clusterer::Clusterer() : union_find_(200'000)
+Clusterer::Clusterer() : union_find_(10'000, 400)
 {
     voxel_grid_range_resolution_m_ = config_.voxel_grid_range_resolution_m;
     voxel_grid_azimuth_resolution_rad_ = config_.voxel_grid_azimuth_resolution_deg * DEG_TO_RAD;
     voxel_grid_elevation_resolution_rad_ = config_.voxel_grid_elevation_resolution_deg * DEG_TO_RAD;
 
     spherical_cloud_.reserve(200'000);
-    point_to_voxel_indices_.reserve(200'000);
-    voxel_keys_.reserve(200'000);
-    voxel_index_labels_map_.reserve(200'000);
-    visited_voxels_.reserve(150);
-    neighbour_union_find_indices_.reserve(150);
+    point_index_to_voxel_index_vector_.reserve(200'000);
+    voxel_index_to_labels_map_.reserve(200'000);
+    voxel_index_to_voxel_key_map_.reserve(200'000);
+    union_find_index_to_voxel_index_vector_.reserve(1500);
     cluster_labels_counts_.reserve(200'000);
     cluster_labels_cache_.reserve(200'000);
-    voxel_index_queue_.reserve(200'000);
 }
 
 template <typename PointT>
@@ -108,9 +106,9 @@ void Clusterer::cartesianToSpherical(const pcl::PointCloud<PointT>& cartesian_cl
 
 void Clusterer::buildHashTable()
 {
-    voxel_index_labels_map_.clear();
-    point_to_voxel_indices_.clear();
-    voxel_keys_.clear();
+    voxel_index_to_labels_map_.clear();
+    voxel_index_to_voxel_key_map_.clear();
+    point_index_to_voxel_index_vector_.clear();
 
     for (const auto& point : spherical_cloud_)
     {
@@ -123,46 +121,56 @@ void Clusterer::buildHashTable()
         const auto voxel_index =
             range_index + ((azimuth_index + (elevation_index * num_azimuth_)) * num_range_);
 
-        voxel_index_labels_map_[voxel_index] = INVALID_LABEL;
-        point_to_voxel_indices_.push_back(voxel_index);
-        voxel_keys_.push_back({range_index, azimuth_index, elevation_index});
+        voxel_index_to_labels_map_[voxel_index] = INVALID_LABEL;
+        voxel_index_to_voxel_key_map_[voxel_index] =
+            VoxelKey{range_index, azimuth_index, elevation_index};
+        point_index_to_voxel_index_vector_.push_back(voxel_index);
     }
 }
 
 void Clusterer::curvedVoxelClusteringImpl(std::vector<ClusterLabel>& labels)
 {
+    // Initialize the labels for the point cloud
     labels.assign(spherical_cloud_.size(), INVALID_LABEL);
 
-    union_find_.reset(voxel_index_labels_map_.size());
+    // Reset and prepare union-find data structure
+    union_find_.reset(voxel_index_to_labels_map_.size());
 
-    voxel_to_union_find_index_.clear();
-    voxel_to_union_find_index_.reserve(voxel_index_labels_map_.size());
-
-    neighbour_union_find_indices_.clear();
-
-    std::int32_t voxel_counter = 0;
-
-    for (const auto& [voxel_index, label] : voxel_index_labels_map_)
+    // Map each voxel index to a union-find index
+    voxel_index_to_union_find_index_map_.clear();
+    voxel_index_to_union_find_index_map_.reserve(voxel_index_to_labels_map_.size());
+    union_find_index_to_voxel_index_vector_.clear();
+    union_find_index_to_voxel_index_vector_.reserve(voxel_index_to_labels_map_.size());
+    union_find_index_to_voxel_key_vector_.clear();
+    union_find_index_to_voxel_key_vector_.reserve(voxel_index_to_labels_map_.size());
+    std::int32_t union_find_index = 0;
+    for (const auto& [voxel_index, label] : voxel_index_to_labels_map_)
     {
-        voxel_to_union_find_index_[voxel_index] = voxel_counter++;
+        voxel_index_to_union_find_index_map_[voxel_index] = union_find_index++;
+        union_find_index_to_voxel_index_vector_.push_back(voxel_index);
+        union_find_index_to_voxel_key_vector_.push_back(voxel_index_to_voxel_key_map_[voxel_index]);
     }
 
+    // Iterate through each point in the point cloud
     ClusterLabel label = 0;
 
-    for (std::uint32_t point_index = 0; point_index < spherical_cloud_.size(); ++point_index)
+    for (std::int32_t core_union_find_index = 0;
+         core_union_find_index <
+         static_cast<std::int32_t>(union_find_index_to_voxel_index_vector_.size());
+         ++core_union_find_index)
     {
-        const auto core_voxel_index = point_to_voxel_indices_[point_index];
+        const auto& core_voxel_index =
+            union_find_index_to_voxel_index_vector_[core_union_find_index];
 
-        if (voxel_index_labels_map_[core_voxel_index] != INVALID_LABEL)
+        if (voxel_index_to_labels_map_[core_voxel_index] != INVALID_LABEL)
         {
             continue;
         }
 
-        const auto [range_index, azimuth_index, elevation_index] = voxel_keys_[point_index];
+        const auto& [range_index, azimuth_index, elevation_index] =
+            union_find_index_to_voxel_key_vector_[core_union_find_index];
 
-        ClusterLabel common_voxel_label = std::numeric_limits<ClusterLabel>::max();
-
-        neighbour_union_find_indices_.clear();
+        bool found_neighbour = false;
 
         for (const auto& [range_index_offset, azimuth_index_offset, elevation_index_offset] :
              INDEX_OFFSETS_WITHOUT_SELF)
@@ -186,402 +194,48 @@ void Clusterer::curvedVoxelClusteringImpl(std::vector<ClusterLabel>& labels)
                 continue;
             }
 
-            const auto voxel_index =
+            const auto neighbour_voxel_index =
                 range_index_with_offset +
                 ((azimuth_index_with_offset + (elevation_index_with_offset * num_azimuth_)) *
                  num_range_);
 
-            if (const auto voxel_labels_map_iterator = voxel_index_labels_map_.find(voxel_index);
-                (voxel_labels_map_iterator != voxel_index_labels_map_.cend()))
+            if (const auto voxel_labels_map_iterator =
+                    voxel_index_to_labels_map_.find(neighbour_voxel_index);
+                voxel_labels_map_iterator != voxel_index_to_labels_map_.cend())
             {
-                if (voxel_labels_map_iterator->second != INVALID_LABEL)
-                {
-                    common_voxel_label =
-                        std::min(common_voxel_label, voxel_labels_map_iterator->second);
+                found_neighbour = true;
 
-                    const auto neighbour_union_find_index = voxel_to_union_find_index_[voxel_index];
-                    neighbour_union_find_indices_.insert(
-                        union_find_.find(neighbour_union_find_index));
-                }
+                union_find_.unite(core_union_find_index,
+                                  voxel_index_to_union_find_index_map_[neighbour_voxel_index]);
             }
         }
 
-        if (neighbour_union_find_indices_.empty())
+        if (!found_neighbour)
         {
-            voxel_index_labels_map_[core_voxel_index] = label++;
+            voxel_index_to_labels_map_[core_voxel_index] = label;
+            ++label;
         }
         else
         {
-            const auto core_union_find_index = voxel_to_union_find_index_[core_voxel_index];
-            voxel_index_labels_map_[core_voxel_index] = *neighbour_union_find_indices_.begin();
-            for (const auto neighbour_union_find_index : neighbour_union_find_indices_)
+            voxel_index_to_labels_map_[core_voxel_index] = label;
+
+            const auto& union_find_set = union_find_.get_set_elements(core_union_find_index);
+
+            for (const auto& union_find_index : union_find_set)
             {
-                union_find_.unite(core_union_find_index, neighbour_union_find_index);
+                voxel_index_to_labels_map_
+                    [union_find_index_to_voxel_index_vector_[union_find_index]] = label;
             }
         }
-
-        propagateLabelToNeighbouringVoxels(core_voxel_index);
-
-        // // If current voxel is not included in a valid cluster,
-        // // assign cluster label to this voxel and the neighbouring voxels around it
-        // if (common_voxel_label == std::numeric_limits<ClusterLabel>::max())
-        // {
-        //     voxel_index_labels_map_[core_voxel_index] = label;
-
-        //     for (const auto& [range_index_offset, azimuth_index_offset, elevation_index_offset] :
-        //          INDEX_OFFSETS_WITHOUT_SELF)
-        //     {
-        //         const auto range_index_with_offset = range_index + range_index_offset;
-        //         auto azimuth_index_with_offset = azimuth_index + azimuth_index_offset;
-        //         if (azimuth_index_with_offset < 0)
-        //         {
-        //             azimuth_index_with_offset = num_azimuth_ - 1;
-        //         }
-        //         else if (azimuth_index_with_offset >= num_azimuth_)
-        //         {
-        //             azimuth_index_with_offset = 0;
-        //         }
-        //         const auto elevation_index_with_offset = elevation_index +
-        //         elevation_index_offset;
-
-        //         if ((range_index_with_offset < 0) || (range_index_with_offset >= num_range_) ||
-        //             (elevation_index_with_offset < 0) ||
-        //             (elevation_index_with_offset >= num_elevation_))
-        //         {
-        //             continue;
-        //         }
-
-        //         const auto voxel_index =
-        //             range_index_with_offset +
-        //             ((azimuth_index_with_offset + (elevation_index_with_offset * num_azimuth_)) *
-        //              num_range_);
-
-        //         if (auto voxel_labels_map_iterator = voxel_index_labels_map_.find(voxel_index);
-        //             voxel_labels_map_iterator != voxel_index_labels_map_.cend())
-        //         {
-        //             voxel_labels_map_iterator->second = label;
-
-        //             union_find_.unite(voxel_to_union_find_index_[core_voxel_index],
-        //                               voxel_to_union_find_index_[voxel_index]);
-        //         }
-        //     }
-
-        //     ++label;
-        // }
-        // // Combine clusters
-        // else
-        // {
-        //     neighbouring_clusters.insert(label);
-
-        //     voxel_index_labels_map_[core_voxel_index] = common_voxel_label;
-
-        //     for (const auto neighbouring_cluster : neighbouring_clusters)
-        //     {
-        //         union_find_.unite(voxel_to_union_find_index_[core_voxel_index],
-        //                           neighbouring_cluster);
-        //     }
-
-        //     propagateLabelToNeighbouringVoxels(core_voxel_index);
-
-        //     // // Assign label to current voxel and its neighbours
-        //     // voxel_index_labels_map_[core_voxel_index] =
-        //     std::numeric_limits<std::int32_t>::max();
-
-        //     // for (const auto& [range_index_offset, azimuth_index_offset,
-        //     elevation_index_offset] :
-        //     //      INDEX_OFFSETS_WITHOUT_SELF)
-        //     // {
-        //     //     const auto range_index_with_offset = range_index + range_index_offset;
-        //     //     auto azimuth_index_with_offset = azimuth_index + azimuth_index_offset;
-        //     //     if (azimuth_index_with_offset < 0)
-        //     //     {
-        //     //         azimuth_index_with_offset = num_azimuth_ - 1;
-        //     //     }
-        //     //     else if (azimuth_index_with_offset >= num_azimuth_)
-        //     //     {
-        //     //         azimuth_index_with_offset = 0;
-        //     //     }
-        //     //     const auto elevation_index_with_offset = elevation_index +
-        //     //     elevation_index_offset;
-
-        //     //     if ((range_index_with_offset < 0) || (range_index_with_offset >= num_range_)
-        //     ||
-        //     //         (elevation_index_with_offset < 0) ||
-        //     //         (elevation_index_with_offset >= num_elevation_))
-        //     //     {
-        //     //         continue;
-        //     //     }
-
-        //     //     const auto voxel_index =
-        //     //         range_index_with_offset +
-        //     //         ((azimuth_index_with_offset + (elevation_index_with_offset *
-        //     num_azimuth_)) *
-        //     //          num_range_);
-
-        //     //     if (auto voxel_labels_map_iterator =
-        //     voxel_index_labels_map_.find(voxel_index);
-        //     //         voxel_labels_map_iterator != voxel_index_labels_map_.cend())
-        //     //     {
-        //     //         voxel_labels_map_iterator->second =
-        //     std::numeric_limits<std::int32_t>::max();
-        //     //     }
-        //     // }
-
-        //     // Propagation of label to neighbours of neighbours
-        //     // propagateLabelToNeighbouringVoxels(common_voxel_label,
-        //     //                                    {range_index, azimuth_index, elevation_index});
-        // }
     }
 
+    // Assign final labels to each point in the point cloud
     for (std::uint32_t point_index = 0; point_index < spherical_cloud_.size(); ++point_index)
     {
-        const auto voxel_index = point_to_voxel_indices_[point_index];
-        labels[point_index] = union_find_.find(voxel_to_union_find_index_[voxel_index]);
-    }
-
-    // for (std::uint32_t point_index = 0; point_index < spherical_cloud_.size(); ++point_index)
-    // {
-    //     labels[point_index] = voxel_index_labels_map_[point_to_voxel_indices_[point_index]];
-    // }
-}
-
-void Clusterer::propagateLabelToNeighbouringVoxels(VoxelIndex core_voxel_index)
-{
-    voxel_index_queue_.push(core_voxel_index);
-
-    while (!voxel_index_queue_.empty())
-    {
-        const auto current_voxel_index = voxel_index_queue_.front();
-        voxel_index_queue_.pop();
-
-        const auto core_union_find_index = voxel_to_union_find_index_[current_voxel_index];
-        const auto& voxel_set = union_find_.get_set_elements(core_union_find_index);
-
-        for (const auto& voxel_index : voxel_set)
-        {
-            if (voxel_index_labels_map_[voxel_index] == INVALID_LABEL)
-            {
-                voxel_index_labels_map_[voxel_index] = voxel_index_labels_map_[current_voxel_index];
-
-                const auto [range_index, azimuth_index, elevation_index] = voxel_keys_[voxel_index];
-
-                for (const auto& [range_index_offset,
-                                  azimuth_index_offset,
-                                  elevation_index_offset] : INDEX_OFFSETS_WITHOUT_SELF)
-                {
-                    const auto range_index_with_offset = range_index + range_index_offset;
-                    auto azimuth_index_with_offset = azimuth_index + azimuth_index_offset;
-                    if (azimuth_index_with_offset < 0)
-                    {
-                        azimuth_index_with_offset = num_azimuth_ - 1;
-                    }
-                    else if (azimuth_index_with_offset >= num_azimuth_)
-                    {
-                        azimuth_index_with_offset = 0;
-                    }
-                    const auto elevation_index_with_offset =
-                        elevation_index + elevation_index_offset;
-
-                    if ((range_index_with_offset < 0) || (range_index_with_offset >= num_range_) ||
-                        (elevation_index_with_offset < 0) ||
-                        (elevation_index_with_offset >= num_elevation_))
-                    {
-                        continue;
-                    }
-
-                    const auto neighbor_voxel_index =
-                        range_index_with_offset + ((azimuth_index_with_offset +
-                                                    (elevation_index_with_offset * num_azimuth_)) *
-                                                   num_range_);
-
-                    if (voxel_index_labels_map_.find(neighbor_voxel_index) !=
-                        voxel_index_labels_map_.cend())
-                    {
-                        if (voxel_index_labels_map_[neighbor_voxel_index] != INVALID_LABEL)
-                        {
-                            const auto neighbor_union_find_index =
-                                voxel_to_union_find_index_[neighbor_voxel_index];
-                            union_find_.unite(core_union_find_index, neighbor_union_find_index);
-                            voxel_index_queue_.push(neighbor_voxel_index);
-                        }
-                    }
-                }
-            }
-        }
+        labels[point_index] = union_find_.find(
+            voxel_index_to_union_find_index_map_[point_index_to_voxel_index_vector_[point_index]]);
     }
 }
-
-// void Clusterer::propagateLabelToNeighbouringVoxels(VoxelIndex core_voxel_index)
-// {
-//     const auto core_union_find_index = voxel_to_union_find_index_[core_voxel_index];
-//     const auto& voxel_set = union_find_.get_set_elements(core_union_find_index);
-
-//     for (const auto& voxel_index : voxel_set)
-//     {
-//         if (voxel_index_labels_map_[voxel_index] == INVALID_LABEL)
-//         {
-//             voxel_index_labels_map_[voxel_index] = voxel_index_labels_map_[core_voxel_index];
-
-//             const auto [range_index, azimuth_index, elevation_index] = voxel_keys_[voxel_index];
-
-//             for (const auto& [range_index_offset, azimuth_index_offset, elevation_index_offset] :
-//                  INDEX_OFFSETS_WITHOUT_SELF)
-//             {
-//                 const auto range_index_with_offset = range_index + range_index_offset;
-//                 auto azimuth_index_with_offset = azimuth_index + azimuth_index_offset;
-//                 if (azimuth_index_with_offset < 0)
-//                 {
-//                     azimuth_index_with_offset = num_azimuth_ - 1;
-//                 }
-//                 else if (azimuth_index_with_offset >= num_azimuth_)
-//                 {
-//                     azimuth_index_with_offset = 0;
-//                 }
-//                 const auto elevation_index_with_offset = elevation_index +
-//                 elevation_index_offset;
-
-//                 if ((range_index_with_offset < 0) || (range_index_with_offset >= num_range_) ||
-//                     (elevation_index_with_offset < 0) ||
-//                     (elevation_index_with_offset >= num_elevation_))
-//                 {
-//                     continue;
-//                 }
-
-//                 const auto neighbor_voxel_index =
-//                     range_index_with_offset +
-//                     ((azimuth_index_with_offset + (elevation_index_with_offset * num_azimuth_)) *
-//                      num_range_);
-
-//                 if (voxel_index_labels_map_.find(neighbor_voxel_index) !=
-//                     voxel_index_labels_map_.cend())
-//                 {
-//                     if (voxel_index_labels_map_[neighbor_voxel_index] != INVALID_LABEL)
-//                     {
-//                         const auto neighbor_union_find_index =
-//                             voxel_to_union_find_index_[neighbor_voxel_index];
-//                         union_find_.unite(core_union_find_index, neighbor_union_find_index);
-//                         propagateLabelToNeighbouringVoxels(neighbor_voxel_index);
-//                     }
-//                 }
-//             }
-//         }
-//     }
-// }
-
-void Clusterer::propagateLabelToNeighbouringVoxels(ClusterLabel label,
-                                                   const VoxelKey& core_voxel_key)
-{
-    const auto [core_range_index, core_azimuth_index, core_elevation_index] = core_voxel_key;
-
-    for (const auto& [range_index_offset, azimuth_index_offset, elevation_index_offset] :
-         INDEX_OFFSETS_WITHOUT_SELF)
-    {
-        if (range_index_offset == 0 && azimuth_index_offset == 0 && elevation_index_offset == 0)
-        {
-            continue; // Skip the core voxel itself
-        }
-
-        const auto range_index_with_offset = core_range_index + range_index_offset;
-        auto azimuth_index_with_offset = core_azimuth_index + azimuth_index_offset;
-        if (azimuth_index_with_offset < 0)
-        {
-            azimuth_index_with_offset = num_azimuth_ - 1;
-        }
-        else if (azimuth_index_with_offset >= num_azimuth_)
-        {
-            azimuth_index_with_offset = 0;
-        }
-        const auto elevation_index_with_offset = core_elevation_index + elevation_index_offset;
-
-        if ((range_index_with_offset < 0) || (range_index_with_offset >= num_range_) ||
-            (elevation_index_with_offset < 0) || (elevation_index_with_offset >= num_elevation_))
-        {
-            continue;
-        }
-
-        const auto voxel_index =
-            range_index_with_offset +
-            ((azimuth_index_with_offset + (elevation_index_with_offset * num_azimuth_)) *
-             num_range_);
-
-        if (auto it = voxel_index_labels_map_.find(voxel_index);
-            it != voxel_index_labels_map_.cend())
-        {
-            // TODO: How do we know if outward propagation is necessary??
-
-            if (it->second != label)
-            {
-                it->second = label;
-                propagateLabelToNeighbouringVoxels(label,
-                                                   {range_index_with_offset,
-                                                    azimuth_index_with_offset,
-                                                    elevation_index_with_offset});
-            }
-        }
-    }
-}
-
-// void Clusterer::propagateLabelToNeighbouringVoxels(ClusterLabel label,
-//                                                    const VoxelKey& core_voxel_key)
-// {
-//     // Breadth first search and label propagation
-//     visited_voxels_.clear();
-//     voxel_key_queue_.push(core_voxel_key);
-//     while (!voxel_key_queue_.empty())
-//     {
-//         const auto [range_index, azimuth_index, elevation_index] = voxel_key_queue_.front();
-//         voxel_key_queue_.pop();
-
-//         const auto current_voxel_index =
-//             range_index + ((azimuth_index + (elevation_index * num_azimuth_)) * num_range_);
-
-//         voxel_index_labels_map_[current_voxel_index] = label;
-
-//         for (const auto& [range_index_offset, azimuth_index_offset, elevation_index_offset] :
-//              INDEX_OFFSETS_WITHOUT_SELF)
-//         {
-//             const auto range_index_with_offset = range_index + range_index_offset;
-//             auto azimuth_index_with_offset = azimuth_index + azimuth_index_offset;
-//             if (azimuth_index_with_offset < 0)
-//             {
-//                 azimuth_index_with_offset = num_azimuth_ - 1;
-//             }
-//             else if (azimuth_index_with_offset >= num_azimuth_)
-//             {
-//                 azimuth_index_with_offset = 0;
-//             }
-//             const auto elevation_index_with_offset = elevation_index + elevation_index_offset;
-
-//             if ((range_index_with_offset < 0) || (range_index_with_offset >= num_range_) ||
-//                 (elevation_index_with_offset < 0) ||
-//                 (elevation_index_with_offset >= num_elevation_))
-//             {
-//                 continue;
-//             }
-
-//             const auto voxel_index =
-//                 range_index_with_offset +
-//                 ((azimuth_index_with_offset + (elevation_index_with_offset * num_azimuth_)) *
-//                  num_range_);
-
-//             if (const auto voxel_labels_map_iterator = voxel_index_labels_map_.find(voxel_index);
-//                 (voxel_labels_map_iterator != voxel_index_labels_map_.cend()) &&
-//                 (voxel_labels_map_iterator->second != INVALID_LABEL))
-//             {
-//                 if (visited_voxels_.find(voxel_index) == visited_voxels_.cend())
-//                 {
-//                     if (voxel_labels_map_iterator->second != label)
-//                     {
-//                         voxel_key_queue_.push({range_index_with_offset,
-//                                                azimuth_index_with_offset,
-//                                                elevation_index_with_offset});
-//                     }
-//                     visited_voxels_.insert(voxel_index);
-//                 }
-//             }
-//         }
-//     }
-// }
 
 void Clusterer::removeSmallClusters(std::vector<ClusterLabel>& labels)
 {

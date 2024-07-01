@@ -138,21 +138,18 @@ class Clusterer
     std::int32_t num_elevation_;
 
     std::vector<SphericalPoint> spherical_cloud_;
-    std::vector<VoxelIndex> point_to_voxel_indices_;
-    std::vector<VoxelKey> voxel_keys_;
 
-    ankerl::unordered_dense::segmented_map<VoxelIndex, ClusterLabel> voxel_index_labels_map_;
-    ankerl::unordered_dense::segmented_set<VoxelIndex> visited_voxels_;
-    ankerl::unordered_dense::segmented_map<VoxelIndex, UnionFindIndex> voxel_to_union_find_index_;
-    ankerl::unordered_dense::segmented_set<VoxelIndex> neighbour_union_find_indices_;
-
-    lidar_processing_lib::CircularQueue<VoxelKey, 150'000> voxel_key_queue_;
-    lidar_processing_lib::Queue<VoxelIndex> voxel_index_queue_;
+    std::vector<VoxelIndex> point_index_to_voxel_index_vector_;
+    ankerl::unordered_dense::segmented_map<VoxelIndex, ClusterLabel> voxel_index_to_labels_map_;
+    ankerl::unordered_dense::segmented_map<VoxelIndex, UnionFindIndex>
+        voxel_index_to_union_find_index_map_;
+    ankerl::unordered_dense::segmented_map<VoxelIndex, VoxelKey> voxel_index_to_voxel_key_map_;
+    std::vector<VoxelKey> union_find_index_to_voxel_key_vector_;
+    std::vector<VoxelIndex> union_find_index_to_voxel_index_vector_;
+    UnionFind union_find_;
 
     std::vector<std::uint32_t> cluster_labels_counts_;
     std::vector<ClusterLabel> cluster_labels_cache_;
-
-    UnionFind union_find_;
 
     template <typename PointT>
     void cartesianToSpherical(const pcl::PointCloud<PointT>& cartesian_cloud,
@@ -161,10 +158,6 @@ class Clusterer
     void buildHashTable();
 
     void curvedVoxelClusteringImpl(std::vector<ClusterLabel>& labels);
-
-    void propagateLabelToNeighbouringVoxels(ClusterLabel label, const VoxelKey& core_voxel_key);
-
-    void propagateLabelToNeighbouringVoxels(VoxelIndex core_voxel_index);
 
     void removeSmallClusters(std::vector<ClusterLabel>& labels);
 };
