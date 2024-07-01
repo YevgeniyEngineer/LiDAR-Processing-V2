@@ -31,5 +31,5 @@ processor:
     clustering_configuration:
       voxel_grid_range_resolution_m: 0.4
       voxel_grid_azimuth_resolution_deg: 1.0
-      voxel_grid_elevation_resolution_deg: 1.5
+      voxel_grid_elevation_resolution_deg: 2.0
       min_cluster_size: 3

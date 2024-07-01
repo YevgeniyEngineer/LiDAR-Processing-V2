@@ -37,6 +37,7 @@ Clusterer::Clusterer()
     visited_voxels_.reserve(150);
     cluster_labels_counts_.reserve(200'000);
     cluster_labels_cache_.reserve(200'000);
+    voxel_queue_.reserve(200'000);
 }
 
 template <typename PointT>
@@ -58,7 +59,7 @@ void Clusterer::cartesianToSpherical(const pcl::PointCloud<PointT>& cartesian_cl
     spherical_cloud.clear();
     spherical_cloud.reserve(cartesian_cloud.size());
 
-    if (cartesian_cloud.empty())
+    if (cartesian_cloud.points.empty())
     {
         return;
     }
@@ -91,9 +92,11 @@ void Clusterer::cartesianToSpherical(const pcl::PointCloud<PointT>& cartesian_cl
     num_range_ =
         static_cast<std::int32_t>(std::ceil(max_range_m / voxel_grid_range_resolution_m_) + 1);
 
-    num_azimuth_ = static_cast<std::int32_t>(TWO_M_PIf / voxel_grid_azimuth_resolution_rad_ + 1);
+    num_azimuth_ = static_cast<std::int32_t>(
+        std::ceil(max_azimuth_rad / voxel_grid_azimuth_resolution_rad_) + 1);
 
-    num_elevation_ = static_cast<std::int32_t>(M_PIf / voxel_grid_elevation_resolution_rad_ + 1);
+    num_elevation_ = static_cast<std::int32_t>(
+        std::ceil(max_elevation_rad / voxel_grid_elevation_resolution_rad_) + 1);
 }
 
 void Clusterer::buildHashTable()
@@ -134,14 +137,21 @@ void Clusterer::clusterImpl(std::vector<ClusterLabel>& labels)
 
         ClusterLabel common_voxel_label = std::numeric_limits<ClusterLabel>::max();
 
-        for (const auto& [i, j, k] : INDEX_OFFSETS)
+        for (const auto& [i, j, k] : INDEX_OFFSETS_WITHOUT_SELF)
         {
             const std::int32_t range_index_with_offset = range_index + i;
-            const std::int32_t azimuth_index_with_offset = azimuth_index + j;
+            auto azimuth_index_with_offset = azimuth_index + j;
+            if (azimuth_index_with_offset < 0)
+            {
+                azimuth_index_with_offset += num_azimuth_;
+            }
+            else if (azimuth_index_with_offset >= num_azimuth_)
+            {
+                azimuth_index_with_offset -= num_azimuth_;
+            }
             const std::int32_t elevation_index_with_offset = elevation_index + k;
 
             if (range_index_with_offset < 0 || range_index_with_offset >= num_range_ ||
-                azimuth_index_with_offset < 0 || azimuth_index_with_offset >= num_azimuth_ ||
                 elevation_index_with_offset < 0 || elevation_index_with_offset >= num_elevation_)
             {
                 continue;
@@ -150,11 +160,16 @@ void Clusterer::clusterImpl(std::vector<ClusterLabel>& labels)
             const std::int32_t voxel_index = flatVoxelIndex(
                 range_index_with_offset, azimuth_index_with_offset, elevation_index_with_offset);
 
-            if (const auto search = voxel_labels_.find(voxel_index); search != voxel_labels_.cend())
+            if (auto search = voxel_labels_.find(voxel_index); search != voxel_labels_.cend())
             {
                 if (search->second != INVALID_LABEL)
                 {
                     common_voxel_label = std::min(common_voxel_label, search->second);
+                }
+                else
+                {
+                    // To allow propagation
+                    search->second = std::numeric_limits<ClusterLabel>::max();
                 }
             }
         }
@@ -176,33 +191,37 @@ void Clusterer::clusterImpl(std::vector<ClusterLabel>& labels)
 
 void Clusterer::propagateLabel(ClusterLabel label, const VoxelKey& voxel_key)
 {
-    voxel_queue_.push(voxel_key);
     visited_voxels_.clear();
+
+    voxel_queue_.push(voxel_key);
+    visited_voxels_.insert(
+        flatVoxelIndex(voxel_key.range_index, voxel_key.azimuth_index, voxel_key.elevation_index));
 
     while (!voxel_queue_.empty())
     {
         const auto [range_index, azimuth_index, elevation_index] = voxel_queue_.front();
         voxel_queue_.pop();
+
         const std::int32_t current_voxel_index =
             flatVoxelIndex(range_index, azimuth_index, elevation_index);
 
-        if (visited_voxels_.count(current_voxel_index) > 0)
-        {
-            continue;
-        }
-
-        visited_voxels_.insert(current_voxel_index);
-
         voxel_labels_[current_voxel_index] = label;
 
-        for (const auto& [i, j, k] : INDEX_OFFSETS)
+        for (const auto& [i, j, k] : INDEX_OFFSETS_WITHOUT_SELF)
         {
             const std::int32_t range_index_with_offset = range_index + i;
-            const std::int32_t azimuth_index_with_offset = azimuth_index + j;
+            auto azimuth_index_with_offset = azimuth_index + j;
+            if (azimuth_index_with_offset < 0)
+            {
+                azimuth_index_with_offset += num_azimuth_;
+            }
+            else if (azimuth_index_with_offset >= num_azimuth_)
+            {
+                azimuth_index_with_offset -= num_azimuth_;
+            }
             const std::int32_t elevation_index_with_offset = elevation_index + k;
 
             if (range_index_with_offset < 0 || range_index_with_offset >= num_range_ ||
-                azimuth_index_with_offset < 0 || azimuth_index_with_offset >= num_azimuth_ ||
                 elevation_index_with_offset < 0 || elevation_index_with_offset >= num_elevation_)
             {
                 continue;
@@ -211,15 +230,19 @@ void Clusterer::propagateLabel(ClusterLabel label, const VoxelKey& voxel_key)
             const std::int32_t voxel_index = flatVoxelIndex(
                 range_index_with_offset, azimuth_index_with_offset, elevation_index_with_offset);
 
-            if (const auto search = voxel_labels_.find(voxel_index); search != voxel_labels_.cend())
+            if (visited_voxels_.contains(voxel_index))
             {
-                if ((visited_voxels_.count(voxel_index) == 0) &&
-                    (search->second != INVALID_LABEL) && (search->second != label))
-                {
-                    voxel_queue_.push({range_index_with_offset,
-                                       azimuth_index_with_offset,
-                                       elevation_index_with_offset});
-                }
+                continue;
+            }
+
+            const auto search = voxel_labels_.find(voxel_index);
+            if (search != voxel_labels_.cend() && search->second != label &&
+                search->second != INVALID_LABEL)
+            {
+                voxel_queue_.push({range_index_with_offset,
+                                   azimuth_index_with_offset,
+                                   elevation_index_with_offset});
+                visited_voxels_.insert(voxel_index);
             }
         }
     }

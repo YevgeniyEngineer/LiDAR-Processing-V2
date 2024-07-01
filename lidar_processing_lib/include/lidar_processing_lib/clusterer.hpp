@@ -24,7 +24,7 @@
 #define LIDAR_PROCESSING_LIB__CLUSTERER_HPP
 
 // Internal
-#include "circular_queue.hpp"
+#include "queue.hpp"
 
 // External
 #include <ankerl/unordered_dense.h>
@@ -97,11 +97,11 @@ class Clusterer
     // Azimuth index should be the secondary sorting key.
     // Range index should be the tertiary sorting key.
 
-    static constexpr std::int32_t INDEX_OFFSETS[27][3] = {
-        {-1, -1, -1}, {-1, 0, -1}, {-1, 1, -1}, {0, -1, -1}, {0, 0, -1},  {0, 1, -1}, {1, -1, -1},
-        {1, 0, -1},   {1, 1, -1},  {-1, -1, 0}, {-1, 0, 0},  {-1, 1, 0},  {0, -1, 0}, {0, 0, 0},
-        {0, 1, 0},    {1, -1, 0},  {1, 0, 0},   {1, 1, 0},   {-1, -1, 1}, {-1, 0, 1}, {-1, 1, 1},
-        {0, -1, 1},   {0, 0, 1},   {0, 1, 1},   {1, -1, 1},  {1, 0, 1},   {1, 1, 1}};
+    static constexpr std::int32_t INDEX_OFFSETS_WITHOUT_SELF[26][3] = {
+        {-1, -1, -1}, {-1, 0, -1}, {-1, 1, -1}, {0, -1, -1}, {0, 0, -1}, {0, 1, -1}, {1, -1, -1},
+        {1, 0, -1},   {1, 1, -1},  {-1, -1, 0}, {-1, 0, 0},  {-1, 1, 0}, {0, -1, 0}, {0, 1, 0},
+        {1, -1, 0},   {1, 0, 0},   {1, 1, 0},   {-1, -1, 1}, {-1, 0, 1}, {-1, 1, 1}, {0, -1, 1},
+        {0, 0, 1},    {0, 1, 1},   {1, -1, 1},  {1, 0, 1},   {1, 1, 1}};
 
     struct VoxelKey
     {
@@ -127,7 +127,7 @@ class Clusterer
     ankerl::unordered_dense::segmented_map<std::int32_t, ClusterLabel> voxel_labels_;
     ankerl::unordered_dense::segmented_set<std::int32_t> visited_voxels_;
 
-    lidar_processing_lib::CircularQueue<VoxelKey, 150'000> voxel_queue_;
+    lidar_processing_lib::Queue<VoxelKey> voxel_queue_;
 
     std::vector<std::uint32_t> cluster_labels_counts_;
     std::vector<ClusterLabel> cluster_labels_cache_;
