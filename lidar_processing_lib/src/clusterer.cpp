@@ -105,10 +105,6 @@ void Clusterer::buildHashTable()
     voxel_indices_.clear();
     voxel_keys_.clear();
 
-    voxel_labels_.numRange(num_range_);
-    voxel_labels_.numAzimuth(num_azimuth_);
-    voxel_labels_.numElevation(num_elevation_);
-
     for (const auto& point : spherical_cloud_)
     {
         const std::int32_t range_index = rangeToIndex(point.range_m);
@@ -166,16 +162,18 @@ void Clusterer::clusterImpl(std::vector<ClusterLabel>& labels)
             const std::int32_t voxel_index = flatVoxelIndex(
                 range_index_with_offset, azimuth_index_with_offset, elevation_index_with_offset);
 
-            if (auto search = voxel_labels_.find(voxel_index); search != voxel_labels_.end())
+            ClusterLabel search_label;
+
+            if (voxel_labels_.find(voxel_index, search_label))
             {
-                if (*search.value_it != INVALID_LABEL)
+                if (search_label != INVALID_LABEL)
                 {
-                    common_voxel_label = std::min(common_voxel_label, *search.value_it);
+                    common_voxel_label = std::min(common_voxel_label, search_label);
                 }
                 else
                 {
                     // To allow propagation
-                    *search.value_it = std::numeric_limits<ClusterLabel>::max();
+                    search_label = std::numeric_limits<ClusterLabel>::max();
                 }
             }
         }
@@ -241,14 +239,17 @@ void Clusterer::propagateLabel(ClusterLabel label, const VoxelKey& voxel_key)
                 continue;
             }
 
-            const auto search = voxel_labels_.find(voxel_index);
-            if (search != voxel_labels_.end() && *search.value_it != label &&
-                *search.value_it != INVALID_LABEL)
+            ClusterLabel search_label;
+
+            if (voxel_labels_.find(voxel_index, search_label))
             {
-                voxel_queue_.push({range_index_with_offset,
-                                   azimuth_index_with_offset,
-                                   elevation_index_with_offset});
-                visited_voxels_.insert(voxel_index);
+                if (search_label != label && search_label != INVALID_LABEL)
+                {
+                    voxel_queue_.push({range_index_with_offset,
+                                       azimuth_index_with_offset,
+                                       elevation_index_with_offset});
+                    visited_voxels_.insert(voxel_index);
+                }
             }
         }
     }

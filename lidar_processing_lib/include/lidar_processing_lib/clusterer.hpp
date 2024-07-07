@@ -129,7 +129,7 @@ class Clusterer
     // ankerl::unordered_dense::segmented_map<std::int32_t, ClusterLabel> voxel_labels_;
     // ankerl::unordered_dense::segmented_set<std::int32_t> visited_voxels_;
 
-    lidar_processing_lib::StaticMap<ClusterLabel> voxel_labels_;
+    lidar_processing_lib::StaticMap<std::int32_t, ClusterLabel> voxel_labels_;
     lidar_processing_lib::StaticSet<std::int32_t> visited_voxels_;
 
     lidar_processing_lib::Queue<VoxelKey> voxel_queue_;

@@ -20,62 +20,32 @@
  * SOFTWARE.
  */
 
-#ifndef LIDAR_PROCESSING_LIB__STATIC_SET_HPP
-#define LIDAR_PROCESSING_LIB__STATIC_SET_HPP
+#ifndef LIDAR_PROCESSING_LIB__CUSTOM_COMPARATOR_HPP
+#define LIDAR_PROCESSING_LIB__CUSTOM_COMPARATOR_HPP
 
-// Local
-#include "avl_tree.hpp"
-
-// STL
-#include <algorithm>
-#include <array>
-#include <cstdint>
-#include <cstring>
-#include <iostream>
-#include <memory>
-#include <stdexcept>
 #include <utility>
-#include <vector>
 
 namespace lidar_processing_lib
 {
-template <typename T>
-class StaticSet final
+template <typename Key, typename Value>
+struct KeyComparator final
 {
-  public:
-    /// @brief Reserve nodes in AVL Tree
-    inline void reserve(std::size_t num_total)
+    inline bool operator()(const std::pair<Key, Value>& lhs,
+                           const std::pair<Key, Value>& rhs) const noexcept
     {
-        avl_tree_.reserve(num_total);
+        return lhs.first < rhs.first;
     }
+};
 
-    /// @brief Insert an element into the set
-    inline void insert(const T& value)
+template <typename Key, typename Value>
+struct KeyEqual final
+{
+    inline bool operator()(const std::pair<Key, Value>& lhs,
+                           const std::pair<Key, Value>& rhs) const noexcept
     {
-        avl_tree_.insert(value);
+        return lhs.first == rhs.first;
     }
-
-    /// @brief Insert an element into the set
-    inline void insert(T&& value)
-    {
-        avl_tree_.insert(std::move(value));
-    }
-
-    /// @brief Check if a value is included in the set
-    inline bool contains(const T& value) const
-    {
-        return avl_tree_.find(value);
-    }
-
-    /// @brief Clear all values in the set
-    inline void clear() noexcept
-    {
-        avl_tree_.clear();
-    }
-
-  private:
-    AVLTree<std::int32_t> avl_tree_;
 };
 } // namespace lidar_processing_lib
 
-#endif // LIDAR_PROCESSING_LIB__STATIC_SET_HPP
+#endif // LIDAR_PROCESSING_LIB__CUSTOM_COMPARATOR_HPP

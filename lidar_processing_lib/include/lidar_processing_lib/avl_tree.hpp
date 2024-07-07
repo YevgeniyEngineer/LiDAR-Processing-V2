@@ -26,7 +26,9 @@
 // STL
 #include <algorithm>
 #include <cstdint>
+#include <functional>
 #include <iostream>
+#include <iterator>
 #include <memory>
 #include <type_traits>
 #include <utility>
@@ -34,10 +36,31 @@
 
 namespace lidar_processing_lib
 {
-template <typename T>
+template <typename T, typename Compare = std::less<T>>
 class AVLTree final
 {
-    static_assert(std::is_integral<T>::value, "AVLTree requires an integral type");
+    static_assert(std::is_default_constructible_v<T>,
+                  "AVLTree requires default constructible type");
+    static_assert(std::is_copy_constructible_v<T>, "AVLTree requires copy constructible type");
+    static_assert(std::is_copy_assignable_v<T>, "AVLTree requires copy assignable type");
+
+    struct Node final
+    {
+        T data;
+        std::int32_t height;
+        Node* left;
+        Node* right;
+
+        Node(const T& data, std::int32_t height = 1, Node* left = nullptr, Node* right = nullptr)
+            : data(data), height(height), left(left), right(right)
+        {
+        }
+
+        Node(T&& data, std::int32_t height = 1, Node* left = nullptr, Node* right = nullptr)
+            : data(std::move(data)), height(height), left(left), right(right)
+        {
+        }
+    };
 
   public:
     /// @brief Reserve memory for the node pool
@@ -47,15 +70,31 @@ class AVLTree final
     }
 
     /// @brief Insert a value into the tree
-    void insert(T value)
+    void insert(const T& value)
     {
         root_ = insert(root_, value);
     }
 
-    /// @brief Public interface to search for a value
-    bool find(T value) const
+    /// @brief Search for a value
+    T* find(const T& value)
     {
-        return find(root_, value);
+        Node* node = find(root_, value);
+        if (node)
+        {
+            return &node->data;
+        }
+        return nullptr;
+    }
+
+    /// @brief Search for a value
+    const T* find(const T& value) const
+    {
+        const Node* node = find(root_, value);
+        if (node)
+        {
+            return &node->data;
+        }
+        return nullptr;
     }
 
     /// @brief Public interface to clear the tree
@@ -73,21 +112,9 @@ class AVLTree final
     }
 
   private:
-    struct Node final
-    {
-        T data;
-        std::int32_t height;
-        Node* left;
-        Node* right;
-
-        Node(T data, std::int32_t height = 1, Node* left = nullptr, Node* right = nullptr)
-            : data(data), height(height), left(left), right(right)
-        {
-        }
-    };
-
     std::vector<std::unique_ptr<Node>> node_pool_;
     Node* root_ = nullptr;
+    Compare comp_;
 
     // Print all value (in-order traversal) for debugging
     void printInOrder(const Node* const node) const
@@ -143,7 +170,7 @@ class AVLTree final
     }
 
     /// @brief Helper function to insert a new value into the subtree rooted with node
-    Node* insert(Node* node, T value)
+    Node* insert(Node* node, const T& value)
     {
         if (!node)
         {
@@ -170,26 +197,26 @@ class AVLTree final
         const auto balance = getBalance(node);
 
         // Left left case
-        if (balance > 1 && value < node->left->data)
+        if (balance > 1 && comp_(value, node->left->data))
         {
             return rightRotate(node);
         }
 
         // Right right case
-        if (balance < -1 && value > node->right->data)
+        if (balance < -1 && comp_(node->right->data, value))
         {
             return leftRotate(node);
         }
 
         // Left right case
-        if (balance > 1 && value > node->left->data)
+        if (balance > 1 && comp_(node->left->data, value))
         {
             node->left = leftRotate(node->left);
             return rightRotate(node);
         }
 
         // Right left case
-        if (balance < -1 && value < node->right->data)
+        if (balance < -1 && comp_(value, node->right->data))
         {
             node->right = rightRotate(node->right);
             return leftRotate(node);
@@ -199,24 +226,24 @@ class AVLTree final
     }
 
     /// @brief Helper function to search a value in the subtree rooted with node
-    bool find(const Node* const node, T value) const
+    Node* find(Node* node, const T& value) const
     {
         if (!node)
         {
-            return false;
+            return nullptr;
         }
 
-        if (value == node->data)
-        {
-            return true;
-        }
-        else if (value < node->data)
+        if (comp_(value, node->data))
         {
             return find(node->left, value);
         }
-        else
+        else if (comp_(node->data, value))
         {
             return find(node->right, value);
+        }
+        else
+        {
+            return node;
         }
     }
 };
