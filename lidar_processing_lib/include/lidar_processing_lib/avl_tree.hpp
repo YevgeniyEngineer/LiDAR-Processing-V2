@@ -84,21 +84,29 @@ class AVLTree final
 
   public:
     /// @brief Reserve memory for the node pool
-    void reserve(std::size_t capacity)
+    inline void reserve(std::size_t capacity)
     {
         node_pool_.reserve(capacity);
     }
 
-    /// @brief Insert a value into the tree
-    void insert(const T& value)
+    /// @brief Insert a value into the tree and return a pointer to the inserted value
+    T* insert(T&& value)
     {
-        root_ = insert(root_, value);
+        root_ = insert_impl(root_, std::forward<T>(value));
+        return &node_pool_[root_].data;
+    }
+
+    /// @brief Insert a value into the tree and return a pointer to the inserted value
+    T* insert(const T& value)
+    {
+        root_ = insert_impl(root_, value);
+        return &node_pool_[root_].data;
     }
 
     /// @brief Search for a value
-    T* find(const T& value)
+    T* find(const T& value) noexcept
     {
-        const auto node_idx = find(root_, value);
+        const auto node_idx = find_impl(root_, value);
         if (node_idx != -1)
         {
             return &node_pool_[node_idx].data;
@@ -107,9 +115,9 @@ class AVLTree final
     }
 
     /// @brief Search for a value
-    const T* find(const T& value) const
+    inline const T* find(const T& value) const noexcept
     {
-        const auto node_idx = find(root_, value);
+        const auto node_idx = find_impl(root_, value);
         if (node_idx != -1)
         {
             return &node_pool_[node_idx].data;
@@ -118,14 +126,14 @@ class AVLTree final
     }
 
     /// @brief Public interface to clear the tree
-    void clear() noexcept
+    inline void clear() noexcept
     {
         root_ = -1;
         next_free_index_ = 0;
     }
 
     /// @brief Print all values in the tree
-    void printInOrder() const
+    inline void printInOrder() const
     {
         printInOrder(root_);
         std::cerr << std::endl;
@@ -135,7 +143,7 @@ class AVLTree final
     std::vector<Node> node_pool_;
     std::int32_t next_free_index_ = 0;
     std::int32_t root_ = -1;
-    Compare comp_;
+    static constexpr Compare comp_{};
 
     // Print all value (in-order traversal) for debugging
     void printInOrder(std::int32_t node_idx) const
@@ -163,7 +171,7 @@ class AVLTree final
     }
 
     /// @brief Right rotate the subtree rooted with y
-    std::int32_t rightRotate(std::int32_t y_idx)
+    inline std::int32_t rightRotate(std::int32_t y_idx) noexcept
     {
         const std::int32_t x_idx = node_pool_[y_idx].left;
         const std::int32_t T2_idx = node_pool_[x_idx].right;
@@ -179,8 +187,8 @@ class AVLTree final
         return x_idx;
     }
 
-    /// @brief Left rotate the subtree rooted with x
-    std::int32_t leftRotate(std::int32_t x_idx)
+    // @brief Left rotate the subtree rooted with x
+    inline std::int32_t leftRotate(std::int32_t x_idx) noexcept
     {
         const std::int32_t y_idx = node_pool_[x_idx].right;
         const std::int32_t T2_idx = node_pool_[y_idx].left;
@@ -197,7 +205,8 @@ class AVLTree final
     }
 
     /// @brief Helper function to insert a new value into the subtree rooted with node
-    std::int32_t insert(std::int32_t node_idx, const T& value)
+    template <typename U>
+    std::int32_t insert_impl(std::int32_t node_idx, U&& value)
     {
         if (node_idx == -1)
         {
@@ -206,17 +215,19 @@ class AVLTree final
                 node_pool_.resize(node_pool_.size() * 2 + 1);
             }
             const auto new_node_idx = next_free_index_++;
-            node_pool_[new_node_idx] = Node(value);
+            node_pool_[new_node_idx] = Node(std::forward<U>(value));
             return new_node_idx;
         }
 
         if (comp_(value, node_pool_[node_idx].data))
         {
-            node_pool_[node_idx].left = insert(node_pool_[node_idx].left, value);
+            node_pool_[node_idx].left =
+                insert_impl(node_pool_[node_idx].left, std::forward<U>(value));
         }
         else if (comp_(node_pool_[node_idx].data, value))
         {
-            node_pool_[node_idx].right = insert(node_pool_[node_idx].right, value);
+            node_pool_[node_idx].right =
+                insert_impl(node_pool_[node_idx].right, std::forward<U>(value));
         }
         else
         {
@@ -229,55 +240,54 @@ class AVLTree final
 
         const auto balance = getBalance(node_idx);
 
-        // Left left case
-        if (balance > 1 && comp_(value, node_pool_[node_pool_[node_idx].left].data))
+        if (balance > 1)
         {
-            return rightRotate(node_idx);
+            if (comp_(value, node_pool_[node_pool_[node_idx].left].data))
+            {
+                return rightRotate(node_idx);
+            }
+            else
+            {
+                node_pool_[node_idx].left = leftRotate(node_pool_[node_idx].left);
+                return rightRotate(node_idx);
+            }
         }
 
-        // Right right case
-        if (balance < -1 && comp_(node_pool_[node_pool_[node_idx].right].data, value))
+        if (balance < -1)
         {
-            return leftRotate(node_idx);
-        }
-
-        // Left right case
-        if (balance > 1 && comp_(node_pool_[node_pool_[node_idx].left].data, value))
-        {
-            node_pool_[node_idx].left = leftRotate(node_pool_[node_idx].left);
-            return rightRotate(node_idx);
-        }
-
-        // Right left case
-        if (balance < -1 && comp_(value, node_pool_[node_pool_[node_idx].right].data))
-        {
-            node_pool_[node_idx].right = rightRotate(node_pool_[node_idx].right);
-            return leftRotate(node_idx);
+            if (comp_(node_pool_[node_pool_[node_idx].right].data, value))
+            {
+                return leftRotate(node_idx);
+            }
+            else
+            {
+                node_pool_[node_idx].right = rightRotate(node_pool_[node_idx].right);
+                return leftRotate(node_idx);
+            }
         }
 
         return node_idx;
     }
 
     /// @brief Helper function to search a value in the subtree rooted with node
-    std::int32_t find(std::int32_t node_idx, const T& value) const
+    std::int32_t find_impl(std::int32_t node_idx, const T& value) const noexcept
     {
-        if (node_idx == -1)
+        while (node_idx != -1)
         {
-            return -1;
+            if (comp_(value, node_pool_[node_idx].data))
+            {
+                node_idx = node_pool_[node_idx].left;
+            }
+            else if (comp_(node_pool_[node_idx].data, value))
+            {
+                node_idx = node_pool_[node_idx].right;
+            }
+            else
+            {
+                return node_idx;
+            }
         }
-
-        if (comp_(value, node_pool_[node_idx].data))
-        {
-            return find(node_pool_[node_idx].left, value);
-        }
-        else if (comp_(node_pool_[node_idx].data, value))
-        {
-            return find(node_pool_[node_idx].right, value);
-        }
-        else
-        {
-            return node_idx;
-        }
+        return -1;
     }
 };
 } // namespace lidar_processing_lib

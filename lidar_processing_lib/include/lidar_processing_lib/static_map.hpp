@@ -62,11 +62,10 @@ class StaticMap
     /// @brief Insert a value with given key
     void insert(const Key& key, const Value& value)
     {
-        // Check if the key already exists and update the value if it does
-        auto* it = avl_tree_.find({key, Value()});
-        if (it)
+        auto* data_ptr = avl_tree_.find({key, Value()});
+        if (data_ptr)
         {
-            it->second = value;
+            data_ptr->second = value;
         }
         else
         {
@@ -77,46 +76,45 @@ class StaticMap
     /// @brief Retrieve the value corresponding to the given key
     Value& at(const Key& key)
     {
-        auto* it = avl_tree_.find({key, Value()});
-        if (!it)
+        auto* ptr = avl_tree_.find({key, Value()});
+        if (!ptr)
         {
             throw std::out_of_range("Key not found");
         }
-        return it->second;
+        return ptr->second;
     }
 
     const Value& at(const Key& key) const
     {
-        const auto* it = avl_tree_.find({key, Value()});
-        if (!it)
+        const auto* ptr = avl_tree_.find({key, Value()});
+        if (!ptr)
         {
             throw std::out_of_range("Key not found");
         }
-        return it->second;
+        return ptr->second;
     }
 
     Value& operator[](const Key& key) noexcept
     {
-        auto* it = avl_tree_.find({key, Value()});
-        if (!it)
+        auto* data_ptr = avl_tree_.find({key, Value()});
+        if (!data_ptr)
         {
-            avl_tree_.insert({key, Value()});
-            it = avl_tree_.find({key, Value()});
+            data_ptr = avl_tree_.insert({key, Value()});
         }
-        return it->second;
+        return data_ptr->second;
     }
 
-    bool contains(const Key& key) const
+    inline bool contains(const Key& key) const
     {
         return avl_tree_.find({key, Value()}) != nullptr;
     }
 
-    bool find(const Key& key, Value& value) const
+    inline bool find(const Key& key, Value& value) const
     {
-        const auto* it = avl_tree_.find({key, Value()});
-        if (it)
+        const auto* ptr = avl_tree_.find({key, Value()});
+        if (ptr)
         {
-            value = it->second;
+            value = ptr->second;
             return true;
         }
         return false;
