@@ -105,15 +105,9 @@ void Clusterer::buildHashTable()
     voxel_indices_.clear();
     voxel_keys_.clear();
 
-    voxel_labels_.reserve(300'000);
     voxel_labels_.numRange(num_range_);
     voxel_labels_.numAzimuth(num_azimuth_);
     voxel_labels_.numElevation(num_elevation_);
-
-    visited_voxels_.reserve(300'000);
-    visited_voxels_.numRange(num_range_);
-    visited_voxels_.numAzimuth(num_azimuth_);
-    visited_voxels_.numElevation(num_elevation_);
 
     for (const auto& point : spherical_cloud_)
     {
