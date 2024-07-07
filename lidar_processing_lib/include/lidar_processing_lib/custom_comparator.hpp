@@ -35,6 +35,16 @@ struct KeyComparator final
     {
         return lhs.first < rhs.first;
     }
+
+    inline bool operator()(const std::pair<Key, Value>& lhs, const Key& rhs) const noexcept
+    {
+        return lhs.first < rhs;
+    }
+
+    inline bool operator()(const Key& lhs, const std::pair<Key, Value>& rhs) const noexcept
+    {
+        return lhs < rhs.first;
+    }
 };
 
 template <typename Key, typename Value>

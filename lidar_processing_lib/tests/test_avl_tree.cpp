@@ -20,6 +20,11 @@ class AVLTreeTest : public ::testing::Test
             tree.insert(value);
         }
     }
+
+    void SetUp() override
+    {
+        tree.reserve(100000);
+    }
 };
 
 // Test inserting and finding a single element

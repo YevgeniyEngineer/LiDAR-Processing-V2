@@ -48,17 +48,37 @@ class AVLTree final
     {
         T data;
         std::int32_t height;
-        Node* left;
-        Node* right;
+        std::int32_t left;
+        std::int32_t right;
 
-        Node(const T& data, std::int32_t height = 1, Node* left = nullptr, Node* right = nullptr)
+        Node() : height(1), left(-1), right(-1)
+        {
+        }
+
+        Node(const T& data,
+             std::int32_t height = 1,
+             std::int32_t left = -1,
+             std::int32_t right = -1)
             : data(data), height(height), left(left), right(right)
         {
         }
 
-        Node(T&& data, std::int32_t height = 1, Node* left = nullptr, Node* right = nullptr)
+        Node(T&& data, std::int32_t height = 1, std::int32_t left = -1, std::int32_t right = -1)
             : data(std::move(data)), height(height), left(left), right(right)
         {
+        }
+
+        Node(const Node&) = default;
+        Node(Node&&) noexcept = default;
+        Node& operator=(const Node&) = default;
+        Node& operator=(Node&&) noexcept = default;
+
+        void swap(Node& other) noexcept
+        {
+            std::swap(data, other.data);
+            std::swap(height, other.height);
+            std::swap(left, other.left);
+            std::swap(right, other.right);
         }
     };
 
@@ -78,10 +98,10 @@ class AVLTree final
     /// @brief Search for a value
     T* find(const T& value)
     {
-        Node* node = find(root_, value);
-        if (node)
+        const auto node_idx = find(root_, value);
+        if (node_idx != -1)
         {
-            return &node->data;
+            return &node_pool_[node_idx].data;
         }
         return nullptr;
     }
@@ -89,10 +109,10 @@ class AVLTree final
     /// @brief Search for a value
     const T* find(const T& value) const
     {
-        const Node* node = find(root_, value);
-        if (node)
+        const auto node_idx = find(root_, value);
+        if (node_idx != -1)
         {
-            return &node->data;
+            return &node_pool_[node_idx].data;
         }
         return nullptr;
     }
@@ -100,8 +120,8 @@ class AVLTree final
     /// @brief Public interface to clear the tree
     void clear() noexcept
     {
-        root_ = nullptr;
-        node_pool_.clear();
+        root_ = -1;
+        next_free_index_ = 0;
     }
 
     /// @brief Print all values in the tree
@@ -112,138 +132,151 @@ class AVLTree final
     }
 
   private:
-    std::vector<std::unique_ptr<Node>> node_pool_;
-    Node* root_ = nullptr;
+    std::vector<Node> node_pool_;
+    std::int32_t next_free_index_ = 0;
+    std::int32_t root_ = -1;
     Compare comp_;
 
     // Print all value (in-order traversal) for debugging
-    void printInOrder(const Node* const node) const
+    void printInOrder(std::int32_t node_idx) const
     {
-        if (node)
+        if (node_idx != -1)
         {
-            printInOrder(node->left);
-            std::cerr << node->data << " ";
-            printInOrder(node->right);
+            printInOrder(node_pool_[node_idx].left);
+            std::cerr << node_pool_[node_idx].data << " ";
+            printInOrder(node_pool_[node_idx].right);
         }
     }
 
     /// @brief Helper function to get the height of a node
-    inline auto height(const Node* const node) const noexcept
+    inline auto height(std::int32_t node_idx) const noexcept
     {
-        return node ? node->height : 0;
+        return node_idx != -1 ? node_pool_[node_idx].height : 0;
     }
 
     /// @brief Helper function to get the balance factor of a node
-    inline auto getBalance(const Node* const node) const noexcept
+    inline auto getBalance(std::int32_t node_idx) const noexcept
     {
-        return node ? height(node->left) - height(node->right) : 0;
+        return node_idx != -1
+                   ? height(node_pool_[node_idx].left) - height(node_pool_[node_idx].right)
+                   : 0;
     }
 
     /// @brief Right rotate the subtree rooted with y
-    Node* rightRotate(Node* y) const
+    std::int32_t rightRotate(std::int32_t y_idx)
     {
-        Node* x = y->left;
-        Node* T2 = x->right;
+        const std::int32_t x_idx = node_pool_[y_idx].left;
+        const std::int32_t T2_idx = node_pool_[x_idx].right;
 
-        x->right = y;
-        y->left = T2;
+        node_pool_[x_idx].right = y_idx;
+        node_pool_[y_idx].left = T2_idx;
 
-        y->height = std::max(height(y->left), height(y->right)) + 1;
-        x->height = std::max(height(x->left), height(x->right)) + 1;
+        node_pool_[y_idx].height =
+            std::max(height(node_pool_[y_idx].left), height(node_pool_[y_idx].right)) + 1;
+        node_pool_[x_idx].height =
+            std::max(height(node_pool_[x_idx].left), height(node_pool_[x_idx].right)) + 1;
 
-        return x;
+        return x_idx;
     }
 
     /// @brief Left rotate the subtree rooted with x
-    Node* leftRotate(Node* x) const
+    std::int32_t leftRotate(std::int32_t x_idx)
     {
-        Node* y = x->right;
-        Node* T2 = y->left;
+        const std::int32_t y_idx = node_pool_[x_idx].right;
+        const std::int32_t T2_idx = node_pool_[y_idx].left;
 
-        y->left = x;
-        x->right = T2;
+        node_pool_[y_idx].left = x_idx;
+        node_pool_[x_idx].right = T2_idx;
 
-        x->height = std::max(height(x->left), height(x->right)) + 1;
-        y->height = std::max(height(y->left), height(y->right)) + 1;
+        node_pool_[x_idx].height =
+            std::max(height(node_pool_[x_idx].left), height(node_pool_[x_idx].right)) + 1;
+        node_pool_[y_idx].height =
+            std::max(height(node_pool_[y_idx].left), height(node_pool_[y_idx].right)) + 1;
 
-        return y;
+        return y_idx;
     }
 
     /// @brief Helper function to insert a new value into the subtree rooted with node
-    Node* insert(Node* node, const T& value)
+    std::int32_t insert(std::int32_t node_idx, const T& value)
     {
-        if (!node)
+        if (node_idx == -1)
         {
-            node_pool_.emplace_back(std::make_unique<Node>(value));
-            return node_pool_.back().get();
+            if (next_free_index_ >= static_cast<std::int32_t>(node_pool_.size()))
+            {
+                node_pool_.resize(node_pool_.size() * 2 + 1);
+            }
+            const auto new_node_idx = next_free_index_++;
+            node_pool_[new_node_idx] = Node(value);
+            return new_node_idx;
         }
 
-        if (value < node->data)
+        if (comp_(value, node_pool_[node_idx].data))
         {
-            node->left = insert(node->left, value);
+            node_pool_[node_idx].left = insert(node_pool_[node_idx].left, value);
         }
-        else if (value > node->data)
+        else if (comp_(node_pool_[node_idx].data, value))
         {
-            node->right = insert(node->right, value);
+            node_pool_[node_idx].right = insert(node_pool_[node_idx].right, value);
         }
         else
         {
             // Duplicate values are not allowed in BST
-            return node;
+            return node_idx;
         }
 
-        node->height = 1 + std::max(height(node->left), height(node->right));
+        node_pool_[node_idx].height =
+            1 + std::max(height(node_pool_[node_idx].left), height(node_pool_[node_idx].right));
 
-        const auto balance = getBalance(node);
+        const auto balance = getBalance(node_idx);
 
         // Left left case
-        if (balance > 1 && comp_(value, node->left->data))
+        if (balance > 1 && comp_(value, node_pool_[node_pool_[node_idx].left].data))
         {
-            return rightRotate(node);
+            return rightRotate(node_idx);
         }
 
         // Right right case
-        if (balance < -1 && comp_(node->right->data, value))
+        if (balance < -1 && comp_(node_pool_[node_pool_[node_idx].right].data, value))
         {
-            return leftRotate(node);
+            return leftRotate(node_idx);
         }
 
         // Left right case
-        if (balance > 1 && comp_(node->left->data, value))
+        if (balance > 1 && comp_(node_pool_[node_pool_[node_idx].left].data, value))
         {
-            node->left = leftRotate(node->left);
-            return rightRotate(node);
+            node_pool_[node_idx].left = leftRotate(node_pool_[node_idx].left);
+            return rightRotate(node_idx);
         }
 
         // Right left case
-        if (balance < -1 && comp_(value, node->right->data))
+        if (balance < -1 && comp_(value, node_pool_[node_pool_[node_idx].right].data))
         {
-            node->right = rightRotate(node->right);
-            return leftRotate(node);
+            node_pool_[node_idx].right = rightRotate(node_pool_[node_idx].right);
+            return leftRotate(node_idx);
         }
 
-        return node;
+        return node_idx;
     }
 
     /// @brief Helper function to search a value in the subtree rooted with node
-    Node* find(Node* node, const T& value) const
+    std::int32_t find(std::int32_t node_idx, const T& value) const
     {
-        if (!node)
+        if (node_idx == -1)
         {
-            return nullptr;
+            return -1;
         }
 
-        if (comp_(value, node->data))
+        if (comp_(value, node_pool_[node_idx].data))
         {
-            return find(node->left, value);
+            return find(node_pool_[node_idx].left, value);
         }
-        else if (comp_(node->data, value))
+        else if (comp_(node_pool_[node_idx].data, value))
         {
-            return find(node->right, value);
+            return find(node_pool_[node_idx].right, value);
         }
         else
         {
-            return node;
+            return node_idx;
         }
     }
 };

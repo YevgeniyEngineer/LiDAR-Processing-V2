@@ -13,7 +13,7 @@ class StaticMapTest : public ::testing::Test
 
     void SetUp() override
     {
-        map_.reserve(100);
+        map_.reserve(10000);
     }
 
     void TearDown() override

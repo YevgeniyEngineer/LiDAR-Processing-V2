@@ -62,8 +62,8 @@ class StaticMap
     /// @brief Insert a value with given key
     void insert(const Key& key, const Value& value)
     {
-        auto it = avl_tree_.find({key, Value()});
-
+        // Check if the key already exists and update the value if it does
+        auto* it = avl_tree_.find({key, Value()});
         if (it)
         {
             it->second = value;
@@ -87,7 +87,7 @@ class StaticMap
 
     const Value& at(const Key& key) const
     {
-        const auto* it = avl_tree_.find(std::make_pair(key, Value()));
+        const auto* it = avl_tree_.find({key, Value()});
         if (!it)
         {
             throw std::out_of_range("Key not found");
@@ -98,12 +98,11 @@ class StaticMap
     Value& operator[](const Key& key) noexcept
     {
         auto* it = avl_tree_.find({key, Value()});
-        return it->second;
-    }
-
-    const Value& operator[](const Key& key) const noexcept
-    {
-        const auto* it = avl_tree_.find({key, Value()});
+        if (!it)
+        {
+            avl_tree_.insert({key, Value()});
+            it = avl_tree_.find({key, Value()});
+        }
         return it->second;
     }
 

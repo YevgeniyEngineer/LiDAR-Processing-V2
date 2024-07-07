@@ -34,7 +34,7 @@ Clusterer::Clusterer()
     voxel_indices_.reserve(200'000);
     voxel_keys_.reserve(200'000);
     voxel_labels_.reserve(200'000);
-    visited_voxels_.reserve(150);
+    visited_voxels_.reserve(200'000);
     cluster_labels_counts_.reserve(200'000);
     cluster_labels_cache_.reserve(200'000);
     voxel_queue_.reserve(200'000);
