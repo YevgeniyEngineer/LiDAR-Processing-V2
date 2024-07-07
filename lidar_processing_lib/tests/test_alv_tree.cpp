@@ -10,7 +10,7 @@ using namespace lidar_processing_lib;
 class AVLTreeTest : public ::testing::Test
 {
   protected:
-    AVLTree tree;
+    AVLTree<std::int32_t> tree;
 
     /// @brief Helper function to insert multiple values into the tree
     void insertValues(const std::vector<std::int32_t>& values)

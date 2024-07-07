@@ -23,6 +23,10 @@
 #ifndef LIDAR_PROCESSING_LIB__STATIC_SET_HPP
 #define LIDAR_PROCESSING_LIB__STATIC_SET_HPP
 
+// Local
+#include "avl_tree.hpp"
+
+// STL
 #include <algorithm>
 #include <array>
 #include <cstdint>

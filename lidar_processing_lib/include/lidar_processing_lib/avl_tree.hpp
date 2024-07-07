@@ -28,121 +28,136 @@
 #include <cstdint>
 #include <iostream>
 #include <memory>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
 namespace lidar_processing_lib
 {
+template <typename T>
 class AVLTree final
 {
+    static_assert(std::is_integral<T>::value, "AVLTree requires an integral type");
+
   public:
-    /// @brief Insert a value into the tree
-    void insert(std::int32_t value)
+    /// @brief Reserve memory for the node pool
+    void reserve(std::size_t capacity)
     {
-        root_ = insert(std::move(root_), value);
+        node_pool_.reserve(capacity);
+    }
+
+    /// @brief Insert a value into the tree
+    void insert(T value)
+    {
+        root_ = insert(root_, value);
     }
 
     /// @brief Public interface to search for a value
-    bool find(std::int32_t value) const
+    bool find(T value) const
     {
-        return find(root_.get(), value);
+        return find(root_, value);
     }
 
     /// @brief Public interface to clear the tree
-    void clear()
+    void clear() noexcept
     {
-        root_.reset();
+        root_ = nullptr;
+        node_pool_.clear();
     }
 
     /// @brief Print all values in the tree
     void printInOrder() const
     {
-        printInOrder(root_.get());
+        printInOrder(root_);
         std::cerr << std::endl;
     }
 
   private:
-    struct Node
+    struct Node final
     {
-        std::int32_t data;
-        std::int32_t height = 1;
-        std::unique_ptr<Node> left = nullptr;
-        std::unique_ptr<Node> right = nullptr;
+        T data;
+        std::int32_t height;
+        Node* left;
+        Node* right;
 
-        Node(std::int32_t value) : data(value)
+        Node(T data, std::int32_t height = 1, Node* left = nullptr, Node* right = nullptr)
+            : data(data), height(height), left(left), right(right)
         {
         }
     };
 
-    std::unique_ptr<Node> root_;
+    std::vector<std::unique_ptr<Node>> node_pool_;
+    Node* root_ = nullptr;
 
     // Print all value (in-order traversal) for debugging
     void printInOrder(const Node* const node) const
     {
         if (node)
         {
-            printInOrder(node->left.get());
+            printInOrder(node->left);
             std::cerr << node->data << " ";
-            printInOrder(node->right.get());
+            printInOrder(node->right);
         }
     }
 
     /// @brief Helper function to get the height of a node
-    inline auto height(const std::unique_ptr<Node>& node) const noexcept
+    inline auto height(const Node* const node) const noexcept
     {
         return node ? node->height : 0;
     }
 
     /// @brief Helper function to get the balance factor of a node
-    inline auto getBalance(const std::unique_ptr<Node>& node) const noexcept
+    inline auto getBalance(const Node* const node) const noexcept
     {
         return node ? height(node->left) - height(node->right) : 0;
     }
 
     /// @brief Right rotate the subtree rooted with y
-    std::unique_ptr<Node> rightRotate(std::unique_ptr<Node> y) const
+    Node* rightRotate(Node* y) const
     {
-        std::unique_ptr<Node> x = std::move(y->left);
-        std::unique_ptr<Node> T2 = std::move(x->right);
+        Node* x = y->left;
+        Node* T2 = x->right;
 
-        x->right = std::move(y);
-        x->right->left = std::move(T2);
-        x->right->height = std::max(height(x->right->left), height(x->right->right)) + 1;
+        x->right = y;
+        y->left = T2;
+
+        y->height = std::max(height(y->left), height(y->right)) + 1;
         x->height = std::max(height(x->left), height(x->right)) + 1;
 
         return x;
     }
 
     /// @brief Left rotate the subtree rooted with x
-    std::unique_ptr<Node> leftRotate(std::unique_ptr<Node> x) const
+    Node* leftRotate(Node* x) const
     {
-        std::unique_ptr<Node> y = std::move(x->right);
-        std::unique_ptr<Node> T2 = std::move(y->left);
+        Node* y = x->right;
+        Node* T2 = y->left;
 
-        y->left = std::move(x);
-        y->left->right = std::move(T2);
+        y->left = x;
+        x->right = T2;
 
-        y->left->height = std::max(height(y->left->left), height(y->left->right)) + 1;
+        x->height = std::max(height(x->left), height(x->right)) + 1;
         y->height = std::max(height(y->left), height(y->right)) + 1;
 
         return y;
     }
 
     /// @brief Helper function to insert a new value into the subtree rooted with node
-    std::unique_ptr<Node> insert(std::unique_ptr<Node> node, std::int32_t value) const
+    Node* insert(Node* node, T value)
     {
         if (!node)
         {
-            return std::make_unique<Node>(value);
+            node_pool_.emplace_back(std::make_unique<Node>(value));
+            return node_pool_.back().get();
         }
 
         if (value < node->data)
         {
-            node->left = insert(std::move(node->left), value);
+            node->left = insert(node->left, value);
         }
         else if (value > node->data)
         {
-            node->right = insert(std::move(node->right), value);
+            node->right = insert(node->right, value);
         }
         else
         {
@@ -157,34 +172,34 @@ class AVLTree final
         // Left left case
         if (balance > 1 && value < node->left->data)
         {
-            return rightRotate(std::move(node));
+            return rightRotate(node);
         }
 
         // Right right case
         if (balance < -1 && value > node->right->data)
         {
-            return leftRotate(std::move(node));
+            return leftRotate(node);
         }
 
         // Left right case
         if (balance > 1 && value > node->left->data)
         {
-            node->left = leftRotate(std::move(node->left));
-            return rightRotate(std::move(node));
+            node->left = leftRotate(node->left);
+            return rightRotate(node);
         }
 
         // Right left case
         if (balance < -1 && value < node->right->data)
         {
-            node->right = rightRotate(std::move(node->right));
-            return leftRotate(std::move(node));
+            node->right = rightRotate(node->right);
+            return leftRotate(node);
         }
 
         return node;
     }
 
     /// @brief Helper function to search a value in the subtree rooted with node
-    bool find(const Node* const node, std::int32_t value) const
+    bool find(const Node* const node, T value) const
     {
         if (!node)
         {
@@ -197,11 +212,11 @@ class AVLTree final
         }
         else if (value < node->data)
         {
-            return find(node->left.get(), value);
+            return find(node->left, value);
         }
         else
         {
-            return find(node->right.get(), value);
+            return find(node->right, value);
         }
     }
 };
