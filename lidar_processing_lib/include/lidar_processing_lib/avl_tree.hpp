@@ -92,14 +92,14 @@ class AVLTree final
     /// @brief Insert a value into the tree and return a pointer to the inserted value
     T* insert(T&& value)
     {
-        root_ = insert_impl(root_, std::forward<T>(value));
+        root_ = insertImpl(root_, std::forward<T>(value));
         return &node_pool_[root_].data;
     }
 
     /// @brief Insert a value into the tree and return a pointer to the inserted value
     T* insert(const T& value)
     {
-        root_ = insert_impl(root_, value);
+        root_ = insertImpl(root_, value);
         return &node_pool_[root_].data;
     }
 
@@ -206,7 +206,7 @@ class AVLTree final
 
     /// @brief Helper function to insert a new value into the subtree rooted with node
     template <typename U>
-    std::int32_t insert_impl(std::int32_t node_idx, U&& value)
+    std::int32_t insertImpl(std::int32_t node_idx, U&& value)
     {
         if (node_idx == -1)
         {
@@ -222,12 +222,12 @@ class AVLTree final
         if (comp_(value, node_pool_[node_idx].data))
         {
             node_pool_[node_idx].left =
-                insert_impl(node_pool_[node_idx].left, std::forward<U>(value));
+                insertImpl(node_pool_[node_idx].left, std::forward<U>(value));
         }
         else if (comp_(node_pool_[node_idx].data, value))
         {
             node_pool_[node_idx].right =
-                insert_impl(node_pool_[node_idx].right, std::forward<U>(value));
+                insertImpl(node_pool_[node_idx].right, std::forward<U>(value));
         }
         else
         {

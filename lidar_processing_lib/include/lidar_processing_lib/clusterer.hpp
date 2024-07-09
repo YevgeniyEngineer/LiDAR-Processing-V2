@@ -28,9 +28,7 @@
 #include "static_map.hpp"
 #include "static_set.hpp"
 #include "static_unordered_map.hpp"
-
-// External
-#include <ankerl/unordered_dense.h>
+#include "static_unordered_set.hpp"
 
 // PCL
 #include <pcl/point_cloud.h>
@@ -127,10 +125,6 @@ class Clusterer
     std::vector<std::int32_t> voxel_indices_;
     std::vector<VoxelKey> voxel_keys_;
 
-    // ankerl::unordered_dense::segmented_map<std::int32_t, ClusterLabel> voxel_labels_;
-    // ankerl::unordered_dense::segmented_set<std::int32_t> visited_voxels_;
-
-    // lidar_processing_lib::StaticMap<std::int32_t, ClusterLabel> voxel_labels_;
     lidar_processing_lib::StaticUnorderedMap<std::int32_t, ClusterLabel> voxel_labels_;
     lidar_processing_lib::StaticSet<std::int32_t> visited_voxels_;
 
