@@ -106,7 +106,7 @@ class AVLTree final
     /// @brief Search for a value
     T* find(const T& value) noexcept
     {
-        const auto node_idx = find_impl(root_, value);
+        const auto node_idx = findImpl(root_, value);
         if (node_idx != -1)
         {
             return &node_pool_[node_idx].data;
@@ -117,7 +117,7 @@ class AVLTree final
     /// @brief Search for a value
     inline const T* find(const T& value) const noexcept
     {
-        const auto node_idx = find_impl(root_, value);
+        const auto node_idx = findImpl(root_, value);
         if (node_idx != -1)
         {
             return &node_pool_[node_idx].data;
@@ -270,7 +270,7 @@ class AVLTree final
     }
 
     /// @brief Helper function to search a value in the subtree rooted with node
-    std::int32_t find_impl(std::int32_t node_idx, const T& value) const noexcept
+    std::int32_t findImpl(std::int32_t node_idx, const T& value) const noexcept
     {
         while (node_idx != -1)
         {
