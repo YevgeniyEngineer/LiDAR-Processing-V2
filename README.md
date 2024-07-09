@@ -21,10 +21,6 @@ git submodule update --init --recursive
 - Bounding Box fitting using Principal Component Analysis
 - Rudimental vehicle classification based on shape matching
 
-The clustering algorithm uses [unordered_dense](https://github.com/martinus/unordered_dense/tree/main?tab=readme-ov-file#4-segmented_map-and-segmented_set) library to speed up calculations and reduce memory usage.
-
-To update submodule, `git submodule update --init --recursive`.
-
 ![segmentation-teaser](https://github.com/YevgeniyEngineer/LiDAR-Processing-V2/blob/main/images/segmentation_teaser.gif)
 
 ![clustering-teaser](https://github.com/YevgeniyEngineer/LiDAR-Processing-V2/blob/main/images/clustering_teaser.gif)

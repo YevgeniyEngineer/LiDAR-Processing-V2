@@ -37,9 +37,6 @@ add_library(${PROJECT_NAME} SHARED
     src/polygonizer.cpp
 )
 
-# Include submodules
-add_subdirectory(./unordered_dense)
-
 # Set library properties
 set_target_properties(${PROJECT_NAME} PROPERTIES
     CXX_STANDARD 17
@@ -76,7 +73,6 @@ target_compile_definitions(${PROJECT_NAME}
 # Link dependent libraries
 target_link_libraries(${PROJECT_NAME}
     PUBLIC
-        unordered_dense
         Eigen3::Eigen
         ${PCL_LIBRARIES}
         ${OpenCV_LIBS}
@@ -90,7 +86,7 @@ set(INSTALL_INCLUDE_DIR "${CMAKE_INSTALL_PREFIX}/include" CACHE PATH "Installati
 set(INSTALL_CMAKE_DIR "${CMAKE_INSTALL_PREFIX}/lib/cmake/${PROJECT_NAME}" CACHE PATH "Installation directory for CMake files")
 
 # Export project installation targets
-install(TARGETS ${PROJECT_NAME} unordered_dense
+install(TARGETS ${PROJECT_NAME}
     EXPORT ${PROJECT_NAME}Targets
     RUNTIME DESTINATION "${INSTALL_BIN_DIR}"
     LIBRARY DESTINATION "${INSTALL_LIB_DIR}"
@@ -100,9 +96,6 @@ install(TARGETS ${PROJECT_NAME} unordered_dense
 
 # Install the headers
 install(DIRECTORY include/ DESTINATION "${INSTALL_INCLUDE_DIR}")
-
-# Install unordered_dense headers
-install(DIRECTORY unordered_dense/include/ DESTINATION "${INSTALL_INCLUDE_DIR}")
 
 # Create a ConfigVersion.cmake file
 include(CMakePackageConfigHelpers)
