@@ -33,7 +33,8 @@ Clusterer::Clusterer()
     spherical_cloud_.reserve(200'000);
     voxel_indices_.reserve(200'000);
     voxel_keys_.reserve(200'000);
-    voxel_labels_.reserve(200'000);
+    // voxel_labels_.reserve(200'000);
+    voxel_labels_.reserve(300'000, 200'000);
     visited_voxels_.reserve(200'000);
     cluster_labels_counts_.reserve(200'000);
     cluster_labels_cache_.reserve(200'000);
@@ -113,8 +114,8 @@ void Clusterer::buildHashTable()
         const std::int32_t voxel_index =
             flatVoxelIndex(range_index, azimuth_index, elevation_index);
 
-        voxel_labels_.insert(voxel_index, INVALID_LABEL);
-        // voxel_labels_[voxel_index] = INVALID_LABEL;
+        // voxel_labels_.insert(voxel_index, INVALID_LABEL);
+        voxel_labels_[voxel_index] = INVALID_LABEL;
         voxel_indices_.push_back(voxel_index);
         voxel_keys_.push_back({range_index, azimuth_index, elevation_index});
     }
