@@ -33,7 +33,7 @@ Clusterer::Clusterer()
     spherical_cloud_.reserve(200'000);
     voxel_indices_.reserve(200'000);
     voxel_keys_.reserve(200'000);
-    voxel_labels_.reserve(300'000, 200'000);
+    voxel_labels_.reserve(262'144, 200'000);
     visited_voxels_.reserve(300'000);
     cluster_labels_counts_.reserve(200'000);
     cluster_labels_cache_.reserve(200'000);
