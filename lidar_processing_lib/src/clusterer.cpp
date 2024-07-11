@@ -113,8 +113,7 @@ void Clusterer::buildHashTable()
         const std::int32_t voxel_index =
             flatVoxelIndex(range_index, azimuth_index, elevation_index);
 
-        // voxel_labels_.insert(voxel_index, INVALID_LABEL);
-        voxel_labels_[voxel_index] = INVALID_LABEL;
+        voxel_labels_.insert(voxel_index, INVALID_LABEL);
         voxel_indices_.push_back(voxel_index);
         voxel_keys_.push_back({range_index, azimuth_index, elevation_index});
     }
@@ -123,135 +122,73 @@ void Clusterer::buildHashTable()
 void Clusterer::clusterImpl(std::vector<ClusterLabel>& labels)
 {
     labels.assign(spherical_cloud_.size(), INVALID_LABEL);
-
     ClusterLabel label = 0;
 
     for (std::uint32_t point_index = 0; point_index < spherical_cloud_.size(); ++point_index)
     {
         const auto core_voxel_index = voxel_indices_[point_index];
-
-        if (voxel_labels_.at(core_voxel_index) != INVALID_LABEL)
+        if (voxel_labels_[core_voxel_index] != INVALID_LABEL)
         {
             continue;
         }
 
-        const auto [range_index, azimuth_index, elevation_index] = voxel_keys_[point_index];
+        const auto& voxel_key = voxel_keys_[point_index];
+        visited_voxels_.clear();
+        visited_voxels_.insert(core_voxel_index);
+        voxel_queue_.push(voxel_key);
 
-        ClusterLabel common_voxel_label = std::numeric_limits<ClusterLabel>::max();
-
-        for (const auto& [i, j, k] : INDEX_OFFSETS_WITHOUT_SELF)
+        while (!voxel_queue_.empty())
         {
-            const std::int32_t range_index_with_offset = range_index + i;
-            auto azimuth_index_with_offset = azimuth_index + j;
-            if (azimuth_index_with_offset < 0)
-            {
-                azimuth_index_with_offset += num_azimuth_;
-            }
-            else if (azimuth_index_with_offset >= num_azimuth_)
-            {
-                azimuth_index_with_offset -= num_azimuth_;
-            }
-            const std::int32_t elevation_index_with_offset = elevation_index + k;
+            const auto& [range_index, azimuth_index, elevation_index] = voxel_queue_.front();
+            voxel_queue_.pop();
+            const auto current_voxel_index =
+                flatVoxelIndex(range_index, azimuth_index, elevation_index);
+            voxel_labels_[current_voxel_index] = label;
 
-            if (range_index_with_offset < 0 || range_index_with_offset >= num_range_ ||
-                elevation_index_with_offset < 0 || elevation_index_with_offset >= num_elevation_)
+            for (const auto& [range_index_offset, azimuth_index_offset, elevation_index_offset] :
+                 INDEX_OFFSETS_WITHOUT_SELF)
             {
-                continue;
-            }
+                const auto range_index_with_offset = range_index + range_index_offset;
+                const auto elevation_index_with_offset = elevation_index + elevation_index_offset;
 
-            const std::int32_t voxel_index = flatVoxelIndex(
-                range_index_with_offset, azimuth_index_with_offset, elevation_index_with_offset);
-
-            ClusterLabel search_label;
-
-            if (voxel_labels_.find(voxel_index, search_label))
-            {
-                if (search_label != INVALID_LABEL)
+                if (range_index_with_offset < 0 || range_index_with_offset >= num_range_ ||
+                    elevation_index_with_offset < 0 ||
+                    elevation_index_with_offset >= num_elevation_)
                 {
-                    common_voxel_label = std::min(common_voxel_label, search_label);
+                    continue;
                 }
-                else
+
+                auto azimuth_index_with_offset = azimuth_index + azimuth_index_offset;
+                if (azimuth_index_with_offset < 0)
                 {
-                    // To allow propagation
-                    search_label = std::numeric_limits<ClusterLabel>::max();
+                    azimuth_index_with_offset += num_azimuth_;
+                }
+                else if (azimuth_index_with_offset >= num_azimuth_)
+                {
+                    azimuth_index_with_offset -= num_azimuth_;
+                }
+
+                const auto neighbour_voxel_index = flatVoxelIndex(range_index_with_offset,
+                                                                  azimuth_index_with_offset,
+                                                                  elevation_index_with_offset);
+
+                if (voxel_labels_.contains(neighbour_voxel_index) &&
+                    (!visited_voxels_.contains(neighbour_voxel_index)))
+                {
+                    voxel_queue_.push({range_index_with_offset,
+                                       azimuth_index_with_offset,
+                                       elevation_index_with_offset});
+                    visited_voxels_.insert(neighbour_voxel_index);
                 }
             }
         }
 
-        if (common_voxel_label == std::numeric_limits<ClusterLabel>::max())
-        {
-            common_voxel_label = label++;
-        }
-
-        // Propagation of label to neighbours of neighbours
-        propagateLabel(common_voxel_label, {range_index, azimuth_index, elevation_index});
+        ++label;
     }
 
     for (std::uint32_t point_index = 0; point_index < spherical_cloud_.size(); ++point_index)
     {
         labels[point_index] = voxel_labels_[voxel_indices_[point_index]];
-    }
-}
-
-void Clusterer::propagateLabel(ClusterLabel label, const VoxelKey& voxel_key)
-{
-    visited_voxels_.clear();
-
-    voxel_queue_.push(voxel_key);
-    visited_voxels_.insert(
-        flatVoxelIndex(voxel_key.range_index, voxel_key.azimuth_index, voxel_key.elevation_index));
-
-    while (!voxel_queue_.empty())
-    {
-        const auto [range_index, azimuth_index, elevation_index] = voxel_queue_.front();
-        voxel_queue_.pop();
-
-        const std::int32_t current_voxel_index =
-            flatVoxelIndex(range_index, azimuth_index, elevation_index);
-
-        voxel_labels_[current_voxel_index] = label;
-
-        for (const auto& [i, j, k] : INDEX_OFFSETS_WITHOUT_SELF)
-        {
-            const std::int32_t range_index_with_offset = range_index + i;
-            auto azimuth_index_with_offset = azimuth_index + j;
-            if (azimuth_index_with_offset < 0)
-            {
-                azimuth_index_with_offset += num_azimuth_;
-            }
-            else if (azimuth_index_with_offset >= num_azimuth_)
-            {
-                azimuth_index_with_offset -= num_azimuth_;
-            }
-            const std::int32_t elevation_index_with_offset = elevation_index + k;
-
-            if (range_index_with_offset < 0 || range_index_with_offset >= num_range_ ||
-                elevation_index_with_offset < 0 || elevation_index_with_offset >= num_elevation_)
-            {
-                continue;
-            }
-
-            const std::int32_t voxel_index = flatVoxelIndex(
-                range_index_with_offset, azimuth_index_with_offset, elevation_index_with_offset);
-
-            if (visited_voxels_.contains(voxel_index))
-            {
-                continue;
-            }
-
-            ClusterLabel search_label;
-
-            if (voxel_labels_.find(voxel_index, search_label))
-            {
-                if (search_label != label && search_label != INVALID_LABEL)
-                {
-                    voxel_queue_.push({range_index_with_offset,
-                                       azimuth_index_with_offset,
-                                       elevation_index_with_offset});
-                    visited_voxels_.insert(voxel_index);
-                }
-            }
-        }
     }
 }
 

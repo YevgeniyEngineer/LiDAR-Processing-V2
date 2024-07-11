@@ -757,9 +757,6 @@ void Processor::run(const PointCloud2& msg)
                     }
                 }
 
-                const auto t_polygonization_stop = std::chrono::steady_clock::now();
-                t_polygonization_total += (t_polygonization_stop - t_polygonization_start);
-
                 [[maybe_unused]] const auto bounding_box_total_time_microsec =
                     std::chrono::duration_cast<std::chrono::microseconds>(bounding_box_total_time)
                         .count();
@@ -772,6 +769,9 @@ void Processor::run(const PointCloud2& msg)
                 //               << " vertices" << std::endl;
                 // }
             }
+
+            const auto t_polygonization_stop = std::chrono::steady_clock::now();
+            t_polygonization_total += (t_polygonization_stop - t_polygonization_start);
 
             // Convert to marker
             polygon_msg_cache_.markers.resize(polygon_msg_cache_.markers.size() + 1);

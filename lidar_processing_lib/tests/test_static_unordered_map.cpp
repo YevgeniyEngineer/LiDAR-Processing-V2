@@ -102,14 +102,20 @@ TEST_F(StaticUnorderedMapTest, Find)
     map_.insert(2, 200);
     map_.insert(3, 300);
 
-    std::int32_t value;
-    EXPECT_TRUE(map_.find(1, value));
-    EXPECT_EQ(value, 100);
-    EXPECT_TRUE(map_.find(2, value));
-    EXPECT_EQ(value, 200);
-    EXPECT_TRUE(map_.find(3, value));
-    EXPECT_EQ(value, 300);
-    EXPECT_FALSE(map_.find(4, value));
+    auto* value_ptr = map_.find(1);
+    EXPECT_TRUE(value_ptr != nullptr);
+    EXPECT_EQ(*value_ptr, 100);
+
+    value_ptr = map_.find(2);
+    EXPECT_TRUE(value_ptr != nullptr);
+    EXPECT_EQ(*value_ptr, 200);
+
+    value_ptr = map_.find(3);
+    EXPECT_TRUE(value_ptr != nullptr);
+    EXPECT_EQ(*value_ptr, 300);
+
+    value_ptr = map_.find(4);
+    EXPECT_FALSE(value_ptr != nullptr);
 }
 
 TEST_F(StaticUnorderedMapTest, RandomInserts)
@@ -130,8 +136,8 @@ TEST_F(StaticUnorderedMapTest, RandomInserts)
 
     for (const auto& [key, value] : reference_map)
     {
-        std::int32_t map_value;
-        EXPECT_TRUE(map_.find(key, map_value));
-        EXPECT_EQ(map_value, value);
+        const auto* map_value_ptr = map_.find(key);
+        ASSERT_TRUE(map_value_ptr != nullptr);
+        EXPECT_EQ(*map_value_ptr, value);
     }
 }

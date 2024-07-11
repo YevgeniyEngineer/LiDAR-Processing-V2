@@ -175,8 +175,6 @@ class Clusterer
 
     void clusterImpl(std::vector<ClusterLabel>& labels);
 
-    void propagateLabel(ClusterLabel label, const VoxelKey& voxel_index);
-
     void removeSmallClusters(std::vector<ClusterLabel>& labels);
 };
 

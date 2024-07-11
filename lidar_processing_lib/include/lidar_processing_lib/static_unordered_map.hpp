@@ -192,7 +192,7 @@ class StaticUnorderedMap final
         throw std::out_of_range{"Key not found"};
     }
 
-    bool find(const Key& key, Value& value) const
+    Value* find(const Key& key) const
     {
         const auto& buffer = buffers_[buffer_index_];
         std::size_t hash = hashKey(key) % buffer.size();
@@ -202,17 +202,16 @@ class StaticUnorderedMap final
         {
             if (!buffer[hash])
             {
-                return false;
+                return nullptr;
             }
             if (buffer[hash]->key == key)
             {
-                value = *(buffer[hash]->value_ptr);
-                return true;
+                return buffer[hash]->value_ptr;
             }
             hash = (hash + 1) & (buffer.size() - 1);
         } while (hash != start);
 
-        return false;
+        return nullptr;
     }
 
     bool contains(const Key& key) const
