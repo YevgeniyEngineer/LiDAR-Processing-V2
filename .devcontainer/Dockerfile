@@ -4,9 +4,6 @@ FROM osrf/ros:humble-desktop
 # Set the default shell to bash
 SHELL ["/bin/bash", "-c"]
 
-# Set the working directory
-WORKDIR /workspace
-
 # Set a non-interactive shell to avoid stuck prompts during build
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -74,14 +71,18 @@ RUN useradd --uid $USER_UID --gid $USER_GID --create-home --home-dir /home/$USER
 RUN echo "$USERNAME ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/$USERNAME
 RUN chmod 0440 /etc/sudoers.d/$USERNAME
 
+# Set the working directory and change ownership
+WORKDIR /home/$USERNAME/workspace
+RUN chown -R $USERNAME:$USERNAME /home/$USERNAME/workspace
+
 # Setup ROS2 environment in the bashrc for interactive bash shells
 RUN echo "source /opt/ros/humble/setup.bash" >> /home/$USERNAME/.bashrc
 
-# Setup GUI forwarding with the correct DISPLAY setting
-RUN echo "export DISPLAY=:1" >> /home/$USERNAME/.bashrc
-
 # Switch to the non-root user
 USER $USERNAME
+
+# Set the entrypoint script inline in the Dockerfile to setup $DISPLAY environment variable
+ENTRYPOINT ["/bin/bash", "-c", "if [ -z \"$DISPLAY\" ]; then echo 'Error: DISPLAY environment variable is not set.'; exit 1; fi; source /home/$USERNAME/.bashrc; exec \"$@\""]
 
 # Command to run on container start
 CMD ["/bin/bash"]
